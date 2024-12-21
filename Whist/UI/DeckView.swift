@@ -32,13 +32,31 @@ struct DeckView: View {
             } else {
                 ForEach(Array(gameState.deck.enumerated()), id: \.element.id) { index, card in
                     let offset = CGFloat(index) * 0.5 // Offset for visual separation
+                    
+                    TransformableCardView(
+                        card: card,
+//                        scale: 1.0,
+//                        rotation: 0,
+                        xOffset: offset,
+                        yOffset: -offset)
 
-                    CardView(card: card)
-                        .offset(x: offset, y: -offset) // Apply small offset for perspective
-                        .frame(width: 60, height: 90) // Standard card size
-                        .zIndex(Double(index)) // Ensure proper stacking order
-                        .matchedGeometryEffect(id: card.id, in: namespace)
-                        .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .scale.combined(with: .opacity)))
+//                    CardView(card: card)
+//                        .offset(x: offset, y: -offset)
+//                        .opacity(card.isPlaceholder ? 0.0 : 1.0)
+//                        .overlay(
+//                            GeometryReader { geometry in
+//                                Color.clear
+//                                    .preference(key: CardTransformPreferenceKey.self, value: [
+//                                        card.id: CardState(
+//                                            position: CGPoint(x: geometry.frame(in: .global).midX + offset, y: geometry.frame(in: .global).midY - offset),
+//                                            rotation: 0,
+//                                            scale: 1.0
+//                                            
+//                                        )
+//                                    ])
+//                            }
+//                        )
+                        .zIndex(Double(index)) // Higher index on top
                 }
             }
         }

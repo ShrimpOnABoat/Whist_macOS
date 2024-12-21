@@ -7,6 +7,20 @@
 
 import SwiftUI
 
+// MARK: - PreferenceKey
+
+struct CardTransformPreferenceKey: PreferenceKey {
+    typealias Value = [String: CardState]
+    
+    static var defaultValue: [String: CardState] = [:]
+    
+    static func reduce(value: inout [String: CardState], nextValue: () -> [String: CardState]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
+// MARK: - GameView
+
 struct GameView: View {
     @EnvironmentObject var gameManager: GameManager
     @Namespace private var cardAnimationNamespace

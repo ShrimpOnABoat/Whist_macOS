@@ -46,10 +46,12 @@ struct PlayerInfoView: View {
                                 if index * 3 + 2 < player.trickCards.count {
                                     ZStack {
                                         ForEach(0..<3, id: \.self) { cardIndex in
-                                            CardView(card: player.trickCards[index * 3 + cardIndex])
-                                                .matchedGeometryEffect(id: player.trickCards[index * 3 + cardIndex].id, in: namespace)
-                                                .frame(width: 20, height: 30)
-                                                .rotationEffect(Angle(degrees: 90))
+//                                            CardView(card: player.trickCards[index * 3 + cardIndex])
+//                                                .matchedGeometryEffect(id: player.trickCards[index * 3 + cardIndex].id, in: namespace)
+//                                                .frame(width: 20, height: 30)
+//                                                .rotationEffect(Angle(degrees: 90))
+
+                                            TransformableCardView(card: player.trickCards[index * 3 + cardIndex], scale: 0.33, rotation: 90)
                                         }
                                     }
                                 } else {
@@ -72,10 +74,11 @@ struct PlayerInfoView: View {
                                     if extraIndex + 2 < player.trickCards.count {
                                         ZStack {
                                             ForEach(0..<3, id: \.self) { cardIndex in
-                                                CardView(card: player.trickCards[extraIndex + cardIndex])
-                                                    .matchedGeometryEffect(id: player.trickCards[extraIndex + cardIndex].id, in: namespace)
-                                                    .frame(width: 20, height: 30)
-                                                    .rotationEffect(Angle(degrees: 90))
+//                                                CardView(card: player.trickCards[extraIndex + cardIndex])
+//                                                    .matchedGeometryEffect(id: player.trickCards[extraIndex + cardIndex].id, in: namespace)
+//                                                    .frame(width: 20, height: 30)
+//                                                    .rotationEffect(Angle(degrees: 90))
+                                                TransformableCardView(card: player.trickCards[extraIndex + cardIndex], scale: 0.33, rotation: 90)
                                             }
                                         }
                                         .hueRotation(Angle(degrees: 90)) // Highlight extra tricks
@@ -116,19 +119,21 @@ struct PlayerInfoView: View {
                             ForEach(0..<player.announcedTricks[gameManager.gameState.round - 1], id: \.self) { index in
                                 if index < (player.trickCards.count / 3) {
                                     ZStack {
-                                        CardView(card: player.trickCards[index])
-                                            .matchedGeometryEffect(id: player.trickCards[index].id, in: namespace)
-                                            .frame(width: 20, height: 30)
-
-                                        CardView(card: player.trickCards[index+1])
-                                            .matchedGeometryEffect(id: player.trickCards[index+1].id, in: namespace)
-                                            .frame(width: 20, height: 30)
-
-                                        CardView(card: player.trickCards[index+2])
-                                            .matchedGeometryEffect(id: player.trickCards[index+2].id, in: namespace)
-                                            .frame(width: 20, height: 30)
+//                                        CardView(card: player.trickCards[index])
+//                                            .matchedGeometryEffect(id: player.trickCards[index].id, in: namespace)
+//                                            .frame(width: 20, height: 30)
+//
+//                                        CardView(card: player.trickCards[index+1])
+//                                            .matchedGeometryEffect(id: player.trickCards[index+1].id, in: namespace)
+//                                            .frame(width: 20, height: 30)
+//
+//                                        CardView(card: player.trickCards[index+2])
+//                                            .matchedGeometryEffect(id: player.trickCards[index+2].id, in: namespace)
+//                                            .frame(width: 20, height: 30)
+                                        TransformableCardView(card: player.trickCards[index], scale: 0.33)
+                                        TransformableCardView(card: player.trickCards[index+1], scale: 0.33)
+                                        TransformableCardView(card: player.trickCards[index+2], scale: 0.33)
                                     }
-                                    .background(Color.accentColor)
                                 } else {
                                     RoundedRectangle(cornerRadius: 4)
                                         .stroke(Color.black, style: StrokeStyle(lineWidth: 2, dash: [5]))
@@ -143,18 +148,23 @@ struct PlayerInfoView: View {
                                 ForEach(0..<(player.madeTricks[gameManager.gameState.round - 1] - player.announcedTricks[gameManager.gameState.round - 1]), id: \.self) { index in
                                     ZStack {
                                         let realIndex = 3 * (index + player.announcedTricks[gameManager.gameState.round - 1])
+                                        
+                                        TransformableCardView(card: player.trickCards[realIndex], scale: 0.33)
+                                        TransformableCardView(card: player.trickCards[realIndex+1], scale: 0.33)
+                                        TransformableCardView(card: player.trickCards[realIndex+2], scale: 0.33)
 
-                                        CardView(card: player.trickCards[realIndex])
-                                            .matchedGeometryEffect(id: player.trickCards[realIndex].id, in: namespace)
-                                            .frame(width: 20, height: 30)
 
-                                        CardView(card: player.trickCards[realIndex + 1])
-                                            .matchedGeometryEffect(id: player.trickCards[realIndex+1].id, in: namespace)
-                                            .frame(width: 20, height: 30)
-
-                                        CardView(card: player.trickCards[realIndex + 2])
-                                            .matchedGeometryEffect(id: player.trickCards[realIndex+2].id, in: namespace)
-                                            .frame(width: 20, height: 30)
+//                                        CardView(card: player.trickCards[realIndex])
+//                                            .matchedGeometryEffect(id: player.trickCards[realIndex].id, in: namespace)
+//                                            .frame(width: 20, height: 30)
+//
+//                                        CardView(card: player.trickCards[realIndex + 1])
+//                                            .matchedGeometryEffect(id: player.trickCards[realIndex+1].id, in: namespace)
+//                                            .frame(width: 20, height: 30)
+//
+//                                        CardView(card: player.trickCards[realIndex + 2])
+//                                            .matchedGeometryEffect(id: player.trickCards[realIndex+2].id, in: namespace)
+//                                            .frame(width: 20, height: 30)
                                     }
                                     .hueRotation(Angle(degrees: 90))
                                 }

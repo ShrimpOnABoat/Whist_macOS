@@ -83,7 +83,8 @@ struct TableView_Previews: PreviewProvider {
         
         return
         ZStack {
-            FeltBackgroundView(wearIntensity: 0)
+            FeltBackgroundView()
+//            FeltBackgroundView(wearIntensity: 0)
             TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace)
                 .environmentObject(gameManager)
                 .previewDisplayName("Table View Preview")

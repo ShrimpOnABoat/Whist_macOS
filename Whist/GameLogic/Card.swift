@@ -49,6 +49,7 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
     @Published var rotation: Double = 0
     @Published var offset: CGFloat = CGFloat.random(in: -10...10)
     @Published var scale: CGFloat = 1.0
+    @Published var isPlaceholder: Bool = false
 
     // Initializer
     init(suit: Suit, rank: Rank) {

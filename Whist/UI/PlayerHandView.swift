@@ -79,30 +79,53 @@ struct PlayerHandView: View {
                 // Align the ZStack so that minX and minY map to zero origin
                 ZStack {
                     ForEach(cardPositions, id: \.0.id) { (card, xOffset, yOffset, rotation) in
-                        CardView(card: card)
-                            .frame(width: cardSize.width, height: cardSize.height)
-                            .rotationEffect(Angle(degrees: rotation))
-                            .offset(
-                                x: xOffset - minX - computedWidth/2,  // Shift so minX aligns with the left of the ZStack
-                                y: yOffset - minY - computedHeight/2   // Shift so minY aligns with the top of the ZStack
-                            )
-                            .matchedGeometryEffect(id: card.id, in: namespace)
-                            .transition(
-                                .asymmetric(
-                                    insertion: AnyTransition.modifier(
-                                        active: CustomRotationModifier(
-                                            rotation: 0,
-                                            finalRotation: rotation,
-                                            offset: CGSize(width: 0, height: geometry.size.height)
-                                        ),
-                                        identity: CustomRotationModifier(
-                                            rotation: rotation,
-                                            finalRotation: rotation,
-                                            offset: .zero
-                                        )
-                                    ),
-                                    removal: .scale.combined(with: .opacity)
-                            ))
+//                        CardView(card: card)
+//                            .frame(width: cardSize.width, height: cardSize.height)
+//                            .rotationEffect(Angle(degrees: rotation))
+//                            .offset(
+//                                x: xOffset - minX - computedWidth/2,  // Shift so minX aligns with the left of the ZStack
+//                                y: yOffset - minY - computedHeight/2   // Shift so minY aligns with the top of the ZStack
+//                            )
+//                            .matchedGeometryEffect(id: card.id, in: namespace)
+//                            .transition(
+//                                .asymmetric(
+//                                    insertion: AnyTransition.modifier(
+//                                        active: CustomRotationModifier(
+//                                            rotation: 0,
+//                                            finalRotation: rotation,
+//                                            offset: CGSize(width: 0, height: geometry.size.height)
+//                                        ),
+//                                        identity: CustomRotationModifier(
+//                                            rotation: rotation,
+//                                            finalRotation: rotation,
+//                                            offset: .zero
+//                                        )
+//                                    ),
+//                                    removal: .scale.combined(with: .opacity)
+//                            ))
+
+                        
+                        let cardXOffset = xOffset - minX - computedWidth/2
+                        let cardYOffset = yOffset - minY - computedHeight/2
+                        TransformableCardView(card: card, rotation: rotation, xOffset: cardXOffset, yOffset: cardYOffset)
+//                        CardView(card: card)
+//                            .scaleEffect(1.0)
+//                            .rotationEffect(Angle(degrees: rotation))
+//                            .offset(x: cardXOffset, y: cardYOffset)
+//                            .opacity(card.isPlaceholder ? 0.0 : 1.0)
+//                            .overlay(
+//                                GeometryReader { geometry in
+//                                    Color.clear
+//                                        .preference(key: CardTransformPreferenceKey.self, value: [
+//                                            card.id: CardState(
+//                                                position: CGPoint(x: geometry.frame(in: .global).midX + cardXOffset, y: geometry.frame(in: .global).midY + cardYOffset),
+//                                                rotation: rotation,
+//                                                scale: 1.0
+//                                            )
+//                                        ])
+//                                }
+//                            )
+
                     }
                 }
                 .animation(.smooth(duration: 0.3), value: player.hand)
@@ -138,12 +161,12 @@ struct PlayerHandView: View {
         var newYOffset = yOffset
         var newRotation = rotation
         
-        if isLeft {
+        if isRight {
             let temp = newXOffset
             newXOffset = newYOffset
             newYOffset = -temp
             newRotation += 90
-        } else if isRight {
+        } else if isLeft {
             let temp = newXOffset
             newXOffset = -newYOffset
             newYOffset = temp
@@ -173,10 +196,10 @@ struct PlayerHandView_Previews: PreviewProvider {
                 .previewDisplayName("Local Player Hand View Preview")
             PlayerHandView(player: leftPlayer, namespace: cardAnimationNamespace)
                 .environmentObject(gameManager)
-                .previewDisplayName("Local Player Hand View Preview")
+                .previewDisplayName("Left Player Hand View Preview")
             PlayerHandView(player: rightPlayer, namespace: cardAnimationNamespace)
                 .environmentObject(gameManager)
-                .previewDisplayName("Local Player Hand View Preview")
+                .previewDisplayName("Right Player Hand View Preview")
             
         }
         .previewLayout(.sizeThatFits)

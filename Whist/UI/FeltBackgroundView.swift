@@ -341,7 +341,7 @@ func randomGaussian(mean: Double, deviation: Double) -> Double {
 // MARK: - Preview
 struct FeltBackgroundView_Previews: PreviewProvider {
     static var previews: some View {
-        FeltBackgroundView(wearIntensity: 1)
+        FeltBackgroundView()
         .previewDisplayName("High-Quality Felt Surface")
         .previewLayout(.fixed(width: 800, height: 600))
         .padding()
