@@ -1,5 +1,14 @@
+//
+//  RandomLCG.swift
+//  Whist
+//
+//  Created by Tony Buffard on 2024-12-23.
+//
+
+
 import SwiftUI
 import Foundation
+import AppKit
 
 // MARK: - Replicate the Random() logic as RandomLCG
 struct RandomLCG {
@@ -30,17 +39,18 @@ struct RandomLCG {
     }
 }
 
-// MARK: - PerlinSampler2D replicates your Perlin gradient logic
 struct PerlinSampler2D {
     let width: Int
     let height: Int
+    let period: Int // Period for tiling
     
     // Each cell has (gx, gy) gradient => 2 floats
     var gradients: [CGFloat]
     
-    init(width: Int, height: Int, randSeed: Int) {
+    init(width: Int, height: Int, period: Int, randSeed: Int) {
         self.width = width
         self.height = height
+        self.period = period
         self.gradients = .init(repeating: 0, count: width * height * 2)
         
         // Initialize gradients with random directions
@@ -50,13 +60,22 @@ struct PerlinSampler2D {
             let x = sin(angle)
             let y = cos(angle)
             gradients[i] = CGFloat(x)
-            gradients[i+1] = CGFloat(y)
+            gradients[i + 1] = CGFloat(y)
         }
     }
     
-    /// Dot-product with the gradient at (cellX, cellY)
+    /// Dot-product with the gradient at (cellX, cellY), accounting for tiling
     func dot(cellX: Int, cellY: Int, vx: CGFloat, vy: CGFloat) -> CGFloat {
-        let idx = (cellX + cellY * width) * 2
+        // Wrap around using modulo with period
+        let wrappedX = (cellX % period + period) % period
+        let wrappedY = (cellY % period + period) % period
+        let idx = (wrappedX + wrappedY * width) * 2 % gradients.count
+        
+        // Ensure idx is within bounds of the gradients array
+        guard idx >= 0 && idx + 1 < gradients.count else {
+            return 0 // Return a safe default value
+        }
+        
         let gx = gradients[idx]
         let gy = gradients[idx + 1]
         return gx * vx + gy * vy
@@ -64,8 +83,8 @@ struct PerlinSampler2D {
     
     /// Smoothstep (s-curve)
     func sCurve(_ t: CGFloat) -> CGFloat {
-        // Equivalent to 3t^2 - 2t^3
-        return t * t * (3 - 2 * t)
+        // Equivalent to 6t^5 - 15t^4 + 10t^3
+        return t * t * t * (t * (t * 6 - 15) + 10)
     }
     
     /// Linear interpolation
@@ -73,25 +92,21 @@ struct PerlinSampler2D {
         a + t * (b - a)
     }
     
-    /// Sample Perlin value in [-1, 1] at coordinate (x, y)
+    /// Sample Perlin value in [-1, 1] at coordinate (x, y), with tiling
     func getValue(_ x: CGFloat, _ y: CGFloat) -> CGFloat {
-        // integer cells
-        let xCell = Int(floor(x))
-        let yCell = Int(floor(y))
+        // Integer cells
+        let xCell = Int(floor(x)) % period
+        let yCell = Int(floor(y)) % period
         
-        // fractional part
+        // Fractional part
         let xFrac = x - floor(x)
         let yFrac = y - floor(y)
         
-        // wrap around edges
-        let x1 = (xCell == width - 1)  ? 0 : (xCell + 1)
-        let y1 = (yCell == height - 1) ? 0 : (yCell + 1)
-        
         // Dot products at the 4 corners
-        let v00 = dot(cellX: xCell, cellY: yCell, vx: xFrac,       vy: yFrac)
-        let v10 = dot(cellX: x1,     cellY: yCell, vx: xFrac - 1,  vy: yFrac)
-        let v01 = dot(cellX: xCell,  cellY: y1,    vx: xFrac,      vy: yFrac - 1)
-        let v11 = dot(cellX: x1,     cellY: y1,    vx: xFrac - 1,  vy: yFrac - 1)
+        let v00 = dot(cellX: xCell, cellY: yCell, vx: xFrac, vy: yFrac)
+        let v10 = dot(cellX: xCell + 1, cellY: yCell, vx: xFrac - 1, vy: yFrac)
+        let v01 = dot(cellX: xCell, cellY: yCell + 1, vx: xFrac, vy: yFrac - 1)
+        let v11 = dot(cellX: xCell + 1, cellY: yCell + 1, vx: xFrac - 1, vy: yFrac - 1)
         
         // Interpolate horizontally
         let tx = sCurve(xFrac)
@@ -114,7 +129,7 @@ struct PerlinNoiseOverlay: View {
     var noiseHeight: Int = 256
     
     /// “Period” controls the frequency of the noise (bigger => smaller features).
-    var period: CGFloat = 64
+    var period: Int = 64
     
     /// The random seed for reproducible noise.
     var randSeed: Int = 1
@@ -123,15 +138,23 @@ struct PerlinNoiseOverlay: View {
     /// For large screens, using tileSize > 1 is faster (fewer fills).
     var tileSize: Int = 1
     
+    /// Base color for the felt fabric
+    var baseColor: Color = Color(red: 34/255, green: 139/255, blue: 34/255)
+    
+    var method: Int
+    var level: CGFloat
+    
     var body: some View {
         Canvas { context, size in
             // 1) Create sampler sized to "ceil(width/period), ceil(height/period)"
-            let samplerWidth = Int(ceil(CGFloat(noiseWidth) / period))
-            let samplerHeight = Int(ceil(CGFloat(noiseHeight) / period))
+
+            let samplerWidth = Int(noiseWidth / period)
+            let samplerHeight = Int(noiseHeight / period)
             
             let sampler = PerlinSampler2D(
                 width: max(1, samplerWidth),
                 height: max(1, samplerHeight),
+                period: period,
                 randSeed: randSeed
             )
             
@@ -141,21 +164,22 @@ struct PerlinNoiseOverlay: View {
             for y in stride(from: 0, to: noiseHeight, by: tileSize) {
                 for x in stride(from: 0, to: noiseWidth, by: tileSize) {
                     // scaled sample coordinates
-                    let val = sampler.getValue(
-                        CGFloat(x) / period,
-                        CGFloat(y) / period
+                    var val = sampler.getValue(
+                        CGFloat(x) / CGFloat(period),
+                        CGFloat(y) / CGFloat(period)
                     )
-                    // Map [-1, 1] to [0,1]
-                    let normalized = (val + 1) / 2
-                    // Convert to 0...1 gray
-                    let gray = max(0, min(1, normalized))
                     
-                    // Convert gray to SwiftUI Color
-                    let color = Color(
-                        red: Double(gray),
-                        green: Double(gray),
-                        blue: Double(gray)
-                    )
+                    //                    let normalized = max(0, min(1, (val + 1) / 2))
+                    if method == 1 { val = compressValueExp(val, exponent: level) }
+                    if method == 2 { val = compressValueLinear(val, factor: level) }
+                    if method == 3 { val = compressValueTanh(val, factor: level) }
+                    let normalized = val / 2 + 1
+                    
+                    
+                    // Multiply each channel by the normalized factor
+                    let color = baseColor
+                        .opacity(1.0)
+                        .withRGBMultiplication(normalized)
                     
                     // Fill tileSize × tileSize rectangle at (x, y)
                     let rect = CGRect(
@@ -171,31 +195,157 @@ struct PerlinNoiseOverlay: View {
         .frame(width: CGFloat(noiseWidth), height: CGFloat(noiseHeight))
         // You can remove the .frame(...) if you want the view to dynamically resize.
     }
+    
+    func compressValueExp(_ value: CGFloat, exponent: CGFloat) -> CGFloat {
+        let sign: CGFloat = value < 0 ? -1 : 1
+        return sign * pow(abs(value), exponent)
+    }
+    func compressValueLinear(_ value: CGFloat, factor: CGFloat) -> CGFloat {
+        return value * factor
+    }
+    func compressValueTanh(_ value: CGFloat, factor: CGFloat) -> CGFloat {
+        return tanh(value * factor)
+    }
+}
+
+
+struct TilingPerlinView: View {
+    var color: Color
+    var noiseWidth: Int
+    var noiseHeight: Int
+    var period: Int
+    var randSeed: Int
+    var tileSize: Int
+    var method: Int
+    var level: CGFloat
+    var scale: CGFloat
+    
+    @State private var renderedImage: Image? // Holds the rendered image
+    
+    var body: some View {
+        let perlinView = PerlinNoiseOverlay(
+            noiseWidth: noiseWidth,
+            noiseHeight: noiseHeight,
+            period: period,
+            randSeed: randSeed,
+            tileSize: tileSize,
+            baseColor: color,
+            method: method,
+            level: level
+        )
+        
+        // Render the PerlinNoiseOverlay into a CGImage
+        if let renderedImage = TilingPerlinView.renderContentToCGImage(perlinView: perlinView) {
+            return AnyView(
+                Image(decorative: renderedImage, scale: scale, orientation: .up)
+                    .resizable(resizingMode: .tile)
+//                    .frame(width: 1024, height: 1024)
+            )
+        } else {
+            return AnyView(Text("Failed to render image"))
+        }
+    }
+    
+    static func renderContentToCGImage(perlinView: PerlinNoiseOverlay) -> CGImage? {
+        let renderer = ImageRenderer(content: perlinView.frame(width: 4096, height: 4096))
+        return renderer.cgImage
+    }
 }
 
 struct PerlinNoiseOverlay_Previews: PreviewProvider {
+    
     static var previews: some View {
-        VStack(spacing: 20) {
-            // A small Perlin patch
-            PerlinNoiseOverlay(
-                noiseWidth: 256,
-                noiseHeight: 256,
-                period: 32,
-                randSeed: 1234,
-                tileSize: 1
-            )
-            .border(Color.gray, width: 1)
+        
+        let color = Color(red: 0, green: 128/255, blue: 128/255)
+        let noiseWidth = 4096
+        let noiseHeight = 4096
+        let period = 128
+        let randSeed = Int.random(in: 1...10000)
+        let tileSize = 64
+        let method = 0
+        let level: CGFloat = 1
+        let scale: CGFloat = 64
+        
+        let parameters = """
+        Noise Width: \(noiseWidth)
+        Noise Height: \(noiseHeight)
+        Period: \(period)
+        Random Seed: \(randSeed)
+        Tile Size: \(tileSize)
+        Method: \(method)
+        Level: \(level)
+        Scale: \(scale)
+        """
+        
+        let tilingView = TilingPerlinView(
+            color: color,
+            noiseWidth: noiseWidth,
+            noiseHeight: noiseHeight,
+            period: period,
+            randSeed: randSeed,
+            tileSize: tileSize,
+            method: method,
+            level: level,
+            scale: scale
+        )
+        
+        return ZStack(alignment: .topLeading) {
+            tilingView
+                .frame(width: 1024, height: 1024) // Adjust frame size for preview
+                .border(Color.gray, width: 1) // Optional border for visualization
             
-            // A larger tile size => faster rendering, chunkier
-            PerlinNoiseOverlay(
-                noiseWidth: 256,
-                noiseHeight: 256,
-                period: 64,
-                randSeed: 555,
-                tileSize: 4
-            )
-            .border(Color.gray, width: 1)
+            VStack {
+                Text(parameters)
+                    .font(.system(size: 12, weight: .regular, design: .monospaced))
+                    .padding()
+                    .background(Color.black.opacity(0.7))
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                    .padding()
+                
+                Spacer()
+                
+                
+                // Save Button
+                Button("Save as Image") {
+                    // Call the snapshot() extension on TilingPerlinView
+                    guard let nsImage = tilingView.snapshot() else {
+                        print("Snapshot failed")
+                        return
+                    }
+                    
+                    // Convert NSImage -> CGImage
+                    guard let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+                        print("Failed to create CGImage")
+                        return
+                    }
+                    
+                    // Convert CGImage -> NSBitmapImageRep -> Data
+                    let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+                    guard let data = bitmapRep.representation(using: .png, properties: [:]) else {
+                        print("Failed to create PNG data")
+                        return
+                    }
+                    
+                    let fileURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("\(method)_\(level) - \(period) - \(tileSize) - \(scale).png")
+                    
+                    do {
+                        try data.write(to: fileURL)
+                        print("Image saved to \(fileURL.path)")
+                    } catch {
+                        print("Failed to save image: \(error)")
+                    }
+                }
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+                .padding(.leading)
+                
+                Spacer()
+            }
         }
-        .padding()
     }
 }
+

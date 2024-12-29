@@ -29,7 +29,7 @@ extension GameManager {
                     print("Waiting for all players to connect...")
                     return
                 }
-
+                print("Game phase: \(self.currentPhase). Calling setupGame()")
                 self.setupGame()
                 self.checkAndAdvanceStateIfNeeded()
             }

@@ -52,10 +52,11 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
     @Published var isPlaceholder: Bool = false
 
     // Initializer
-    init(suit: Suit, rank: Rank) {
-        self.id = "\(suit.rawValue)_\(rank.rawValue)"
+    init(suit: Suit, rank: Rank, isPlaceholder: Bool = false) {
         self.suit = suit
         self.rank = rank
+        self.isPlaceholder = isPlaceholder
+        self.id = "\(suit.rawValue)_\(rank.rawValue)" + (isPlaceholder ? "_placeholder" : "")
     }
 
     // Codable conformance

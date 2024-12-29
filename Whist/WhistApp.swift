@@ -12,9 +12,10 @@ struct WhistApp: App {
     @StateObject private var gameManager = GameManager()
     @StateObject private var gameKitManager = GameKitManager()
     @StateObject private var connectionManager = ConnectionManager()
+    @StateObject var preferences = Preferences()
 
     var body: some Scene {
-        Window("Whist", id: "mainWindow") {
+        WindowGroup {
             ContentView()
                 .environmentObject(gameManager)
                 .environmentObject(gameKitManager)
@@ -27,5 +28,127 @@ struct WhistApp: App {
                 }
         }
         .defaultSize(width: 800, height: 600)
+    
+        Settings {
+            PreferencesView()
+                .environmentObject(preferences)
+        }
+    }
+}
+
+
+class Preferences: ObservableObject {
+    @AppStorage("selectedFeltIndex") var selectedFeltIndex: Int = 0
+    @AppStorage("wearIntensity") var wearIntensity: Double = 0.5
+    @AppStorage("motifVisibility") var motifVisibility: Double = 0.5
+    @AppStorage("patternOpacity") var patternOpacity: Double = 0.5
+    @AppStorage("patternScale") private var patternScaleStorage: Double = 0.5
+
+    var patternScale: CGFloat {
+        get { CGFloat(patternScaleStorage) }
+        set { patternScaleStorage = Double(newValue) }
+    }
+    
+    let availableFelts: [Color] = [
+        Color(red: 34/255, green: 139/255, blue: 34/255), // Classic Green
+        Color(red: 0, green: 0, blue: 139/255),           // Deep Blue
+        Color(red: 139/255, green: 0, blue: 0),           // Wine Red
+        Color(red: 75/255, green: 0, blue: 130/255),      // Royal Purple
+        Color(red: 0, green: 128/255, blue: 128/255),     // Teal
+        Color(red: 54/255, green: 69/255, blue: 79/255),  // Charcoal Gray
+        Color(red: 205/255, green: 92/255, blue: 0/255),  // Burnt Orange
+        Color(red: 34/255, green: 90/255, blue: 34/255),  // Forest Green
+        Color(red: 139/255, green: 69/255, blue: 19/255), // Chocolate Brown
+        Color(red: 220/255, green: 20/255, blue: 60/255)  // Crimson Red
+    ]
+
+    var currentFelt: Color {
+        availableFelts[selectedFeltIndex]
+    }
+}
+
+struct PreferencesView: View {
+    @EnvironmentObject var preferences: Preferences
+    @State private var isRandom: Bool = false // State for the checkbox
+
+    var body: some View {
+        Form {
+            // "Choisir au hasard" Toggle
+            Section {
+                Toggle("Choisir au hasard", isOn: $isRandom)
+            }
+
+            // Felt Color Picker
+            Section(header: Text("Couleur du tapis")) {
+                HStack {
+                    Picker("Couleur du tapis", selection: $preferences.selectedFeltIndex) {
+                        ForEach(0..<preferences.availableFelts.count, id: \.self) { idx in
+                            HStack {
+                                Circle()
+                                    .fill(preferences.availableFelts[idx])
+                                    .frame(width: 20, height: 20)
+                                Text(feltName(for: idx))
+                            }
+                        }
+                    }
+                    .disabled(isRandom) // Disable when "Choisir au hasard" is checked
+
+                    // Square showing the actual selected color
+                    Rectangle()
+                        .fill(preferences.currentFelt)
+                        .frame(width: 30, height: 30)
+                        .cornerRadius(4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                        )
+                }
+            }
+
+            // Other Controls
+            Section {
+                Slider(value: $preferences.wearIntensity, in: 0...1, step: 0.25) {
+                    Text("Intensité de l'usure")
+                }
+                .disabled(isRandom) // Disable when "Choisir au hasard" is checked
+            }
+
+            Section {
+                Slider(value: $preferences.motifVisibility, in: 0...1, step: 0.1) {
+                    Text("Visibilité du motif")
+                }
+                .disabled(isRandom) // Disable when "Choisir au hasard" is checked
+            }
+
+            Section {
+                Slider(value: $preferences.patternScale, in: 0.1...0.8, step: 0.1) {
+                    Text("Taille du motif")
+                }
+                .disabled(isRandom) // Disable when "Choisir au hasard" is checked
+            }
+        }
+        .padding()
+        .frame(minWidth: 300, minHeight: 400)
+        .onChange(of: isRandom) { oldValue, newValue in
+            if newValue {
+                preferences.selectedFeltIndex = Int.random(in: 0..<preferences.availableFelts.count)
+            }
+        }
+    }
+
+    func feltName(for index: Int) -> String {
+        let names = [
+            "Vert Classique",
+            "Bleu Profond",
+            "Rouge Vin",
+            "Violet Royal",
+            "Sarcelle",
+            "Gris Charbon",
+            "Orange Brûlé",
+            "Vert Forêt",
+            "Marron Chocolat",
+            "Rouge Écarlate"
+        ]
+        return names.indices.contains(index) ? names[index] : "Couleur Inconnue"
     }
 }

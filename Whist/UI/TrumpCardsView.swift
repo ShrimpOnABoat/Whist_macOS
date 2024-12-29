@@ -14,13 +14,8 @@ struct TrumpView: View {
     var body: some View {
         ZStack {
             ForEach(Array(gameManager.gameState.trumpCards.enumerated()), id: \.element.id) { index, card in
-                let offset = CGFloat(index) * 1 // Offset for visual separation
-
-                CardView(card: card)
-                    .offset(x: offset, y: -offset) // Apply small offset for perspective
-                    .frame(width: 60, height: 90) // Standard card size
-                    .zIndex(Double(index)) // Ensure proper stacking order
-                    .matchedGeometryEffect(id: card.id, in: namespace)
+                let offset = CGFloat(index) // Offset for visual separation
+                TransformableCardView(card: card, xOffset: offset, yOffset: -offset)
                     .hueRotation(Angle(degrees: -90))
             }
         }

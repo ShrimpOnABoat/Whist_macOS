@@ -53,7 +53,9 @@ struct CardView: View {
 // MARK: TransformableCardView
 
 struct TransformableCardView: View {
-    let card: Card
+    @EnvironmentObject var gameManager: GameManager
+
+    @ObservedObject var card: Card // Observe changes
     let scale: CGFloat
     let rotation: Double
     let xOffset: CGFloat
@@ -93,7 +95,7 @@ struct TransformableCardView: View {
     }
 }
 
-
+	
 // MARK: - Preview
 
 struct CardView_Previews: PreviewProvider {

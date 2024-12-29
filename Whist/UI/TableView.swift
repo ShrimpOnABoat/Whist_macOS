@@ -20,7 +20,7 @@ struct TableView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                let offset: CGFloat = 50
+                let offset: CGFloat = 40
                 let localOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
                 let leftOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
                 let rightOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
@@ -33,11 +33,7 @@ struct TableView: View {
                    let localIndex = gameState.playOrder.firstIndex(of: localPlayer.id),
                    localIndex < gameState.table.count {
                     let card = gameState.table[localIndex]
-                    CardView(card: card)
-                        .rotationEffect(Angle(degrees: card.rotation + localAngle))
-                        .frame(width: 60, height: 90)
-                        .offset(x: localOffset.x, y: card.offset + localOffset.y)
-                        .matchedGeometryEffect(id: card.id, in: namespace)
+                    TransformableCardView(card: card, rotation: card.rotation + localAngle, xOffset: localOffset.x, yOffset: card.offset + localOffset.y)
                         .zIndex(Double(localIndex))
                 }
                 
@@ -46,11 +42,7 @@ struct TableView: View {
                    let leftIndex = gameState.playOrder.firstIndex(of: leftPlayer.id),
                    leftIndex < gameState.table.count {
                     let card = gameState.table[leftIndex]
-                    CardView(card: card)
-                        .rotationEffect(Angle(degrees: card.rotation + leftAngle + CGFloat(90)))
-                        .frame(width: 60, height: 90)
-                        .offset(x: -offset + card.offset + leftOffset.x, y: -offset + leftOffset.y)
-                        .matchedGeometryEffect(id: card.id, in: namespace)
+                    TransformableCardView(card: card, rotation: card.rotation + leftAngle + CGFloat(90), xOffset: -offset + card.offset + leftOffset.x, yOffset: -offset + leftOffset.y)
                         .zIndex(Double(leftIndex))
                 }
                 
@@ -59,11 +51,7 @@ struct TableView: View {
                    let rightIndex = gameState.playOrder.firstIndex(of: rightPlayer.id),
                    rightIndex < gameState.table.count {
                     let card = gameState.table[rightIndex]
-                    CardView(card: card)
-                        .rotationEffect(Angle(degrees: card.rotation + CGFloat(90)))
-                        .frame(width: 60, height: 90)
-                        .offset(x: offset + card.offset + rightOffset.x, y: -offset + rightOffset.y)
-                        .matchedGeometryEffect(id: card.id, in: namespace)
+                    TransformableCardView(card: card, rotation: card.rotation + rightAngle + CGFloat(90), xOffset: offset + card.offset + rightOffset.x, yOffset: -offset + rightOffset.y)
                         .zIndex(Double(rightIndex))
                 }
             }
@@ -81,14 +69,14 @@ struct TableView_Previews: PreviewProvider {
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
         
-        return
-        ZStack {
-            FeltBackgroundView()
-//            FeltBackgroundView(wearIntensity: 0)
-            TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace)
-                .environmentObject(gameManager)
-                .previewDisplayName("Table View Preview")
-                .previewLayout(.fixed(width: 600, height: 400))
-        }
+        return (
+            ZStack {
+//                FeltBackgroundView()
+                TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace)
+                    .environmentObject(gameManager)
+                    .previewDisplayName("Table View Preview")
+                    .previewLayout(.fixed(width: 600, height: 400))
+            }
+        )
     }
 }

@@ -13,6 +13,7 @@ enum GamePhase {
     case newGame                // Setup a new game
     case setupNewRound          // setup the new round
     case waitingForDeck         // Waiting for the dealer to shuffle the deck
+    case renderingDeck          // Make sure the cards' cardState are initialized before dealing
     case dealingCards           // Dealing cards to players
     case choosingTrump          // Local player choose a trump suit
     case waitingForTrump        // Waiting for a player to pick trump
@@ -53,10 +54,18 @@ extension GameManager {
         case .setupNewRound:
             newGameRound()
             if connectionManager?.localPlayerID == gameState.dealer {
-                transition(to: .dealingCards)
+                if !isDeckReady {
+                    transition(to: .renderingDeck)
+                } else {
+                    transition(to: .dealingCards)
+                }
             } else {
                 transition(to: .waitingForDeck)
             }
+            
+        case .renderingDeck:
+            // Mark that the deck is NOT measured yet
+            isDeckReady = false
             
         case .waitingForDeck:
             // remove cards from tricks, hands and table and bring them back to the deck
@@ -75,8 +84,8 @@ extension GameManager {
                 sendDeckToPlayers()
             }
             
-            dealCards {
-                self.showCards()
+            dealCards {[weak self] in
+                guard let self = self else { return }
                 
                 // After dealing, decide what’s next:
                 if self.gameState.round < 4 { // Rounds with 1 card
@@ -141,6 +150,7 @@ extension GameManager {
             for i in localPlayer.hand.indices {
                 localPlayer.hand[i].isFaceDown = false
             }
+
             transition(to: .playingTricks)
             
         case .playingTricks:
@@ -186,6 +196,8 @@ extension GameManager {
             break
         }
     }
+    
+    // MARK: checkAndAdvanceStateIfNeeded
 
     // Call this after actions come in or after dealing
     // to see if conditions are met to move to next phase
@@ -198,14 +210,12 @@ extension GameManager {
             }
             break
             
-        case .waitingForDeck:
-            print("checkAndAdvanceStateIfNeeded: check if deck ready")
+        case .renderingDeck, .waitingForDeck:
             if isDeckReady {
-                isDeckReady = false
-                print("checkAndAdvanceStateIfNeeded: it is!")
+                // Now that the deck is measured, let’s move to dealingCards
+//                isDeckReady = false // No need, only at launch of the game...
                 transition(to: .dealingCards)
             }
-            break
 
         case .dealingCards:
             // This state is handled in handleStateTransition

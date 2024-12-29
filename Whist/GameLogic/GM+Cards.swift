@@ -11,6 +11,8 @@ import SwiftUI
 extension GameManager {
     // functions dealing with the cards
     
+    // MARK: initializeCards
+    
     func initializeCards() {
         // Create the deck cards, the trump ones are already defined
         for suit in Suit.allCases {
@@ -25,6 +27,8 @@ extension GameManager {
             fatalError("Something went wrong creating the deck")
         }
     }
+    
+    // MARK: gatherCards
     
     func gatherCards() {
         for i in 0...2 {
@@ -61,16 +65,19 @@ extension GameManager {
         }
     }
     
+    // MARK: shuffleCards
+    
     func shuffleCards () {
         // Shufle the deck
         gameState.deck.shuffle()
     }
     
+    // MARK: updateDeck
+    
     func updateDeck(with data: Data) {
         // Make deck same as dealer's
         if let newDeck = try? JSONDecoder().decode([Card].self, from: data) {
             gameState.deck = newDeck
-//            updateDeckOrder(with: newDeck)
             print("Deck updated with \(newDeck.count) cards.")
             isDeckReady = true
             checkAndAdvanceStateIfNeeded()
@@ -79,16 +86,7 @@ extension GameManager {
         }
     }
     
-    func updateDeckOrder(with newDeck: [Card]) {
-        // Sort the existing cards array to match the order in the newDeck
-        gameState.deck.sort { card1, card2 in
-            guard let index1 = newDeck.firstIndex(where: { $0.suit == card1.suit && $0.rank == card1.rank }),
-                  let index2 = newDeck.firstIndex(where: { $0.suit == card2.suit && $0.rank == card2.rank }) else {
-                return false
-            }
-            return index1 < index2
-        }
-    }
+    // MARK: dealCards
     
     func dealCards(completion: @escaping () -> Void) {
         var cardsToDeal: Int
@@ -147,7 +145,10 @@ extension GameManager {
         var currentIndex = 0
         
         func dealNextCard() {
-            guard !gameState.deck.isEmpty else { return }
+            guard !gameState.deck.isEmpty else {
+                completion()
+                return
+            }
             
             // Get the current player
             let playerID = gameState.playOrder[currentIndex]
@@ -158,14 +159,24 @@ extension GameManager {
             }
             
             // Move card to player's hand with animation
-            withAnimation(.smooth(duration: 5)) {
-                // Deal a card to the current player
-                if let card = gameState.deck.popLast() {
-                    card.isFaceDown = true
-                    gameState.getPlayer(by: playerID).hand.append(card)
-                    cardsPerPlayer[playerID] = remainingCards - 1
-                    print("\(playerID.rawValue) receives \(card)")
+            if let card = gameState.deck.last
+            {
+                card.isFaceDown = true
+                var destination: CardPlace = .localPlayer
+                switch (gameState.getPlayer(by: playerID).tablePosition ) {
+                case .local:
+                    destination = .localPlayer
+                    card.isFaceDown = gameState.round < 4 ? true : false
+                case .left:
+                    destination = .leftPlayer
+                    card.isFaceDown = gameState.round < 4 ? false : true
+                case .right:
+                    destination = .rightPlayer
+                    card.isFaceDown = gameState.round < 4 ? false : true
                 }
+                moveCard(card, from: .deck, to: destination)
+
+                cardsPerPlayer[playerID]! -= 1
             }
             
             // Move to the next player
@@ -183,150 +194,22 @@ extension GameManager {
                         print("The trump card is \(trumpCard)")
                     }
                 }
+                sortLocalPlayerHand()
                 completion()
                 return
-            }
-            
-            // Add a delay for the next card
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                dealNextCard()
+            } else {
+                // Add a delay for the next card
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    dealNextCard()
+                }
             }
         }
-        
+
         dealNextCard()
     }
     
-    func showCards() {
-        // after the cards are dealt, show the ones that should be facing up
-        if gameState.round < 4 {
-            // Face down for local player, face up for others
-            for card in gameState.leftPlayer?.hand ?? [] {
-                card.isFaceDown = false
-            }
-            for card in gameState.rightPlayer?.hand ?? [] {
-                card.isFaceDown = false
-            }
-        } else {
-            // Face up for local player, face down for others
-            for card in gameState.localPlayer?.hand ?? [] {
-                card.isFaceDown = false
-            }
-        }
-    }
+    // MARK: sortLocalPlayerHand
     
-//    func dealCards() {
-//        var cardsToDeal: Int
-//        
-//        // Sort players by the last score
-//        gameState.players.sort { (a, b) -> Bool in
-//            let lastScoreA = a.scores.last ?? 0
-//            let lastScoreB = b.scores.last ?? 0
-//            return lastScoreA < lastScoreB
-//        }
-//        
-//        // Establish the base number of cards to deal for each round
-//        if gameState.round <= 3 {
-//            cardsToDeal = 1
-//        } else if gameState.round <= 12 {
-//            cardsToDeal = gameState.round - 2
-//        } else {
-//            return // No cards to deal beyond round 12
-//        }
-//        
-//        // Calculate the number of cards to deal to each player
-//        var cardsPerPlayer = [PlayerId: Int]() // PlayerId -> Cards to deal
-//        for player in gameState.players {
-//            var extraCards = 0
-//            
-//            if gameState.round > 3 {
-//                if player.place == 2 {
-//                    if player.monthlyLosses > 1 && gameState.round < 12 {
-//                        extraCards = 2
-//                    } else {
-//                        extraCards = 1
-//                    }
-//                } else if player.place == 3 {
-//                    extraCards = 1
-//                    let playerScore = player.scores[safe: gameState.round - 2] ?? 0
-//                    let secondPlayerScore = gameState.players[1].scores[safe: gameState.round - 2] ?? 0
-//                    
-//                    if player.monthlyLosses > 0 || Double(playerScore) <= 0.5 * Double(secondPlayerScore) {
-//                        extraCards = 2
-//                    }
-//                }
-//            }
-//            
-//            // Cap extra cards to the number of cards left in the deck for the last round
-//            if gameState.round == 12 && extraCards == 2,
-//               let secondPlayer = gameState.players[safe: 1],
-//               let thirdPlayer = gameState.players[safe: 2],
-//               secondPlayer.scores[safe: gameState.round - 2] != thirdPlayer.scores[safe: gameState.round - 2] {
-//                extraCards = 1
-//            }
-//            
-//            cardsPerPlayer[player.id] = cardsToDeal + extraCards
-//        }
-//        
-//        // Distribute cards one by one in a clockwise manner
-//        var currentIndex = 0
-//        
-//        while !gameState.deck.isEmpty {
-//            // Get the current player
-//            let playerID = gameState.playOrder[currentIndex]
-//            guard let remainingCards = cardsPerPlayer[playerID], remainingCards > 0 else {
-//                currentIndex = (currentIndex + 1) % gameState.playOrder.count
-//                continue
-//            }
-//            
-//            // Deal a card to the current player
-//            if let card = gameState.deck.popLast() {
-//                // check if the card should still be face down
-//                if let localPlayerID = gameState.localPlayer?.id {
-//                    if gameState.round < 4 {
-//                        // Face down for local player, face up for others
-//                        card.isFaceDown = (playerID == localPlayerID)
-//                    } else {
-//                        // Face up for local player, face down for others
-//                        card.isFaceDown = (playerID != localPlayerID)
-//                    }
-//                } else {
-//                    // Handle the case where localPlayer is nil, if needed
-//                    fatalError("Local player is not set.")
-//                }
-//                // move card to player's hand
-//                withAnimation(.linear(duration: 0.5)) {
-//                    gameState.getPlayer(by: playerID).hand.append(card)
-//                }
-//                
-//                cardsPerPlayer[playerID] = remainingCards - 1
-//                print("\(playerID.rawValue) receives \(card)")
-//            }
-//            
-//            // Move to the next player
-//            currentIndex = (currentIndex + 1) % gameState.playOrder.count
-//            
-//            // Stop if all cards are dealt
-//            if cardsPerPlayer.values.allSatisfy({ $0 == 0 }) {
-//                break
-//            }
-//        }
-//        
-//        // Sort and arrange all players hands
-//        //        sortAndArrangePlayerHand()
-//        
-//        // Determine the trump card if applicable
-//        if gameState.round <= 3 || allScoresEqual() {
-//            if let trumpCard = gameState.deck.last {
-//                gameState.trumpSuit = trumpCard.suit
-//                trumpCard.isFaceDown = false
-//                print("The trump card is \(trumpCard)")
-//            }
-//        }
-//        for i in 0...(gameState.players.count-1) {
-//            print("\(gameState.players[i].id.rawValue) hand: \(gameState.players[i].hand)")
-//        }
-//    }
-
     func sortLocalPlayerHand() {
         guard let localPlayerId = gameState.localPlayer?.id else {
             fatalError("Error: Local player is not defined.")
@@ -351,6 +234,8 @@ extension GameManager {
         print("Local player's hand has been sorted.")
     }
     
+    // MARK: playCard
+    
     func playCard(_ card: Card) {
         // Ensure the local player is defined
         guard let localPlayer = gameState.localPlayer else {
@@ -358,16 +243,12 @@ extension GameManager {
         }
 
         // Ensure the local player has the card in their hand
-        guard let cardIndex = localPlayer.hand.firstIndex(where: { $0 == card }) else {
+        guard localPlayer.hand.firstIndex(where: { $0 == card }) != nil else {
             fatalError("Error: The card is not in the local player's hand.")
         }
 
-        // Remove the card from the local player's hand
-        localPlayer.hand.remove(at: cardIndex)
-
-        // Add the card to the gameState.table
-        self.gameState.table.append(card)
-        print("Table content: \(gameState.table)")
+        // Play the card
+        moveCard(card, from: .localPlayer, to: .table)
 
         // Notify other players about the action
         sendPlayCardtoPlayers(card)
@@ -376,6 +257,8 @@ extension GameManager {
         
         checkAndAdvanceStateIfNeeded()
     }
+    
+    // MARK: updateGameStateWithPlayedCard
     
     func updateGameStateWithPlayedCard(from playerId: PlayerId, with card: Card) {
         // Move the card from the player's hand to the table
@@ -407,6 +290,8 @@ extension GameManager {
         print("Card \(card) played by \(playerId.rawValue). Updated gameState.table: \(gameState.table)")
     }
     
+    // MARK: setPlayableCards
+    
     func setPlayableCards() {
         // Ensure the local player is defined
         guard let localPlayer = gameState.localPlayer else {
@@ -431,6 +316,8 @@ extension GameManager {
             }
         }
     }
+    
+    // MARK: assignTricks
     
     func assignTrick(completion: @escaping () -> Void) {
         // Ensure there are exactly 3 cards on the table
@@ -487,20 +374,24 @@ extension GameManager {
             }
             gameState.lastTrick[playerId] = card
         }
-
+        
         // Introduce a delay before clearing the table and assigning the trick
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            withAnimation(.linear(duration: 0.5)) {
-                // Set isFaceDown to true for the cards on the table
-                self.gameState.table.forEach { card in
-                    card.isFaceDown = true
+            // Set isFaceDown to true for the cards on the table
+            self.gameState.table.forEach { card in
+                card.isFaceDown = true
+                switch winner.tablePosition {
+                case .local:
+                    self.moveCard(card, from: .table, to: .localPlayerTricks)
+                case .left:
+                    self.moveCard(card, from: .table, to: .leftPlayerTricks)
+                case .right:
+                    self.moveCard(card, from: .table, to: .rightPlayerTricks)
                 }
-                // Assign the trick to the winning player
-                winner.trickCards.append(contentsOf: self.gameState.table)
-                winner.madeTricks[self.gameState.round - 1] += 1
-                self.gameState.table.removeAll() // Clear the table
-                print("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
             }
+            
+            winner.madeTricks[self.gameState.round - 1] += 1
+            print("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
             
             // Add a delay after the animation completes
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {

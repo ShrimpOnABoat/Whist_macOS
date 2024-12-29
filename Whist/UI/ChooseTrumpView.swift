@@ -17,10 +17,6 @@ struct ChooseTrumpView: View {
         ZStack {
             // Table where cards are displayed for choosing
             VStack(spacing: 20) {
-                Text("Choisis un atout :")
-                    .font(.title)
-                    .padding()
-                
                 HStack(spacing: 20) {
                     ForEach(gameManager.gameState.trumpCards) { card in
                         // isPlayable and isFaceDown are updated in gameManager

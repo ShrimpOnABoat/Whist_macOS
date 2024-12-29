@@ -10,13 +10,11 @@ import SwiftUI
 struct DeckView: View {
     @EnvironmentObject var gameManager: GameManager
     @ObservedObject var gameState: GameState
-    let namespace: Namespace.ID
     
-    init(gameState: GameState, namespace: Namespace.ID) {
+    init(gameState: GameState) {
         self.gameState = gameState
-        self.namespace = namespace
     }
-
+    
     var body: some View {
         ZStack {
             if gameState.deck.isEmpty {
@@ -35,28 +33,9 @@ struct DeckView: View {
                     
                     TransformableCardView(
                         card: card,
-//                        scale: 1.0,
-//                        rotation: 0,
                         xOffset: offset,
                         yOffset: -offset)
-
-//                    CardView(card: card)
-//                        .offset(x: offset, y: -offset)
-//                        .opacity(card.isPlaceholder ? 0.0 : 1.0)
-//                        .overlay(
-//                            GeometryReader { geometry in
-//                                Color.clear
-//                                    .preference(key: CardTransformPreferenceKey.self, value: [
-//                                        card.id: CardState(
-//                                            position: CGPoint(x: geometry.frame(in: .global).midX + offset, y: geometry.frame(in: .global).midY - offset),
-//                                            rotation: 0,
-//                                            scale: 1.0
-//                                            
-//                                        )
-//                                    ])
-//                            }
-//                        )
-                        .zIndex(Double(index)) // Higher index on top
+                    .zIndex(Double(index)) // Higher index on top
                 }
             }
         }
@@ -69,11 +48,10 @@ struct DeckView: View {
 
 struct DeckView_Previews: PreviewProvider {
     static var previews: some View {
-        @Namespace var cardAnimationNamespace
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
-
-        return DeckView(gameState: gameManager.gameState, namespace: cardAnimationNamespace)
+        
+        return DeckView(gameState: gameManager.gameState)
             .environmentObject(gameManager)
             .previewDisplayName("Deck View Preview")
             .previewLayout(.sizeThatFits)

@@ -23,21 +23,24 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var showTrumps: Bool = false
     @Published var showDiscard: Bool = false
     @Published var showTopDeckCardFaceUp = false
+    @Published var movingCards: [MovingCard] = []
     private var timerCancellable: AnyCancellable?
     var isDeckReady: Bool = false
     var pendingActions: [GameAction] = []
-
+    // Dictionary to store each card's state
+    @Published var cardStates: [String: CardState] = [:]
     
     // Injected dependencies
-    var connectionManager: ConnectionManager? {
-        didSet {
-            guard cancellables.isEmpty else {
-                print("Subscriptions already exist, skipping setup...")
-                return
-            }
-            setupSubscriptions()
-        }
-    }
+    var connectionManager: ConnectionManager?
+//    {
+//        didSet {
+//            guard cancellables.isEmpty else {
+//                print("Subscriptions already exist, skipping setup...")
+//                return
+//            }
+//            setupSubscriptions()
+//        }
+//    }
     
     static let SM = ScoresManager.shared
     
