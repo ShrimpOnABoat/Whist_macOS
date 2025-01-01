@@ -36,7 +36,7 @@ extension GameManager {
             .store(in: &cancellables)
     }
     
-    // MARK: - ConnectionManagerDelegate Method
+    // MARK: - handleReceivedAction
     
     func handleReceivedAction(_ action: GameAction) {
         DispatchQueue.main.async {
@@ -75,8 +75,12 @@ extension GameManager {
 
         case .choseTrump:
             print("Received trump")
-            // Process trump selection
-
+            if let trumpCard = try? JSONDecoder().decode(Card.self, from: action.payload) {
+                self.updateGameStateWithTrump(from: action.playerId, with: trumpCard)
+            } else {
+                print("Failed to decode trump suit.")
+            }
+            
         case .discard:
             print("Received discard")
             // Process discard

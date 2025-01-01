@@ -28,10 +28,10 @@ struct GameView: View {
 
     @State private var background: AnyView = AnyView(FeltBackgroundView(
         radialShadingStrength: 0.5,
-        wearIntensity: 0.5,
-        motifVisibility: 0.25,
-        motifScale: 0.5,
-        showScratches: true
+        wearIntensity: CGFloat.random(in: 0...1),
+        motifVisibility: CGFloat.random(in: 0...0.5),
+        motifScale: CGFloat.random(in: 0...1),
+        showScratches: Bool.random()
     ))
     @State private var didMeasureDeck: Bool = false
  
@@ -46,7 +46,6 @@ struct GameView: View {
                 // Proceed with your ZStack and layout
                 ZStack {
                     // Background
-//                    FeltBackgroundView()
                     background
                     
                     VStack {
@@ -55,24 +54,18 @@ struct GameView: View {
                             PlayerInfoView(player: leftPlayer, isDealer: dealer == leftPlayer.id, namespace: cardAnimationNamespace)
                             VStack {
                                 HStack {
-                                    TrumpView(namespace: cardAnimationNamespace)
+                                    TrumpView()
                                     ScoreBoardView()
                                     DeckView(gameState: gameManager.gameState)
                                 }
                                 
                                 ZStack {
-                                    TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace)
-                                        .frame(width: 250, height: 180)
-                                    
-                                    // Overlay TrumpView if showTrumps is true
-                                    if gameManager.showTrumps {
-                                        ZStack {
-                                            ChooseTrumpView(namespace: cardAnimationNamespace)
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                                        }
-                                        .zIndex(1) // Ensure it's above everything else
-                                        .transition(.scale) // Smooth scaling effect
-                                        .animation(.easeInOut, value: gameManager.showTrumps)
+                                    if gameManager.currentPhase != .choosingTrump {
+                                        TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace)
+                                            .frame(width: 250, height: 180)
+                                    } else {
+                                        TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace, mode: .trumps)
+                                            .frame(width: 250, height: 180)
                                     }
                                 }
                             }
@@ -132,11 +125,11 @@ struct GameView: View {
             // If all deck cards are now measured,
             // let the GameManager know we’re ready to deal.
             if !didMeasureDeck && transforms.count == (gameManager.gameState.deck.count + gameManager.gameState.trumpCards.count) {
-                print("The deck is measured!!!")
+//                print("The deck is measured!!!")
                 didMeasureDeck = true
                 gameManager.onDeckMeasured()
             } else {
-                print("Deck is measured: \(didMeasureDeck) - \(transforms.count) transforms and \(gameManager.gameState.deck.count) cards in the deck")
+//                print("Deck is measured: \(didMeasureDeck) - \(transforms.count) transforms and \(gameManager.gameState.deck.count) cards in the deck")
             }
             
             // Iterate through moving cards to check if any placeholder positions are captured
@@ -145,7 +138,7 @@ struct GameView: View {
                    movingCard.toState == nil {
                     // Update the movingCard's toState
                     movingCard.toState = toState
-                    print("toState captured for \(movingCard.card)")
+//                    print("toState captured for \(movingCard.card)")
                 }
             }
         }
@@ -198,7 +191,7 @@ struct MovingCardView: View {
                 guard let toState = newToState, !hasAnimated else { return }
 
                 hasAnimated = true
-                let animationDuration: TimeInterval = 1 // Adjust as needed
+                let animationDuration: TimeInterval = 0.5 // Adjust as needed
                 withAnimation(.easeInOut(duration: animationDuration)) {
                     self.rotation = toState.rotation
                     self.scale = toState.scale

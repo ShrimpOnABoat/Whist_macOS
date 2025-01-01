@@ -69,19 +69,21 @@ extension GameManager {
             
         case .waitingForDeck:
             // remove cards from tricks, hands and table and bring them back to the deck
-            gatherCards()
+            gatherCards() {
+                // in case the deck was sent earlier
+                self.processPendingActionsForCurrentPhase()
+                
+                // otherwise nothing to do but wait
+                if !self.isDeckReady { print("Waiting for deck") }
+            }
             
-            // in case the deck was sent earlier
-            self.processPendingActionsForCurrentPhase()
-
-            // otherwise nothing to do but wait
-            if !isDeckReady { print("Waiting for deck") }
             
         case .dealingCards:
             if connectionManager?.localPlayerID == gameState.dealer {
-                gatherCards()
-                shuffleCards()
-                sendDeckToPlayers()
+                gatherCards() {
+                    self.shuffleCards()
+                    self.sendDeckToPlayers()
+                }
             }
             
             dealCards {[weak self] in
@@ -113,11 +115,8 @@ extension GameManager {
         case .choosingTrump:
             // Prompt the relevant player to choose a trump suit
             // When that choice is done (via handleReceivedAction), move to .waitingForTrump
-            showTrumps = true
-            for index in gameState.trumpCards.indices {
-                gameState.trumpCards[index].isFaceDown = false
-            }
-            checkAndAdvanceStateIfNeeded()
+
+            chooseTrump()
             
         case .waitingForTrump:
             // Once a trump suit is chosen and confirmed:
@@ -222,17 +221,11 @@ extension GameManager {
             print("Dealing cards")
             break
 
-        case .choosingTrump:
+        case .choosingTrump, .waitingForTrump:
             // If trump chosen, I chose a bid
             if gameState.trumpSuit != nil {
                 transition(to: .bidding)
             }
-            break
-
-        case .waitingForTrump:
-            // If trump confirmed:
-            // transition(to: .bidding)
-            break
 
         case .bidding:
             // Either waiting until I can bid or until everybody did:
@@ -248,8 +241,8 @@ extension GameManager {
             break
             
         case .showCard:
-            print("showCard: not supposed to happen!")
-            break
+            gameState.trumpCards.last?.isFaceDown = false
+            transition(to: .playingTricks)
             
         case .playingTricks:
 
@@ -279,32 +272,37 @@ extension GameManager {
             return false
         }
 
-        guard let playerIndex = gameState.playOrder.firstIndex(of: localPlayerID) else {
-            print("Error: Local player not found in play order.")
-            return false
-        }
-
-        // Check if all previous players in play order have made their bets
-        for index in 0..<playerIndex {
-            let previousPlayerID = gameState.playOrder[index]
-            guard let previousPlayer = gameState.players.first(where: { $0.id == previousPlayerID }) else {
-                print("Error: Player \(previousPlayerID) not found.")
+        if gameState.round < 4 {
+            guard let playerIndex = gameState.playOrder.firstIndex(of: localPlayerID) else {
+                print("Error: Local player not found in play order.")
                 return false
             }
-
-            if previousPlayer.announcedTricks.count < gameState.round {
-                // A previous player hasn't made their bet yet
+            
+            // Check if all previous players in play order have made their bets
+            for index in 0..<playerIndex {
+                let previousPlayerID = gameState.playOrder[index]
+                guard let previousPlayer = gameState.players.first(where: { $0.id == previousPlayerID }) else {
+                    print("Error: Player \(previousPlayerID) not found.")
+                    return false
+                }
+                
+                if previousPlayer.announcedTricks.count < gameState.round {
+                    // A previous player hasn't made their bet yet
+                    return false
+                }
+            }
+            
+            // Check if the player already bet
+            if gameState.localPlayer!.announcedTricks.count >= gameState.round {
                 return false
             }
+            
+            // If all checks pass, it's local player's turn to bet
+            return true
         }
-        
-        // Check if the player already bet
-        if gameState.localPlayer!.announcedTricks.count >= gameState.round {
-            return false
+        else {
+            return true
         }
-
-        // If all checks pass, it's local player's turn to bet
-        return true
     }
     
     func allPlayersBet() -> Bool {
@@ -345,7 +343,7 @@ extension GameManager {
     
     func computeScores() {
         // Determine the maximum possible tricks for this round
-        let maxTricks = max(gameState.round - 1, 1)
+        let maxTricks = max(gameState.round - 2, 1)
         
         for player in gameState.players {
             guard gameState.round > 0 else { return }

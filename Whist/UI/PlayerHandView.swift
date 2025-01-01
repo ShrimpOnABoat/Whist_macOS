@@ -81,9 +81,9 @@ struct PlayerHandView: View {
                         let cardXOffset = xOffset - minX - computedWidth/2
                         let cardYOffset = yOffset - minY - computedHeight/2
                         TransformableCardView(card: card, rotation: rotation, xOffset: cardXOffset, yOffset: cardYOffset)
-                            .onAppear {
-                                print("Rendering card: \(card), isFaceDown: \(card.isFaceDown)")
-                            }
+//                            .onAppear {
+//                                print("Rendering card: \(card), isFaceDown: \(card.isFaceDown)")
+//                            }
                     }
                 }
                 .animation(.smooth(duration: 0.3), value: player.hand)

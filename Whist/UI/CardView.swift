@@ -39,14 +39,14 @@ struct CardView: View {
             }
         }
         .onTapGesture {
-            if !card.isFaceDown && card.isPlayable {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    gameManager.playCard(card)
-                }
+            guard !card.isFaceDown && card.isPlayable else { return }
+            card.isPlayable = false // Immediately make the card non-playable
+            if card.rank != .two {
+                gameManager.playCard(card)
+            } else {
+                gameManager.selectTrumpSuit(card)
             }
         }
-        .animation(.smooth(duration: 0.3), value: card.isFaceDown)
-        .animation(.smooth(duration: 0.3), value: card.isPlayable)
     }
 }
 
@@ -60,7 +60,6 @@ struct TransformableCardView: View {
     let rotation: Double
     let xOffset: CGFloat
     let yOffset: CGFloat
-//    let namespace: Namespace.ID
 
     init(card: Card, scale: CGFloat = 1.0, rotation: Double = 0, xOffset: CGFloat = 0, yOffset: CGFloat = 0) {
         self.card = card

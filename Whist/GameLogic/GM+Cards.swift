@@ -30,7 +30,7 @@ extension GameManager {
     
     // MARK: gatherCards
     
-    func gatherCards() {
+    func gatherCards(completion: @escaping () -> Void) {
         for i in 0...2 {
             print("gatherAndShuffleCards - player \(gameState.players[i].id) has \(gameState.players[i].trickCards.count) trick cards")
             print("gatherAndShuffleCards - player \(gameState.players[i].id) has \(gameState.players[i].hand.count) cards in hand")
@@ -38,11 +38,10 @@ extension GameManager {
         print("gatherAndShuffleCards - table has \(gameState.table.count) cards")
         print("gatherAndShuffleCards - deck has \(gameState.deck.count) cards")
 
-        withAnimation(.linear(duration: 0.5)) {
-            // Gather all cards (should all be in players' tricks)
-            for player in self.gameState.players {
-                self.gameState.deck += player.trickCards
-                player.trickCards = []
+        for player in gameState.players {
+            let source: CardPlace = player.tablePosition == .local ? .localPlayer : (player.tablePosition == .left) ? .leftPlayer : .rightPlayer
+            for card in player.trickCards {
+                moveCard(card, from: source, to: .deck)
             }
         }
         
@@ -63,6 +62,8 @@ extension GameManager {
         if (deckCardCount != 32) || (trumpCardCount != 4) {
             fatalError("Some cards are missing or wrong count")
         }
+        
+        completion()
     }
     
     // MARK: shuffleCards
@@ -224,7 +225,7 @@ extension GameManager {
         player.hand.sort { card1, card2 in
             if card1.suit == card2.suit {
                 // If suits are the same, compare ranks
-                return card1.rank.rawValue < card2.rank.rawValue
+                return card1.rank.precedence < card2.rank.precedence
             } else {
                 // Otherwise, sort by suit order
                 return suitOrder.firstIndex(of: card1.suit)! < suitOrder.firstIndex(of: card2.suit)!
@@ -258,7 +259,7 @@ extension GameManager {
         checkAndAdvanceStateIfNeeded()
     }
     
-    // MARK: updateGameStateWithPlayedCard
+    // MARK: Received played card
     
     func updateGameStateWithPlayedCard(from playerId: PlayerId, with card: Card) {
         // Move the card from the player's hand to the table
@@ -277,16 +278,15 @@ extension GameManager {
             return
         }
         
-        if let cardIndex = player.hand.firstIndex(where: { $0 == card }) {
-            player.hand.remove(at: cardIndex)
+        
+        if player.hand.firstIndex(where: { $0 == card }) != nil {
+            let source: CardPlace = player.tablePosition == .left ? .leftPlayer : .rightPlayer
+            card.isFaceDown = false
+            moveCard(card, from: source, to: .table)
         } else {
             print("Error: Card not found in player's hand.")
             return
         }
-        
-        card.isFaceDown = false
-        self.gameState.table.append(card)
-        
         print("Card \(card) played by \(playerId.rawValue). Updated gameState.table: \(gameState.table)")
     }
     
@@ -399,5 +399,35 @@ extension GameManager {
                 completion()
             }
         }
+    }
+    
+    // MARK: ChooseTrump
+    
+    func chooseTrump() {
+        // Move the trump cards to the table face up
+        for card in gameState.trumpCards {
+            card.isFaceDown = false
+            card.isPlayable = true
+            moveCard(card, from: .trumpDeck, to: .table)
+        }
+    }
+    
+    func selectTrumpSuit(_ trumpCard: Card) {
+        // Set the trump suit
+        gameState.trumpSuit = trumpCard.suit
+        
+        // Move the cards back in the deck, the selected one last
+        for card in gameState.table {
+            if card != trumpCard {
+                card.isFaceDown = true
+                moveCard(card, from: .table, to: .trumpDeck)
+            }
+        }
+        moveCard(trumpCard, from: .table, to: .trumpDeck)
+        
+        // Send other players the chosen trump suit
+        sendTrumpToPlayers(trumpCard)
+        
+        checkAndAdvanceStateIfNeeded()
     }
 }

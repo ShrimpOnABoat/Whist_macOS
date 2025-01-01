@@ -887,8 +887,6 @@ struct BrushedWearOverlay: View {
                               width: CGFloat,
                               angle: CGFloat) -> Path
     {
-        var path = Path()
-        
         // We'll approximate a curved stroke by an arc or wedge shape.
         // For example, define an arc that covers `length` degrees or so.
         

@@ -216,6 +216,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     }
 
     private func determinePosition(for username: String) -> Int {
+        /// returns 1 if the player has the highest score, even if there's a tie
+        /// returns 2 for the second player
+        /// returns 3 for the last player
+
         // TODO: check that this function works as intended
         guard let player = gameState.players.first(where: { $0.username == username }) else {
             return 1 // Default to 1 if player is not found
@@ -306,6 +310,30 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         checkAndAdvanceStateIfNeeded()
     }
     
+    func updateGameStateWithTrump(from playerId: PlayerId, with card: Card) {
+        // move the card on top of the trump deck
+        guard let index = gameState.trumpCards.firstIndex(of: card) else {
+            print("Card \(card) not found in trumpCards.")
+            return
+        }
+
+        let removedCard = gameState.trumpCards.remove(at: index)
+
+        // Put the card face up if second player
+        if gameState.localPlayer?.place == 2 {
+            removedCard.isFaceDown = false
+        }
+        
+        gameState.trumpCards.append(removedCard)
+        
+        print("trump deck last card: \(gameState.trumpCards.last!)")
+
+        // Set the trump suit
+        gameState.trumpSuit = card.suit
+        
+        checkAndAdvanceStateIfNeeded()
+    }
+    
     // MARK: Choose bet
     func choseBet(bet: Int) {
         // Ensure the local player is defined
@@ -325,21 +353,21 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     }
     
     // MARK: Choose trump
-    func choseTrump(trump: Card) {
-                
-        // Notify other players about the action
-        sendTrumpToPlayers(trump)
-        
-        // close the Trump window
-        showTrumps = false
-        
-        // place the chosen card on top of the deck and turn it face up
-        let cardIndex = gameState.deck.firstIndex(of: trump)!
-        gameState.deck.remove(at: cardIndex)
-        gameState.deck.append(trump)
-        gameState.deck[cardIndex].isFaceDown = false
-        
-        checkAndAdvanceStateIfNeeded()
-    }
+//    func choseTrump(trump: Card) {
+//                
+//        // Notify other players about the action
+//        sendTrumpToPlayers(trump)
+//        
+//        // close the Trump window
+//        showTrumps = false
+//        
+//        // place the chosen card on top of the deck and turn it face up
+//        let cardIndex = gameState.deck.firstIndex(of: trump)!
+//        gameState.deck.remove(at: cardIndex)
+//        gameState.deck.append(trump)
+//        gameState.deck[cardIndex].isFaceDown = false
+//        
+//        checkAndAdvanceStateIfNeeded()
+//    }
 
 }
