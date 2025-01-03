@@ -155,7 +155,7 @@ extension GameState {
 }
 
 extension GameState {
-    func moveCard(from source: inout [Card], to destination: inout [Card], card: Card) {
+    func moveCardPreview(from source: inout [Card], to destination: inout [Card], card: Card) {
         // Ensure the card exists in the source array
         guard let cardIndex = source.firstIndex(of: card) else {
             fatalError("Card \(card) not found in \(source)")

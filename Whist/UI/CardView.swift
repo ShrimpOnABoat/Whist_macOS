@@ -42,9 +42,13 @@ struct CardView: View {
             guard !card.isFaceDown && card.isPlayable else { return }
             card.isPlayable = false // Immediately make the card non-playable
             if card.rank != .two {
-                gameManager.playCard(card)
+                gameManager.playCard(card) {
+                    self.gameManager.checkAndAdvanceStateIfNeeded()
+                }
             } else {
-                gameManager.selectTrumpSuit(card)
+                gameManager.selectTrumpSuit(card) {
+                    self.gameManager.checkAndAdvanceStateIfNeeded()
+                }
             }
         }
     }

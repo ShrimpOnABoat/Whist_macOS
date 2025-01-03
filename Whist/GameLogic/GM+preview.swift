@@ -63,7 +63,7 @@ extension GameManager {
                     fatalError("Deck is empty while assigning hands.")
                 }
                 if let card = gameState.deck.last {
-                    gameState.moveCard(from: &gameState.deck, to: &player.hand, card: card)
+                    gameState.moveCardPreview(from: &gameState.deck, to: &player.hand, card: card)
                     if (player.id == .dd) { // localPlayer
                         card.isFaceDown = false
                     }
@@ -85,19 +85,19 @@ extension GameManager {
     
     func setupPlayerTricksForPreview() {
         // one trick for dd
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[0].trickCards, card: card)}
         // two tricks for gg
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCard(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
+        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
         
     }
     

@@ -79,44 +79,51 @@ extension GameManager {
             
             
         case .dealingCards:
-            if connectionManager?.localPlayerID == gameState.dealer {
-                gatherCards() {
-                    self.shuffleCards()
-                    self.sendDeckToPlayers()
-                }
-            }
-            
-            dealCards {[weak self] in
-                guard let self = self else { return }
-                
+            let isDealer = (connectionManager?.localPlayerID == gameState.dealer)
+
+            // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
+            func afterDealing() {
                 // After dealing, decide what’s next:
-                if self.gameState.round < 4 { // Rounds with 1 card
-                    if self.isLocalPlayerTurnToBet() {
-                        self.transition(to: .bidding)
+                if gameState.round < 4 {
+                    if isLocalPlayerTurnToBet() {
+                        transition(to: .bidding)
                     } else {
-                        self.transition(to: .bidding)
+                        transition(to: .bidding)
                     }
-                } else { // rounds with more than one card
-                    if let localPlayer = self.gameState.localPlayer {
+                } else {
+                    if let localPlayer = gameState.localPlayer {
                         switch localPlayer.place {
-                        case 1:
-                            self.transition(to: .bidding)
-                        case 2:
-                            self.transition(to: .waitingForTrump)
-                        case 3:
-                            self.transition(to: .choosingTrump)
-                        default:
-                            fatalError("Unknown place \(localPlayer.place)")
+                        case 1: transition(to: .bidding)
+                        case 2: transition(to: .waitingForTrump)
+                        case 3: transition(to: .choosingTrump)
+                        default: fatalError("Unknown place \(localPlayer.place)")
                         }
                     }
                 }
             }
-            
+
+            // 2) Now branch out whether we do gatherCards + shuffle or not:
+            if isDealer {
+                gatherCards {
+                    self.shuffleCards()
+                    self.sendDeckToPlayers()
+
+                    // 3) Call dealCards, then call our afterDealing function
+                    self.dealCards {
+                        afterDealing()
+                    }
+                }
+            } else {
+                // 4) Same dealCards call, same completion logic
+                self.dealCards {
+                    afterDealing()
+                }
+            }
         case .choosingTrump:
             // Prompt the relevant player to choose a trump suit
             // When that choice is done (via handleReceivedAction), move to .waitingForTrump
 
-            chooseTrump()
+            chooseTrump() {}
             
         case .waitingForTrump:
             // Once a trump suit is chosen and confirmed:
@@ -165,7 +172,9 @@ extension GameManager {
             // Wait a few seconds and grab trick automatically
             // and set the last trick
             // and refresh playOrder
+            print("Assinging trick")
             assignTrick() {
+                print("Trick assigned")
                 // check if last trick
                 if self.isLastTrick() {
                     self.transition(to: .scoring)
@@ -252,6 +261,14 @@ extension GameManager {
                 transition(to: .playingTricks)
             }
             break
+            
+        case .grabTrick:
+            // check if last trick
+            if self.isLastTrick() {
+                self.transition(to: .scoring)
+            } else {
+                self.transition(to: .playingTricks)
+            }
 
         case .scoring:
             // After scoring logic:

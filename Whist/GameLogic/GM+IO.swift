@@ -58,10 +58,9 @@ extension GameManager {
                 print("Failed to decode played card.")
                 return
             }
-            withAnimation(.easeOut(duration: 0.5)) {
-                self.updateGameStateWithPlayedCard(from: action.playerId, with: card)
+            self.updateGameStateWithPlayedCard(from: action.playerId, with: card) {
+                self.checkAndAdvanceStateIfNeeded()
             }
-            self.checkAndAdvanceStateIfNeeded()
             
         case .sendDeck:
             self.updateDeck(with: action.payload)

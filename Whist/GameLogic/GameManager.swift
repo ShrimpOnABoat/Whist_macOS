@@ -27,20 +27,15 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     private var timerCancellable: AnyCancellable?
     var isDeckReady: Bool = false
     var pendingActions: [GameAction] = []
+    var activeAnimations = 0
+    var onBatchAnimationsCompleted: [(() -> Void)?] = []
+    var animationQueue: [(Int, () -> Void)] = []
     // Dictionary to store each card's state
     @Published var cardStates: [String: CardState] = [:]
     
     // Injected dependencies
     var connectionManager: ConnectionManager?
-//    {
-//        didSet {
-//            guard cancellables.isEmpty else {
-//                print("Subscriptions already exist, skipping setup...")
-//                return
-//            }
-//            setupSubscriptions()
-//        }
-//    }
+
     
     static let SM = ScoresManager.shared
     
