@@ -12,10 +12,22 @@ struct TrumpView: View {
 
     var body: some View {
         ZStack {
-            ForEach(Array(gameManager.gameState.trumpCards.enumerated()), id: \.element.id) { index, card in
-                let offset = CGFloat(index) // Offset for visual separation
-                TransformableCardView(card: card, xOffset: offset, yOffset: -offset)
-                    .hueRotation(Angle(degrees: -90 * (card.isFaceDown == true ? 1 : 0)))
+            if gameManager.gameState.trumpCards.isEmpty {
+                // Show marker for empty deck
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.gray, style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
+                    .frame(width: 60, height: 90)
+                    .overlay(
+                        Text("Atouts")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    )
+            } else {
+                ForEach(Array(gameManager.gameState.trumpCards.enumerated()), id: \.element.id) { index, card in
+                    let offset = CGFloat(index) // Offset for visual separation
+                    TransformableCardView(card: card, xOffset: offset, yOffset: -offset)
+                        .hueRotation(Angle(degrees: -90 * (card.isFaceDown == true ? 1 : 0)))
+                }
             }
         }
         .padding() // Add padding for layout spacing

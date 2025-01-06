@@ -71,7 +71,7 @@ extension GameManager {
             } else {
                 print("Failed to decode bet value.")
             }
-
+            
         case .choseTrump:
             print("Received trump")
             if let trumpCard = try? JSONDecoder().decode(Card.self, from: action.payload) {

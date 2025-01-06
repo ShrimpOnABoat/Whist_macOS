@@ -451,6 +451,11 @@ extension GameManager {
         // Send other players the chosen trump suit
         sendTrumpToPlayers(trumpCard)
         
-//        checkAndAdvanceStateIfNeeded()
+    }
+    
+    // MARK: discard
+    
+    func discard(completion: @escaping () -> Void) {
+        
     }
 }

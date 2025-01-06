@@ -21,7 +21,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var currentPhase: GamePhase = .waitingToStart
     @Published var showOptions: Bool = false
     @Published var showTrumps: Bool = false
-    @Published var showDiscard: Bool = false
     @Published var showTopDeckCardFaceUp = false
     @Published var movingCards: [MovingCard] = []
     private var timerCancellable: AnyCancellable?
@@ -305,6 +304,18 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         checkAndAdvanceStateIfNeeded()
     }
     
+    func cancelBetFromPlayer(_ playerId: PlayerId) {
+        /// local player can accept or refuse the cancellation
+        /// accept if we're still in the bidding phase
+        /// refuse otherwise
+        /// once all 3 players have accepted, the local app can proceed with the cancellation.
+        if currentPhase == .bidding {
+            let player = gameState.getPlayer(by: playerId)
+            player.announcedTricks.removeLast()
+            player.madeTricks.removeLast()
+        }
+    }
+    
     func updateGameStateWithTrump(from playerId: PlayerId, with card: Card) {
         // move the card on top of the trump deck
         guard let index = gameState.trumpCards.firstIndex(of: card) else {
@@ -336,8 +347,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             fatalError("Error: Local player is not defined.")
         }
         
-        showOptions = false
-        print("the optionsView should disappear now.")
+        if gameState.round < 4 {
+            showOptions = false
+            print("the optionsView should disappear now.")
+        }
         
         localPlayer.announcedTricks.append(bet)
         localPlayer.madeTricks.append(0)
@@ -346,6 +359,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         sendBetToPlayers(bet)
         checkAndAdvanceStateIfNeeded()
     }
+
     
     // MARK: Choose trump
 //    func choseTrump(trump: Card) {

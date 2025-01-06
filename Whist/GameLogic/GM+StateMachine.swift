@@ -17,7 +17,7 @@ enum GamePhase {
     case dealingCards           // Dealing cards to players
     case choosingTrump          // Local player choose a trump suit
     case waitingForTrump        // Waiting for a player to pick trump
-    case bidding                // Players bid how many tricks they will take
+    case bidding                // Players bid how many tricks they will take. Stays on screen while the others still decide so that the player can change his mind.
     case discard                // Discard one or two cards
     case showCard               // Show card face up in first 3 rounds
     case playingTricks          // Active trick-playing phase
@@ -132,7 +132,8 @@ extension GameManager {
             }
             
         case .discard:
-            showDiscard = true
+            // player must discard one or two cards
+            discard() {}
             
         case .bidding:
             // Either waiting until I can bid or until everybody did:
@@ -160,7 +161,7 @@ extension GameManager {
             transition(to: .playingTricks)
             
         case .playingTricks:
-            // Normal gameplay
+            showOptions = false // Hide the options view
 
             if isLocalPlayerTurnToPlay() {
                 setPlayableCards()
@@ -237,17 +238,12 @@ extension GameManager {
             }
 
         case .bidding:
-            // Either waiting until I can bid or until everybody did:
+            
             if allPlayersBet() {
-                if gameState.round < 4 {
-                    transition(to: .showCard)
-                } else {
-                    transition(to: .playingTricks)
-                }
+                gameState.round < 4 ? transition(to: .showCard) : transition(to: .playingTricks)
             } else {
                 transition(to: .bidding)
             }
-            break
             
         case .showCard:
             gameState.trumpCards.last?.isFaceDown = false

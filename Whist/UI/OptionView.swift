@@ -16,21 +16,26 @@ struct NoShadowOnPressButtonStyle: ButtonStyle {
     }
 }
 
+// MARK: CircularButton
+
 struct CircularButton: View {
     let text: String
     let action: () -> Void
     let size: CGFloat
     let backgroundColor: Color
-    
+    let isSelected: Bool // New parameter to indicate if the button is selected
+
     init(
         text: String,
         size: CGFloat = 60,
         backgroundColor: Color = .blue,
+        isSelected: Bool = false,
         action: @escaping () -> Void
     ) {
         self.text = text
         self.size = size
         self.backgroundColor = backgroundColor
+        self.isSelected = isSelected
         self.action = action
     }
     
@@ -39,17 +44,21 @@ struct CircularButton: View {
             ZStack {
                 // Inner filled circle
                 Circle()
-                    .fill(backgroundColor.opacity(0.7))
+                    .fill(isSelected ? backgroundColor.opacity(0.8) : backgroundColor.opacity(0.7))
                 
                 // Outer border to mimic poker chip
                 Circle()
-                    .strokeBorder(lineWidth: size * 0.1) // 10% of the button size
-                    .foregroundColor(backgroundColor.opacity(0.7))
+                    .strokeBorder(
+                        isSelected ? backgroundColor.opacity(0.8) : backgroundColor.opacity(0.7), // Border color
+                        lineWidth: isSelected ? 4 : 2 // Thicker border when selected
+                    )
+                    .foregroundColor(isSelected ? backgroundColor.opacity(0.8) : backgroundColor.opacity(0.7))
 
                 // Add poker chip notches
                 ForEach(0..<8) { i in
                     Rectangle()
-                        .fill(Color.white)
+                        .fill(.white) // Highlight notches when selected
+//                        .fill(isSelected ? .black : .white) // Highlight notches when selected
                         .frame(width: size * 0.1, height: size * 0.1)
                         .offset(y: -size / 2 + size * 0.05) // Move to the edge of the circle
                         .rotationEffect(Angle(degrees: Double(i) * 45)) // Distribute evenly
@@ -61,18 +70,29 @@ struct CircularButton: View {
                     .foregroundColor(.white)
             }
             .frame(width: size, height: size)
-            .shadow(radius: size / 15) // Shadow for depth
+            .shadow(color: isSelected ? .yellow : .black, radius: size / 15) // Add glowing shadow when selected
         }
         .buttonStyle(NoShadowOnPressButtonStyle())
     }
 }
 
+// MARK: OptionsView
+
 struct OptionsView: View {
+    @State private var selectedBet: Int? = nil // Tracks the currently selected bet
+    @State private var backgroundColor: Color // Store the random color
     @EnvironmentObject var gameManager: GameManager
 
+    init() {
+        _backgroundColor = State(initialValue: [
+            .red, .orange, .yellow, .green, .mint, .teal,
+            .cyan, .blue, .indigo, .purple, .pink, .brown, .gray
+        ].randomElement() ?? .blue)
+    }
+    
     var body: some View {
         VStack(spacing: 20) {
-            Text("Choisis une mise :")
+            Text("Choisis une mise (\(selectedBet?.description ?? "-")):")
                 .font(.title)
                 .padding(.bottom, 20)
             
@@ -81,10 +101,10 @@ struct OptionsView: View {
             let firstRow = Array(numbers.prefix(6)) // Up to 6 buttons in the first row
             let secondRow = Array(numbers.dropFirst(6)) // Remaining buttons in the second row
             let size: CGFloat = 40
-            let backgroundColor: Color = [
-                .red, .orange, .yellow, .green, .mint, .teal,
-                .cyan, .blue, .indigo, .purple, .pink, .brown, .gray
-            ].randomElement() ?? .blue
+//            let backgroundColor: Color = [
+//                .red, .orange, .yellow, .green, .mint, .teal,
+//                .cyan, .blue, .indigo, .purple, .pink, .brown, .gray
+//            ].randomElement() ?? .blue
             
             VStack(spacing: 20) {
                 // First Row
@@ -94,7 +114,8 @@ struct OptionsView: View {
                             text: "\(number)",
                             size: size,
                             backgroundColor: backgroundColor,
-                            action: { gameManager.choseBet(bet: number) }
+                            isSelected: selectedBet == number, // Check if this button is selected
+                            action: { handleBetSelection(number) }
                         )
                     }
                 }
@@ -107,7 +128,8 @@ struct OptionsView: View {
                                 text: "\(number)",
                                 size: size,
                                 backgroundColor: backgroundColor,
-                                action: { gameManager.choseBet(bet: number) }
+                                isSelected: selectedBet == number, // Check if this button is selected
+                                action: { handleBetSelection(number) }
                             )
                         }
                     }
@@ -119,6 +141,14 @@ struct OptionsView: View {
         .background(Color.white.opacity(0.2))
         .cornerRadius(15)
         .shadow(radius: 10)
+    }
+    
+    private func handleBetSelection(_ bet: Int) {
+        if selectedBet != bet {
+            // Select the new bet
+            selectedBet = bet
+            gameManager.choseBet(bet: bet)
+        }
     }
 }
 

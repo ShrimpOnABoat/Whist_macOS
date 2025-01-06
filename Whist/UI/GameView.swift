@@ -97,6 +97,7 @@ struct GameView: View {
                 .cornerRadius(8) // Rounded corners
             }
             
+            // MARK: Show Options
             // Overlay OptionsView if showOptions is true
             if gameManager.showOptions {
                 ZStack {
