@@ -11,13 +11,16 @@ struct ScoreBoardView: View {
     @EnvironmentObject var gameManager: GameManager
 
     var body: some View {
-        let players = gameManager.gameState.players
+        let players = gameManager.gameState.players.sorted { player1, player2 in
+            let order: [PlayerId] = [.gg, .dd, .toto]
+            return order.firstIndex(of: player1.id) ?? Int.max < order.firstIndex(of: player2.id) ?? Int.max
+        }
         let round = gameManager.gameState.round
         let roundString = round < 4 ? "\(round)/3" : "\(round - 2)"
         
         VStack(spacing: 10) {
             // Round number
-            Text("Round \(roundString)")
+            Text("Tour \(roundString)")
                 .font(.title)
                 .fontWeight(.bold)
 

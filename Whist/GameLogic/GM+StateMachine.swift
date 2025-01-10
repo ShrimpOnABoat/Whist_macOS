@@ -92,6 +92,7 @@ extension GameManager {
                     }
                 } else {
                     if let localPlayer = gameState.localPlayer {
+                        print("My place is \(localPlayer.place)")
                         switch localPlayer.place {
                         case 1: transition(to: .bidding)
                         case 2: transition(to: .waitingForTrump)
@@ -127,13 +128,12 @@ extension GameManager {
             
         case .waitingForTrump:
             // Once a trump suit is chosen and confirmed:
-            if (gameState.trumpSuit == nil) && (gameState.localPlayer?.place == 2) {
+            if (gameState.trumpSuit != nil) && (gameState.localPlayer?.place == 2) {
                 transition(to: .discard) // In case local player is second
             }
             
         case .discard:
-            // player must discard one or two cards
-            discard() {}
+            break
             
         case .bidding:
             // Either waiting until I can bid or until everybody did:
@@ -162,6 +162,10 @@ extension GameManager {
             
         case .playingTricks:
             showOptions = false // Hide the options view
+            let allPlayersAreTied: Bool = gameState.players.map { $0.scores.last ?? 0 }.allSatisfy { $0 == gameState.players.first?.scores.last ?? 0 }
+            if gameState.round > 3 && !allPlayersAreTied {
+                gameState.trumpCards.last?.isFaceDown = false // show the trump card to the first player
+            }
 
             if isLocalPlayerTurnToPlay() {
                 setPlayableCards()
@@ -221,8 +225,6 @@ extension GameManager {
             
         case .renderingDeck, .waitingForDeck:
             if isDeckReady {
-                // Now that the deck is measured, let’s move to dealingCards
-//                isDeckReady = false // No need, only at launch of the game...
                 transition(to: .dealingCards)
             }
 
@@ -231,16 +233,38 @@ extension GameManager {
             print("Dealing cards")
             break
 
-        case .choosingTrump, .waitingForTrump:
+        case .choosingTrump:
             // If trump chosen, I chose a bid
             if gameState.trumpSuit != nil {
                 transition(to: .bidding)
             }
 
+        case .waitingForTrump:
+            // If trump chosen, I chose a bid
+            if gameState.trumpSuit != nil {
+                transition(to: .discard)
+            }
+            
+        case .discard:
+            let numberOfCardsToDiscard = (gameState.localPlayer?.hand.count ?? 0) - max(1, gameState.round - 2)
+            if numberOfCardsToDiscard > 0 {
+                return
+            } else if gameState.localPlayer?.place == 2 {
+                transition(to: .bidding)
+            } else {
+                transition(to: .playingTricks)
+            }
+
         case .bidding:
             
             if allPlayersBet() {
-                gameState.round < 4 ? transition(to: .showCard) : transition(to: .playingTricks)
+                if gameState.round < 4 {
+                    transition(to: .showCard)
+                } else if gameState.localPlayer?.place == 3 {
+                    transition(to: .discard)
+                } else {
+                    transition(to: .playingTricks)
+                }
             } else {
                 transition(to: .bidding)
             }

@@ -82,7 +82,9 @@ struct OptionsView: View {
     @State private var selectedBet: Int? = nil // Tracks the currently selected bet
     @State private var backgroundColor: Color // Store the random color
     @EnvironmentObject var gameManager: GameManager
-
+    @State private var randomNumber: Int? = nil // Current number during animation
+    @State private var isAnimating = false // Tracks if the animation is running
+    
     init() {
         _backgroundColor = State(initialValue: [
             .red, .orange, .yellow, .green, .mint, .teal,
@@ -92,50 +94,66 @@ struct OptionsView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Choisis une mise (\(selectedBet?.description ?? "-")):")
+            Text("Choisis une mise")
                 .font(.title)
                 .padding(.bottom, 20)
             
-            // Compute rows dynamically
-            let numbers = Array(0...max(gameManager.gameState.round - 2, 1))
-            let firstRow = Array(numbers.prefix(6)) // Up to 6 buttons in the first row
-            let secondRow = Array(numbers.dropFirst(6)) // Remaining buttons in the second row
-            let size: CGFloat = 40
-//            let backgroundColor: Color = [
-//                .red, .orange, .yellow, .green, .mint, .teal,
-//                .cyan, .blue, .indigo, .purple, .pink, .brown, .gray
-//            ].randomElement() ?? .blue
+            // Calculate scores
+            let scores = gameManager.gameState.players.map { $0.scores.last ?? 0 }.sorted(by: >)
+            let playerScore = gameManager.gameState.localPlayer?.scores.last ?? 0
+            let secondBestScore = scores.dropFirst().first ?? 0
             
-            VStack(spacing: 20) {
-                // First Row
-                HStack(spacing: 20) {
-                    ForEach(firstRow, id: \.self) { number in
-                        CircularButton(
-                            text: "\(number)",
-                            size: size,
-                            backgroundColor: backgroundColor,
-                            isSelected: selectedBet == number, // Check if this button is selected
-                            action: { handleBetSelection(number) }
-                        )
-                    }
-                }
+            // Check if the player is in random bet mode
+            let maxBet = max(gameManager.gameState.round - 2, 1)
+            
+            if (playerScore >= 2 * secondBestScore &&
+                playerScore != secondBestScore && // in case the 2 best players have 0
+                gameManager.gameState.round > 3) {
+                // Display only the "?" chip
+                CircularButton(
+                    text: randomNumber != nil ? "\(randomNumber!)" : "?",
+                    size: 60,
+                    backgroundColor: backgroundColor,
+                    isSelected: randomNumber != nil,
+                    action: randomNumber == nil ? handleRandomBetSelection : {}
+                )
+            } else {
+                // Display the regular betting chips
+                let numbers = Array(0...maxBet)
+                let firstRow = Array(numbers.prefix(6)) // Up to 6 buttons in the first row
+                let secondRow = Array(numbers.dropFirst(6)) // Remaining buttons in the second row
+                let size: CGFloat = 40
                 
-                // Second Row (only if there are numbers left)
-                if !secondRow.isEmpty {
+                VStack(spacing: 20) {
+                    // First Row
                     HStack(spacing: 20) {
-                        ForEach(secondRow, id: \.self) { number in
+                        ForEach(firstRow, id: \.self) { number in
                             CircularButton(
                                 text: "\(number)",
                                 size: size,
                                 backgroundColor: backgroundColor,
-                                isSelected: selectedBet == number, // Check if this button is selected
+                                isSelected: selectedBet == number,
                                 action: { handleBetSelection(number) }
                             )
                         }
                     }
+                    
+                    // Second Row
+                    if !secondRow.isEmpty {
+                        HStack(spacing: 20) {
+                            ForEach(secondRow, id: \.self) { number in
+                                CircularButton(
+                                    text: "\(number)",
+                                    size: size,
+                                    backgroundColor: backgroundColor,
+                                    isSelected: selectedBet == number,
+                                    action: { handleBetSelection(number) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
-            .padding(.horizontal)
         }
         .padding()
         .background(Color.white.opacity(0.2))
@@ -145,9 +163,35 @@ struct OptionsView: View {
     
     private func handleBetSelection(_ bet: Int) {
         if selectedBet != bet {
-            // Select the new bet
             selectedBet = bet
             gameManager.choseBet(bet: bet)
+        }
+    }
+    
+    private func handleRandomBetSelection() {
+        guard !isAnimating else { return } // Prevent double taps during animation
+        guard randomNumber == nil else { return } // Prevent triggering again if already chosen
+
+        // Start the random number animation
+        isAnimating = true
+        let maxBet = max(gameManager.gameState.round - 2, 1)
+        let numbers = Array(0...maxBet)
+        
+        var elapsedTime: TimeInterval = 0
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+            randomNumber = numbers.randomElement()
+            elapsedTime += 0.05
+            
+            if elapsedTime >= 2 { // Stop after 2 seconds
+                timer.invalidate()
+                isAnimating = false
+                
+                // Select the final random bet
+                if let finalBet = numbers.randomElement() {
+                    randomNumber = finalBet
+                    handleBetSelection(finalBet) // Lock the player's choice
+                }
+            }
         }
     }
 }

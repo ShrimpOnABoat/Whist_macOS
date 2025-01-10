@@ -52,10 +52,11 @@ struct PlayerInfoView: View {
                                 } else {
                                     // Placeholder for missing tricks
                                     RoundedRectangle(cornerRadius: 4)
-                                        .stroke(Color.black, style: StrokeStyle(lineWidth: 2, dash: [5]))
-                                        .opacity(0.2)
+                                        .stroke(Color.gray, style: StrokeStyle(lineWidth: 2))
+                                        .opacity(0.8)
                                         .blendMode(.multiply)
                                         .frame(width: 30, height: 20)
+                                        .background(Color.white.opacity(0.2))
                                 }
                             }
                         }
@@ -116,10 +117,11 @@ struct PlayerInfoView: View {
                                     }
                                 } else {
                                     RoundedRectangle(cornerRadius: 4)
-                                        .stroke(Color.black, style: StrokeStyle(lineWidth: 2, dash: [5]))
-                                        .opacity(0.2)
+                                        .stroke(Color.gray, style: StrokeStyle(lineWidth: 2))
+                                        .opacity(0.8)
                                         .blendMode(.multiply)
                                         .frame(width: 20, height: 30)
+                                        .background(Color.white.opacity(0.2))
                                 }
                             }
                             

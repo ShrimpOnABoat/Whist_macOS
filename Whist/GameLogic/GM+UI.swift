@@ -61,7 +61,7 @@ extension GameManager {
     
     // Function to initiate card movement
     func moveCard(_ card: Card, from source: CardPlace, to destination: CardPlace) {
-        print("Moving \(card) from \(source) to \(destination)")
+//        print("Moving \(card) from \(source) to \(destination)")
         // Add a placeholder to the destination with a unique identifier
         let placeholderCard = Card(suit: card.suit, rank: card.rank, isPlaceholder: true)
         switch destination {
@@ -127,7 +127,7 @@ extension GameManager {
         
         // Create a MovingCard instance without toState yet
         guard let fromState = self.cardStates[card.id] else {
-            print("fromState wasn't captured")
+//            print("fromState wasn't captured")
             return
         }
         let movingCardInstance = MovingCard(
@@ -136,7 +136,7 @@ extension GameManager {
             placeholderCard: placeholderCard,
             fromState: fromState
         )
-        print("Initiated moving \(movingCardInstance.card) from \(movingCardInstance.fromState) to \(movingCardInstance.to)")
+//        print("Initiated moving \(movingCardInstance.card) from \(movingCardInstance.fromState) to \(movingCardInstance.to)")
         
         self.movingCards.append(movingCardInstance)
     }
@@ -200,16 +200,16 @@ extension GameManager {
         
         // Ensure the batch animation is completed before starting another one
         activeAnimations -= 1
-        print("!!! FinalizeMove: activeAnimations is \(activeAnimations) for card \(movingCard.card).")
+//        print("!!! FinalizeMove: activeAnimations is \(activeAnimations) for card \(movingCard.card).")
         if activeAnimations == 0 {
             onBatchAnimationsCompleted[0]?()  // calls the closure we set in beginBatchMove
             
-            print("FinalizeMove: Batch animations completed")
+//            print("FinalizeMove: Batch animations completed")
 
             // Trigger the next queued animation batch
             processAnimationQueue()
         } else {
-            print("FinalizeMove: Batch animations still running with \(activeAnimations) animations left.")
+//            print("FinalizeMove: Batch animations still running with \(activeAnimations) animations left.")
         }
     }
 }

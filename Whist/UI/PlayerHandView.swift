@@ -10,7 +10,9 @@ import SwiftUI
 struct PlayerHandView: View {
     @EnvironmentObject var gameManager: GameManager
     @ObservedObject var player: Player // Observes changes in the player's hand
-    
+
+    @State private var selectedCardIDs: Set<String> = []
+
     var body: some View {
         GeometryReader { geometry in
             let fanRadius: CGFloat = 300
@@ -75,19 +77,55 @@ struct PlayerHandView: View {
                 let computedWidth = maxX - minX
                 let computedHeight = maxY - minY
                 
+                let numberOfCardsToDiscard = (gameManager.gameState.localPlayer?.hand.count ?? 0) - max(1, gameManager.gameState.round - 2)
+                let selectedCount = selectedCardIDs.count
+                let canSelectMore = selectedCount < numberOfCardsToDiscard
+                
                 // Align the ZStack so that minX and minY map to zero origin
                 ZStack {
                     ForEach(cardPositions, id: \.0.id) { (card, xOffset, yOffset, rotation) in
                         let cardXOffset = xOffset - minX - computedWidth/2
                         let cardYOffset = yOffset - minY - computedHeight/2
-                        TransformableCardView(card: card, rotation: rotation, xOffset: cardXOffset, yOffset: cardYOffset)
-//                            .onAppear {
-//                                print("Rendering card: \(card), isFaceDown: \(card.isFaceDown)")
-//                            }
+                        TransformableCardView(
+                            card: card,
+                            rotation: rotation,
+                            xOffset: cardXOffset,
+                            yOffset: cardYOffset,
+                            isSelected: selectedCardIDs.contains(card.id),
+                            canSelect: canSelectMore,
+                            onTap: {
+                                // When tapped, toggle selection:
+                                if selectedCardIDs.contains(card.id) {
+                                    selectedCardIDs.remove(card.id)
+                                } else {
+                                    selectedCardIDs.insert(card.id)
+                                }
+                            }
+                        )
                     }
                 }
                 .animation(.smooth(duration: 0.3), value: player.hand)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                
+                if gameManager.currentPhase == .discard && player.tablePosition == .local {
+                    VStack {
+                        Button(action: {
+                            let cardsToDiscard = player.hand.filter { selectedCardIDs.contains($0.id) }
+                            gameManager.discard(cardsToDiscard: cardsToDiscard) {
+                                selectedCardIDs.removeAll()
+                            }
+                        })
+                        {
+                            Text("Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" :"")")
+                                .padding()
+                                .background(selectedCount == numberOfCardsToDiscard ? Color.green : Color.gray)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                        }
+                        .disabled(selectedCount != numberOfCardsToDiscard)
+                    }
+                }
+            }
         }
     }
     
@@ -142,6 +180,7 @@ struct PlayerHandView_Previews: PreviewProvider {
         @Namespace var cardAnimationNamespace
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
+        gameManager.currentPhase = .discard
         
         // Extract players from the game state
         let localPlayer = gameManager.gameState.localPlayer!

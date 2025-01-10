@@ -95,3 +95,9 @@ class Player: Identifiable, ObservableObject, Codable {
         // 'image' is not encoded
     }
 }
+
+extension Player: CustomStringConvertible {
+    var description: String {
+        return username
+    }
+}

@@ -265,6 +265,11 @@ extension GameManager {
 
         // Notify other players about the action
         sendPlayCardtoPlayers(card)
+        
+        // Set the remaining cards to not playable
+        for card in localPlayer.hand {
+            card.isPlayable = false
+        }
 
         print("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
         
@@ -313,6 +318,8 @@ extension GameManager {
 
         // Determine the leading suit if available
         let leadingSuit = gameState.table.first?.suit
+        
+        print("setPlayableCards with leadingSuit \(leadingSuit?.rawValue ?? "Undefined")")
 
         // Check if the player has cards matching the leading suit
         let hasLeadingSuit = localPlayer.hand.contains { $0.suit == leadingSuit }
@@ -392,13 +399,13 @@ extension GameManager {
         print("assignTricks: beginBatchMove(3), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 3) {
             print("Assign trick should be completed now!")
-            completion()
         }
         
         // Introduce a delay before clearing the table and assigning the trick
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             // Set isFaceDown to true for the cards on the table
             self.gameState.table.forEach { card in
+                print("Grabing card \(card) with active animations = \(self.activeAnimations)")
                 card.isFaceDown = true
                 switch winner.tablePosition {
                 case .local:
@@ -414,8 +421,11 @@ extension GameManager {
             print("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
             
             // Add a delay after the animation completes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                self.updatePlayerPlayOrder(startingWith: .winner(winningPlayerID))
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                if self.gameState.round > 3 {
+                    self.updatePlayerPlayOrder(startingWith: .winner(winningPlayerID))
+                }
+                completion()
             }
         }
     }
@@ -455,7 +465,23 @@ extension GameManager {
     
     // MARK: discard
     
-    func discard(completion: @escaping () -> Void) {
+    func discard(cardsToDiscard: [Card], completion: @escaping () -> Void) {
+        guard currentPhase == .discard else { return }
         
+        beginBatchMove(totalCards: cardsToDiscard.count) { completion() }
+        for card in cardsToDiscard {
+            card.isFaceDown = true
+            moveCard(card, from: .localPlayer, to: .deck)
+        }
+        
+        // Send the information to other players
+        sendDiscardedCards(cardsToDiscard)
+        
+        print("Discarded cards: \(cardsToDiscard)")
+
+        completion()
+
+        // Transition to next phase
+        checkAndAdvanceStateIfNeeded()
     }
 }

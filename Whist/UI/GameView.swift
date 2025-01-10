@@ -62,10 +62,10 @@ struct GameView: View {
                                 ZStack {
                                     if gameManager.currentPhase != .choosingTrump {
                                         TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace)
-                                            .frame(width: 250, height: 180)
+                                            .frame(width: 350, height: 180)
                                     } else {
                                         TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace, mode: .trumps)
-                                            .frame(width: 250, height: 180)
+                                            .frame(width: 350, height: 180)
                                     }
                                 }
                             }
@@ -177,7 +177,7 @@ struct MovingCardView: View {
     @State private var hasAnimated: Bool = false // To ensure animation occurs only once
     
     var body: some View {
-        CardView(card: movingCard.card)
+        CardView(card: movingCard.card, isSelected: false, canSelect: false, onTap: {})
             .frame(width: 60, height: 90)
             .rotationEffect(.degrees(rotation))
             .scaleEffect(scale)

@@ -147,11 +147,19 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     }
     
     func newGameRound() {
+        if let message = gameState.localPlayer?.id.rawValue.uppercased() {
+            let padding = 3 // Padding around the message inside the box
+            let lineLength = message.count + padding * 2
+            let borderLine = String(repeating: "*", count: lineLength)
+            let formattedMessage = "** \(message) **"
+            
+            print(borderLine)
+            print(formattedMessage)
+            print(borderLine)
+        }
+
         gameState.round += 1
         gameState.trumpSuit = nil
-        if gameState.round > 1 {
-            updatePlayersPositions()
-        }
         
         // Move to the next dealer in playOrder
         guard let dealer = gameState.dealer,
@@ -165,6 +173,11 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         // Set the first player to play
         updatePlayerPlayOrder(startingWith: .dealer(gameState.dealer!))
+
+        // Update the players' positions
+        if gameState.round > 1 {
+            updatePlayersPositions()
+        }
     }
     
     func updatePlayerPlayOrder(startingWith condition: StartingCondition) {
@@ -193,6 +206,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         let reorderedPlayOrder = gameState.playOrder[startingIndex...] + gameState.playOrder[..<startingIndex]
         gameState.playOrder = Array(reorderedPlayOrder)
+        print("New players order: \(gameState.playOrder)")
     }
     
     // Enum for distinguishing conditions
@@ -218,6 +232,8 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         guard let player = gameState.players.first(where: { $0.username == username }) else {
             return 1 // Default to 1 if player is not found
         }
+        
+        print("Determining the position of \(player.username)")
 
         let currentRound = gameState.round
         let currentScores = gameState.players.map { $0.scores.last ?? 0 }
@@ -226,11 +242,13 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
 
         // Step 1: Player has the highest score
         if player.scores.last == highestScore {
+            print("\(player.username) has the highest score: \(highestScore)")
             return 1
         }
 
         // Step 2: Player has the lowest score
         if player.scores.last == lowestScore {
+            print("\(player.username) has the lowest score: \(lowestScore)")
             let sortedByScore = gameState.players.sorted {
                 ($0.scores.last ?? 0) < ($1.scores.last ?? 0)
             }
@@ -240,17 +258,21 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             }
 
             if playersWithLowestScore.count > 1 {
+                print("Players with the lowest score: \(playersWithLowestScore)")
+                
                 // Break tie based on historical scores
-                for round in stride(from: currentRound - 1, through: 0, by: -1) {
-                    let historicalScores = playersWithLowestScore.map {
-                        $0.scores[safe: round] ?? Int.min
-                    }
-                    let lowestHistoricalScore = historicalScores.min() ?? Int.min
+                let otherPlayer = playersWithLowestScore.first { $0.username != player.username }
 
-                    if let index = historicalScores.firstIndex(of: lowestHistoricalScore),
-                       playersWithLowestScore.indices.contains(index),
-                       playersWithLowestScore[index].username == username {
-                        return 3
+                for round in stride(from: currentRound - 1, through: 0, by: -1) {
+                    let playerScore = player.scores[safe: round] ?? Int.min
+                    let otherPlayerScore = otherPlayer?.scores[safe: round] ?? Int.min
+
+                    if playerScore != otherPlayerScore {
+                        if playerScore < otherPlayerScore {
+                            return 3
+                        } else {
+                            return 2
+                        }
                     }
                 }
 
@@ -261,15 +283,16 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
                     // Calculate the index of the player to the left of the dealer
                     let leftOfDealerIndex = (dealerIndex + 1) % gameState.playOrder.count
 
-                    // Check if the current player is the one to the left of the dealer
+                    // If the current player is the dealer
+                    if usernameIndex == dealerIndex {
+                        return 2 // Dealer gets rank 2
+                    }
+
+                    // If the current player is the first player to the left of the dealer
                     if usernameIndex == leftOfDealerIndex {
                         return 3 // Real last place
-                    } else {
-                        return 2 // Second-to-last
                     }
                 }
-
-                return 2
             } else {
                 return 3
             }
@@ -304,18 +327,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         checkAndAdvanceStateIfNeeded()
     }
     
-    func cancelBetFromPlayer(_ playerId: PlayerId) {
-        /// local player can accept or refuse the cancellation
-        /// accept if we're still in the bidding phase
-        /// refuse otherwise
-        /// once all 3 players have accepted, the local app can proceed with the cancellation.
-        if currentPhase == .bidding {
-            let player = gameState.getPlayer(by: playerId)
-            player.announcedTricks.removeLast()
-            player.madeTricks.removeLast()
-        }
-    }
-    
     func updateGameStateWithTrump(from playerId: PlayerId, with card: Card) {
         // move the card on top of the trump deck
         guard let index = gameState.trumpCards.firstIndex(of: card) else {
@@ -340,6 +351,29 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         checkAndAdvanceStateIfNeeded()
     }
     
+    func updateGameStateWithDiscardedCards(from playerId: PlayerId, with cards: [Card], completion: @escaping () -> Void) {
+        // Validate the player
+        let player = gameState.getPlayer(by: playerId)
+        
+        beginBatchMove(totalCards: cards.count) { completion() }
+
+        // Ensure the cards are part of the player's hand
+        for card in cards {
+            guard player.hand.firstIndex(of: card) != nil else {
+                print("Error: Card \(card) is not in \(playerId)'s hand.")
+                return
+            }
+            switch player.tablePosition {
+                case .left:
+                moveCard(card, from: .leftPlayer, to: .deck)
+            case .right:
+                moveCard(card, from: .rightPlayer, to: .deck)
+            default:
+                break
+            }
+        }
+    }
+    
     // MARK: Choose bet
     func choseBet(bet: Int) {
         // Ensure the local player is defined
@@ -359,24 +393,5 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         sendBetToPlayers(bet)
         checkAndAdvanceStateIfNeeded()
     }
-
-    
-    // MARK: Choose trump
-//    func choseTrump(trump: Card) {
-//                
-//        // Notify other players about the action
-//        sendTrumpToPlayers(trump)
-//        
-//        // close the Trump window
-//        showTrumps = false
-//        
-//        // place the chosen card on top of the deck and turn it face up
-//        let cardIndex = gameState.deck.firstIndex(of: trump)!
-//        gameState.deck.remove(at: cardIndex)
-//        gameState.deck.append(trump)
-//        gameState.deck[cardIndex].isFaceDown = false
-//        
-//        checkAndAdvanceStateIfNeeded()
-//    }
 
 }
