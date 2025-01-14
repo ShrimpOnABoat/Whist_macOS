@@ -36,6 +36,7 @@ struct CardView: View {
         .frame(width: 60, height: 90)
         .shadow(radius: 2) // Keep shadow but limit its impact
         .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.currentPhase == .discard) ? -30 : 0)   // Move card up on hover
+        .opacity(card.isPlaceholder ? 0.0 : 1.0)
         .contentShape(Rectangle())
         .onHover { hovering in
             guard gameManager.currentPhase == .discard
@@ -113,15 +114,14 @@ struct TransformableCardView: View {
             .scaleEffect(scale)
             .rotationEffect(Angle(degrees: rotation))
             .offset(x: xOffset, y: yOffset)
-            .opacity(card.isPlaceholder ? 0.0 : 1.0)
             .overlay(
                 GeometryReader { geometry in
                     Color.clear
                         .preference(key: CardTransformPreferenceKey.self, value: [
                             card.id: CardState(
                                 position: CGPoint(
-                                    x: geometry.frame(in: .global).midX + xOffset,
-                                    y: geometry.frame(in: .global).midY + yOffset
+                                    x: geometry.frame(in: .named("contentArea")).midX + xOffset,
+                                    y: geometry.frame(in: .named("contentArea")).midY + yOffset
                                 ),
                                 rotation: rotation,
                                 scale: scale

@@ -50,7 +50,10 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
     @Published var offset: CGFloat = CGFloat.random(in: -10...10)
     @Published var scale: CGFloat = 1.0
     @Published var isPlaceholder: Bool = false
-
+    // New properties for random values
+    var randomOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
+    var randomAngle: CGFloat = CGFloat.random(in: -10...10)
+    
     // Initializer
     init(suit: Suit, rank: Rank, isPlaceholder: Bool = false) {
         self.suit = suit

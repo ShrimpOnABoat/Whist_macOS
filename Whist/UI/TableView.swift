@@ -10,7 +10,6 @@ import SwiftUI
 struct TableView: View {
     @EnvironmentObject var gameManager: GameManager
     @ObservedObject var gameState: GameState
-    let namespace: Namespace.ID
     
     enum Mode {
         case tricks, trumps
@@ -18,9 +17,8 @@ struct TableView: View {
     
     let mode: Mode
 
-    init(gameState: GameState, namespace: Namespace.ID, mode: Mode = .tricks) {
+    init(gameState: GameState, mode: Mode = .tricks) {
         self.gameState = gameState
-        self.namespace = namespace
         self.mode = mode
     }
     
@@ -45,18 +43,12 @@ struct TableView: View {
     private func displayTrickCards(geometry: GeometryProxy) -> some View {
         ZStack {
             let offset: CGFloat = 40
-            let localOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
-            let leftOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
-            let rightOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
-            let localAngle: CGFloat = CGFloat.random(in: -10...10)
-            let leftAngle: CGFloat = CGFloat.random(in: -10...10)
-            let rightAngle: CGFloat = CGFloat.random(in: -10...10)
 
             if let localPlayer = gameState.localPlayer,
                let localIndex = gameState.playOrder.firstIndex(of: localPlayer.id),
                localIndex < gameState.table.count {
                 let card = gameState.table[localIndex]
-                TransformableCardView(card: card, rotation: card.rotation + localAngle, xOffset: localOffset.x, yOffset: card.offset + localOffset.y)
+                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle, xOffset: card.randomOffset.x, yOffset: card.offset + card.randomOffset.y)
                     .zIndex(Double(localIndex))
             }
             
@@ -64,7 +56,7 @@ struct TableView: View {
                let leftIndex = gameState.playOrder.firstIndex(of: leftPlayer.id),
                leftIndex < gameState.table.count {
                 let card = gameState.table[leftIndex]
-                TransformableCardView(card: card, rotation: card.rotation + leftAngle + CGFloat(90), xOffset: -offset + card.offset + leftOffset.x, yOffset: -offset + leftOffset.y)
+                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle + CGFloat(90), xOffset: -offset + card.offset + card.randomOffset.x, yOffset: -offset + card.randomOffset.y)
                     .zIndex(Double(leftIndex))
             }
             
@@ -72,7 +64,7 @@ struct TableView: View {
                let rightIndex = gameState.playOrder.firstIndex(of: rightPlayer.id),
                rightIndex < gameState.table.count {
                 let card = gameState.table[rightIndex]
-                TransformableCardView(card: card, rotation: card.rotation + rightAngle + CGFloat(90), xOffset: offset + card.offset + rightOffset.x, yOffset: -offset + rightOffset.y)
+                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle + CGFloat(90), xOffset: offset + card.offset + card.randomOffset.x, yOffset: -offset + card.randomOffset.y)
                     .zIndex(Double(rightIndex))
             }
         }
@@ -109,7 +101,6 @@ struct TableView: View {
 
 struct TableView_Previews: PreviewProvider {
     static var previews: some View {
-        @Namespace var cardAnimationNamespace
         let gameManager = GameManager()
         
         // Setup preview game state
@@ -131,7 +122,7 @@ struct TableView_Previews: PreviewProvider {
         
         return Group {
             // Trick Cards Preview
-            TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace, mode: .tricks)
+            TableView(gameState: gameManager.gameState, mode: .tricks)
                 .environmentObject(gameManager)
                 .previewDisplayName("Trick Cards")
                 .previewLayout(.fixed(width: 600, height: 400))
@@ -141,7 +132,7 @@ struct TableView_Previews: PreviewProvider {
                 let gameState = gameManager.gameState
                 gameState.table = trumpCards // Use trump cards for this preview
                 return gameState
-            }(), namespace: cardAnimationNamespace, mode: .trumps)
+            }(), mode: .trumps)
             .environmentObject(gameManager)
             .previewDisplayName("Trump Cards")
             .previewLayout(.fixed(width: 600, height: 200))

@@ -256,8 +256,8 @@ extension GameManager {
             }
 
         case .bidding:
-            
             if allPlayersBet() {
+                showOptions = false
                 if gameState.round < 4 {
                     transition(to: .showCard)
                 } else if gameState.localPlayer?.place == 3 {
@@ -274,7 +274,6 @@ extension GameManager {
             transition(to: .playingTricks)
             
         case .playingTricks:
-
             if allPlayersPlayed() {
                 transition(to: .grabTrick)
             } else {

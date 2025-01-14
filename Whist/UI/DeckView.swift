@@ -41,6 +41,12 @@ struct DeckView: View {
         }
         .animation(.smooth(duration: 0.3), value: gameState.deck)
         .padding() // Add padding for layout spacing
+//        .overlay(
+//            GeometryReader { geometry in
+//                Text("\(geometry.frame(in: .named("contentArea")).origin)")
+//                    .foregroundColor(.red)
+//            }
+//        )
     }
 }
 

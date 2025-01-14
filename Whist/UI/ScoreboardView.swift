@@ -61,7 +61,7 @@ struct ScoreBoardView: View {
             }
         }
         .padding()
-        .frame(width: 250)
+//        .frame(width: 250)
         .background(
             ZStack {
                 Color.white

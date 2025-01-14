@@ -108,7 +108,7 @@ extension GameManager {
         gameState.players[2].scores = [-10, -20, 25, 70, 45, 40, 80]
 
         // Announced and made tricks
-        gameState.players[0].announcedTricks = [0, 0, 0, 1, 2, 1, 2]
+        gameState.players[0].announcedTricks = [0, 0, 0, 1, 2, 1, 1]
         gameState.players[0].madeTricks = [0, 0, 1, 2, 3, 1, 2]
         gameState.players[1].announcedTricks = [1, 0, 1, 0, 0, 2, 1]
         gameState.players[1].madeTricks = [1, 0, 1, 0, 0, 2, 2]

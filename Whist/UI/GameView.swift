@@ -23,7 +23,6 @@ struct CardTransformPreferenceKey: PreferenceKey {
 
 struct GameView: View {
     @EnvironmentObject var gameManager: GameManager
-    @Namespace private var cardAnimationNamespace
     @State private var cardTransforms: [String: CardState] = [:]
 
     @State private var background: AnyView = AnyView(FeltBackgroundView(
@@ -47,40 +46,38 @@ struct GameView: View {
                 ZStack {
                     // Background
                     background
+//                    GridOverlay(spacing: 50)
                     
                     VStack {
                         HStack {
-                            PlayerHandView(player: leftPlayer)
-                            PlayerInfoView(player: leftPlayer, isDealer: dealer == leftPlayer.id, namespace: cardAnimationNamespace)
+                            PlayerView(player: leftPlayer, isDealer: dealer == leftPlayer.id)
+                                .frame(width: 200, height: 350)
+
                             VStack {
                                 HStack {
                                     TrumpView()
                                     ScoreBoardView()
                                     DeckView(gameState: gameManager.gameState)
                                 }
-                                
+                                .frame(width: 400, height: 150)
+
                                 ZStack {
                                     if gameManager.currentPhase != .choosingTrump {
-                                        TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace)
-                                            .frame(width: 350, height: 180)
+                                        TableView(gameState: gameManager.gameState)
                                     } else {
-                                        TableView(gameState: gameManager.gameState, namespace: cardAnimationNamespace, mode: .trumps)
-                                            .frame(width: 350, height: 180)
+                                        TableView(gameState: gameManager.gameState, mode: .trumps)
                                     }
                                 }
+                                .frame(width: 400, height: 180)
                             }
-                            PlayerInfoView(player: rightPlayer, isDealer: dealer == rightPlayer.id, namespace: cardAnimationNamespace)
-                            PlayerHandView(player: rightPlayer)
+                            PlayerView(player: rightPlayer, isDealer: dealer == rightPlayer.id)
+                                .frame(width: 200, height: 350)
                         }
-                        PlayerInfoView(player: localPlayer, isDealer: dealer == localPlayer.id, namespace: cardAnimationNamespace)
-                        HStack {
-                            Spacer()
-                            PlayerHandView(player: localPlayer)
-                                .frame(maxWidth: .infinity, alignment: .center) // Center horizontally within available space
-                            Spacer()
-                        }
+                        PlayerView(player: localPlayer, isDealer: dealer == localPlayer.id)
+                            .frame(width: 600, height: 200)
                     }
                 }
+                .coordinateSpace(name: "contentArea")
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Debug: Players not set up yet.")
@@ -113,33 +110,44 @@ struct GameView: View {
             ForEach(gameManager.movingCards) { movingCard in
                 MovingCardView(movingCard: movingCard)
                     .environmentObject(gameManager)
+                    .onAppear() {
+                        print("MovingCardView for \(movingCard) appeared")
+                    }
             }
         }
         .onPreferenceChange(CardTransformPreferenceKey.self) { transforms in
             self.cardTransforms = transforms
-            // for cards initialization
+            let lastThreeCards = gameManager.gameState.deck.suffix(3)
+            let lastThreeCardsId = lastThreeCards.map { $0.id } // Extract IDs of the last three cards
+            
+            // For cards initialization
             for (cardID, cardState) in transforms {
                 // Update each card’s fromState
                 gameManager.cardStates[cardID] = cardState
+                
+                // Check if the cardID belongs to the last three cards
+                if lastThreeCardsId.contains(cardID) {
+                    print("\(cardID)'s state: \(cardState)")
+                }
             }
             
             // If all deck cards are now measured,
             // let the GameManager know we’re ready to deal.
             if !didMeasureDeck && transforms.count == (gameManager.gameState.deck.count + gameManager.gameState.trumpCards.count) {
-//                print("The deck is measured!!!")
                 didMeasureDeck = true
                 gameManager.onDeckMeasured()
-            } else {
-//                print("Deck is measured: \(didMeasureDeck) - \(transforms.count) transforms and \(gameManager.gameState.deck.count) cards in the deck")
             }
             
             // Iterate through moving cards to check if any placeholder positions are captured
             for movingCard in gameManager.movingCards {
-                if let toState = transforms[movingCard.placeholderCard.id],
-                   movingCard.toState == nil {
-                    // Update the movingCard's toState
-                    movingCard.toState = toState
-//                    print("toState captured for \(movingCard.card)")
+                if let toState = transforms[movingCard.placeholderCard.id] {
+                    if movingCard.toState == nil {
+                        // Update the movingCard's toState
+                        movingCard.toState = toState
+                        print("toState captured for \(movingCard.card)")
+                    }
+                } else {
+                    print("No placeholder transforms for \(movingCard.card)")
                 }
             }
         }
@@ -164,7 +172,11 @@ class MovingCard: Identifiable, ObservableObject {
         self.fromState = fromState
     }
 }
-
+extension MovingCard: CustomStringConvertible {
+    var description: String {
+        return "\(card)"
+    }
+}
 // MARK: - MovingCardView
 
 struct MovingCardView: View {
@@ -183,6 +195,7 @@ struct MovingCardView: View {
             .scaleEffect(scale)
             .position(position)
             .onAppear {
+                print("\(movingCard.card) from: \(movingCard.fromState.position)")
                 // Initialize with source transformations
                 self.position = movingCard.fromState.position
                 self.rotation = movingCard.fromState.rotation
@@ -190,10 +203,15 @@ struct MovingCardView: View {
             }
             .onChange(of: movingCard.toState) { oldToState, newToState in
                 guard let toState = newToState, !hasAnimated else { return }
-
+                
                 hasAnimated = true
-                let animationDuration: TimeInterval = 0.5 // Adjust as needed
-                withAnimation(.easeInOut(duration: animationDuration)) {
+                print("\(movingCard.card) to: \(toState.position)")
+
+                let animationDuration: TimeInterval = 1 // Adjust as needed
+                withAnimation(.interpolatingSpring(
+                    stiffness: 210,
+                    damping: 20
+                )) {
                     self.rotation = toState.rotation
                     self.scale = toState.scale
                     self.position = toState.position
@@ -204,6 +222,64 @@ struct MovingCardView: View {
                     gameManager.finalizeMove(movingCard)
                 }
             }
+    }
+}
+
+// MARK: Grid Overlay
+
+struct GridOverlay: View {
+    let spacing: CGFloat
+
+    var body: some View {
+        GeometryReader { geometry in
+            Path { path in
+                let width = geometry.size.width
+                let height = geometry.size.height
+                
+                for x in stride(from: 0, to: width, by: spacing) {
+                    path.move(to: CGPoint(x: x, y: 0))
+                    path.addLine(to: CGPoint(x: x, y: height))
+                }
+                
+                for y in stride(from: 0, to: height, by: spacing) {
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: width, y: y))
+                }
+            }
+            .stroke(Color.gray.opacity(0.3), lineWidth: 1) // Thin lines for every 50px
+            
+            Path { path in
+                let width = geometry.size.width
+                let height = geometry.size.height
+                
+                for x in stride(from: 0, to: width, by: spacing * 2) { // Every 100px
+                    path.move(to: CGPoint(x: x, y: 0))
+                    path.addLine(to: CGPoint(x: x, y: height))
+                }
+                
+                for y in stride(from: 0, to: height, by: spacing * 2) { // Every 100px
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: width, y: y))
+                }
+            }
+            .stroke(Color.gray.opacity(0.5), lineWidth: 2) // Thicker lines for every 100px
+            
+            Path { path in
+                let width = geometry.size.width
+                let height = geometry.size.height
+                
+                for x in stride(from: 0, to: width, by: spacing * 10) { // Every 500px
+                    path.move(to: CGPoint(x: x, y: 0))
+                    path.addLine(to: CGPoint(x: x, y: height))
+                }
+                
+                for y in stride(from: 0, to: height, by: spacing * 10) { // Every 500px
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: width, y: y))
+                }
+            }
+            .stroke(Color.gray.opacity(0.8), lineWidth: 3) // Boldest lines for every 500px
+        }
     }
 }
 

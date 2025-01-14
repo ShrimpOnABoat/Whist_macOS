@@ -35,7 +35,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     // Injected dependencies
     var connectionManager: ConnectionManager?
 
-    
     static let SM = ScoresManager.shared
     
     var cancellables = Set<AnyCancellable>()
@@ -233,8 +232,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             return 1 // Default to 1 if player is not found
         }
         
-        print("Determining the position of \(player.username)")
-
         let currentRound = gameState.round
         let currentScores = gameState.players.map { $0.scores.last ?? 0 }
         let highestScore = currentScores.max() ?? 0
@@ -242,13 +239,11 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
 
         // Step 1: Player has the highest score
         if player.scores.last == highestScore {
-            print("\(player.username) has the highest score: \(highestScore)")
             return 1
         }
 
         // Step 2: Player has the lowest score
         if player.scores.last == lowestScore {
-            print("\(player.username) has the lowest score: \(lowestScore)")
             let sortedByScore = gameState.players.sorted {
                 ($0.scores.last ?? 0) < ($1.scores.last ?? 0)
             }
@@ -258,8 +253,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             }
 
             if playersWithLowestScore.count > 1 {
-                print("Players with the lowest score: \(playersWithLowestScore)")
-                
                 // Break tie based on historical scores
                 let otherPlayer = playersWithLowestScore.first { $0.username != player.username }
 
@@ -288,9 +281,16 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
                         return 2 // Dealer gets rank 2
                     }
 
+                    // If the other player is the dealer
+                    if otherPlayer?.id == gameState.dealer {
+                        return 3
+                    }
+
                     // If the current player is the first player to the left of the dealer
                     if usernameIndex == leftOfDealerIndex {
                         return 3 // Real last place
+                    } else {
+                        return 2
                     }
                 }
             } else {
@@ -372,6 +372,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
                 break
             }
         }
+        checkAndAdvanceStateIfNeeded()
     }
     
     // MARK: Choose bet
@@ -386,8 +387,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             print("the optionsView should disappear now.")
         }
         
-        localPlayer.announcedTricks.append(bet)
-        localPlayer.madeTricks.append(0)
+        if localPlayer.announcedTricks.count == gameState.round {
+            // player updates his current bet
+            localPlayer.announcedTricks[localPlayer.announcedTricks.count-1] = bet
+        } else {
+            // first bet for this round
+            localPlayer.announcedTricks.append(bet)
+            localPlayer.madeTricks.append(0)
+        }
         
         // Notify other players about the action
         sendBetToPlayers(bet)

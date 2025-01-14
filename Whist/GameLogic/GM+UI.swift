@@ -64,6 +64,11 @@ extension GameManager {
 //        print("Moving \(card) from \(source) to \(destination)")
         // Add a placeholder to the destination with a unique identifier
         let placeholderCard = Card(suit: card.suit, rank: card.rank, isPlaceholder: true)
+        placeholderCard.rotation = card.rotation
+        placeholderCard.offset = card.offset
+        placeholderCard.randomOffset = card.randomOffset
+        placeholderCard.randomAngle = card.randomAngle
+        
         switch destination {
         case .localPlayer:
             gameState.localPlayer?.hand.append(placeholderCard)
