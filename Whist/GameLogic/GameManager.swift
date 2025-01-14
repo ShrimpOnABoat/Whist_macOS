@@ -31,6 +31,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     var animationQueue: [(Int, () -> Void)] = []
     // Dictionary to store each card's state
     @Published var cardStates: [String: CardState] = [:]
+    @Published var isShuffling: Bool = false
     
     // Injected dependencies
     var connectionManager: ConnectionManager?

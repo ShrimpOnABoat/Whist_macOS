@@ -39,6 +39,14 @@ extension GameManager {
     }
 
     func beginBatchMove(totalCards: Int, completion: @escaping () -> Void) {
+        if isShuffling {
+            // Queue the action to run after shuffling completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.beginBatchMove(totalCards: totalCards, completion: completion)
+            }
+            return
+        }
+
         animationQueue.append((totalCards, completion))
         processAnimationQueue()
     }
@@ -61,7 +69,14 @@ extension GameManager {
     
     // Function to initiate card movement
     func moveCard(_ card: Card, from source: CardPlace, to destination: CardPlace) {
-//        print("Moving \(card) from \(source) to \(destination)")
+        if isShuffling {
+            // Wait until shuffling is done, then retry
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.moveCard(card, from: source, to: destination)
+            }
+            return
+        }
+
         // Add a placeholder to the destination with a unique identifier
         let placeholderCard = Card(suit: card.suit, rank: card.rank, isPlaceholder: true)
         placeholderCard.rotation = card.rotation
@@ -205,16 +220,10 @@ extension GameManager {
         
         // Ensure the batch animation is completed before starting another one
         activeAnimations -= 1
-//        print("!!! FinalizeMove: activeAnimations is \(activeAnimations) for card \(movingCard.card).")
         if activeAnimations == 0 {
             onBatchAnimationsCompleted[0]?()  // calls the closure we set in beginBatchMove
-            
-//            print("FinalizeMove: Batch animations completed")
-
-            // Trigger the next queued animation batch
             processAnimationQueue()
         } else {
-//            print("FinalizeMove: Batch animations still running with \(activeAnimations) animations left.")
         }
     }
 }

@@ -70,7 +70,7 @@ extension GameManager {
     // MARK: shuffleCards
     
     func shuffleCards () {
-        // Shufle the deck
+        // Shuffle the deck
         gameState.deck.shuffle()
     }
     
@@ -80,9 +80,8 @@ extension GameManager {
         // Make deck same as dealer's
         if let newDeck = try? JSONDecoder().decode([Card].self, from: data) {
             gameState.deck = newDeck
-            print("Deck updated with \(newDeck.count) cards.")
-            isDeckReady = true
-            checkAndAdvanceStateIfNeeded()
+            self.isDeckReady = true
+            self.checkAndAdvanceStateIfNeeded()
         } else {
             print("Failed to decode deck data.")
         }
@@ -208,7 +207,7 @@ extension GameManager {
                 return
             } else {
                 // Add a delay for the next card
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     dealNextCard()
                 }
             }

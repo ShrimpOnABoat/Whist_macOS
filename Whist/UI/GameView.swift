@@ -110,26 +110,16 @@ struct GameView: View {
             ForEach(gameManager.movingCards) { movingCard in
                 MovingCardView(movingCard: movingCard)
                     .environmentObject(gameManager)
-                    .onAppear() {
-                        print("MovingCardView for \(movingCard) appeared")
-                    }
             }
         }
         .onPreferenceChange(CardTransformPreferenceKey.self) { transforms in
             self.cardTransforms = transforms
-            let lastThreeCards = gameManager.gameState.deck.suffix(3)
-            let lastThreeCardsId = lastThreeCards.map { $0.id } // Extract IDs of the last three cards
-            
+
             // For cards initialization
             for (cardID, cardState) in transforms {
                 // Update each card’s fromState
                 gameManager.cardStates[cardID] = cardState
-                
-                // Check if the cardID belongs to the last three cards
-                if lastThreeCardsId.contains(cardID) {
-                    print("\(cardID)'s state: \(cardState)")
-                }
-            }
+           }
             
             // If all deck cards are now measured,
             // let the GameManager know we’re ready to deal.
@@ -144,10 +134,7 @@ struct GameView: View {
                     if movingCard.toState == nil {
                         // Update the movingCard's toState
                         movingCard.toState = toState
-                        print("toState captured for \(movingCard.card)")
                     }
-                } else {
-                    print("No placeholder transforms for \(movingCard.card)")
                 }
             }
         }
@@ -195,7 +182,6 @@ struct MovingCardView: View {
             .scaleEffect(scale)
             .position(position)
             .onAppear {
-                print("\(movingCard.card) from: \(movingCard.fromState.position)")
                 // Initialize with source transformations
                 self.position = movingCard.fromState.position
                 self.rotation = movingCard.fromState.rotation
@@ -205,7 +191,6 @@ struct MovingCardView: View {
                 guard let toState = newToState, !hasAnimated else { return }
                 
                 hasAnimated = true
-                print("\(movingCard.card) to: \(toState.position)")
 
                 let animationDuration: TimeInterval = 1 // Adjust as needed
                 withAnimation(.interpolatingSpring(
