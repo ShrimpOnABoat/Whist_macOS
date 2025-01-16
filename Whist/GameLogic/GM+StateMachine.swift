@@ -106,18 +106,21 @@ extension GameManager {
             // 2) Now branch out whether we do gatherCards + shuffle or not:
             if isDealer {
                 gatherCards {
-                    self.shuffleCards()
-                    self.sendDeckToPlayers()
-
-                    // 3) Call dealCards, then call our afterDealing function
-                    self.dealCards {
-                        afterDealing()
+                    self.shuffleCards() {
+                        self.sendDeckToPlayers()
+                        
+                        // 3) Call dealCards, then call our afterDealing function
+                        self.dealCards {
+                            afterDealing()
+                        }
                     }
                 }
             } else {
                 // 4) Same dealCards call, same completion logic
-                self.dealCards {
-                    afterDealing()
+                self.shuffleCards(animationOnly: true) {
+                    self.dealCards {
+                        afterDealing()
+                    }
                 }
             }
         case .choosingTrump:

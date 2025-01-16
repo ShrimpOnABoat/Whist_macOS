@@ -193,10 +193,7 @@ struct MovingCardView: View {
                 hasAnimated = true
 
                 let animationDuration: TimeInterval = 1 // Adjust as needed
-                withAnimation(.interpolatingSpring(
-                    stiffness: 210,
-                    damping: 20
-                )) {
+                withAnimation(.easeOut(duration: 0.4)) {
                     self.rotation = toState.rotation
                     self.scale = toState.scale
                     self.position = toState.position

@@ -45,7 +45,7 @@ extension GameManager {
                 }
             }
             
-            // make sure they're all face down
+            // make sure they're all face down and not playable
             for index in gameState.deck.indices {
                 gameState.deck[index].isFaceDown = true
                 gameState.deck[index].isPlayable = false
@@ -69,9 +69,21 @@ extension GameManager {
     
     // MARK: shuffleCards
     
-    func shuffleCards () {
-        // Shuffle the deck
-        gameState.deck.shuffle()
+    func shuffleCards(animationOnly: Bool = false, completion: @escaping () -> Void) {
+        if let shuffle = shuffleCallback {
+            shuffle {
+                if !animationOnly {
+                    // Shuffle the deck after the animation
+                    self.gameState.deck.shuffle()
+                }
+                completion() // Notify that shuffle is complete
+            }
+        } else {
+            print("Shuffle callback is not set.")
+            // we still shuffle the cards
+            self.gameState.deck.shuffle()
+            completion()
+        }
     }
     
     // MARK: updateDeck
@@ -182,6 +194,7 @@ extension GameManager {
                     destination = .rightPlayer
                     card.isFaceDown = gameState.round < 4 ? false : true
                 }
+                print("Dealing \(card) to \(playerID)")
                 moveCard(card, from: .deck, to: destination)
 
                 cardsPerPlayer[playerID]! -= 1
@@ -419,13 +432,13 @@ extension GameManager {
             winner.madeTricks[self.gameState.round - 1] += 1
             print("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
             
-            // Add a delay after the animation completes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                if self.gameState.round > 3 {
-                    self.updatePlayerPlayOrder(startingWith: .winner(winningPlayerID))
+            // Add a delay after the animation completes if last trick of the round
+            DispatchQueue.main.asyncAfter(deadline: .now() + (winner.hand.isEmpty ? 1.5 : 0)) {
+                    if self.gameState.round > 3 {
+                        self.updatePlayerPlayOrder(startingWith: .winner(winningPlayerID))
+                    }
+                    completion()
                 }
-                completion()
-            }
         }
     }
     

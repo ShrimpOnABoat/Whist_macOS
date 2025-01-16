@@ -32,7 +32,6 @@ struct DeckView: View {
                             .foregroundColor(.gray)
                     )
             } else {
-                //                ForEach(Array(gameState.deck.enumerated()), id: \.element.id) { index, card in
                 ForEach(Array(gameState.deck.enumerated()), id: \.offset) { index, card in
                     let baseOffset = CGSize(width: CGFloat(index) * 0.5,
                                             height: CGFloat(index) * -0.5)
@@ -50,21 +49,17 @@ struct DeckView: View {
             }
         }
         .padding()
-        // Add a button or gesture or some event to trigger shuffle
         .onAppear {
-            // Example: Trigger shuffle on appear or whenever you'd like
-            simulateShuffle()
+            // Pass the simulateShuffle function to the GameManager
+            gameManager.shuffleCallback = { completion in
+                self.simulateShuffle(completion: completion)
+            }
         }
         // Animate deck changes (e.g., when a card is drawn or discarded)
         .animation(.default, value: gameState.deck)
-        .onChange(of: gameState.deck) { oldDeck, newDeck in
-            if oldDeck.count == newDeck.count && oldDeck.count == 32  && oldDeck != newDeck {
-                simulateShuffle()
-            }
-        }
     }
     
-    private func simulateShuffle() {
+    func simulateShuffle(completion: @escaping () -> Void) {
         // Generate random transforms for each card
         randomOffsets = gameState.deck.reduce(into: [:]) { dict, card in
             dict[card.id] = CGSize(
@@ -102,6 +97,7 @@ struct DeckView: View {
             withAnimation(.easeInOut(duration: 0.3)) {
                 gameManager.isShuffling = false
             }
+            completion()
         }
     }
 }
