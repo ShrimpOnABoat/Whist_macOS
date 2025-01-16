@@ -11,6 +11,7 @@ import SwiftUI
 class GameState: ObservableObject, Codable {
     @Published var round: Int = 0 // 1 is the first round, 12 is the last (12th) one
     @Published var deck: [Card] = []
+    var newDeck: [Card] = [] // Used to store the deck from the dealer
     @Published var trumpCards: [Card] = [Card(suit: .clubs, rank: .two), Card(suit: .spades, rank: .two), Card(suit: .diamonds, rank: .two), Card(suit: .hearts, rank: .two)]
     @Published var table: [Card] = [] // Must be [] after each trick grab. It follows the same order as in playOrder
     @Published var lastTrick: [PlayerId: Card] = [:]

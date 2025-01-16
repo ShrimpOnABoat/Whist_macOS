@@ -51,15 +51,15 @@ struct DeckView: View {
         .padding()
         .onAppear {
             // Pass the simulateShuffle function to the GameManager
-            gameManager.shuffleCallback = { completion in
-                self.simulateShuffle(completion: completion)
+            gameManager.shuffleCallback = { newDeck, completion in
+                self.simulateShuffle(newDeck: newDeck, completion: completion)
             }
         }
         // Animate deck changes (e.g., when a card is drawn or discarded)
         .animation(.default, value: gameState.deck)
     }
     
-    func simulateShuffle(completion: @escaping () -> Void) {
+    func simulateShuffle(newDeck: [Card], completion: @escaping () -> Void) {
         // Generate random transforms for each card
         randomOffsets = gameState.deck.reduce(into: [:]) { dict, card in
             dict[card.id] = CGSize(
@@ -71,15 +71,16 @@ struct DeckView: View {
             dict[card.id] = Double.random(in: -15...15) // random angle
         }
         
-        // Start shuffling
+        // Start shuffling animation
         withAnimation(.easeInOut(duration: 0.3)) {
             gameManager.isShuffling = true
         }
         
-        // Shake it up a bit by repeating or layering animations
+        // Shake it up a bit during the animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             withAnimation(.easeInOut(duration: 0.3)) {
-                // Possibly generate new random positions to simulate further shuffling
+                gameState.deck = newDeck // Update the logical order of the deck
+
                 randomOffsets = gameState.deck.reduce(into: [:]) { dict, card in
                     dict[card.id] = CGSize(
                         width: CGFloat.random(in: -50...50),
@@ -92,7 +93,7 @@ struct DeckView: View {
             }
         }
         
-        // End shuffle and return cards to original position
+        // Finalize shuffle and update the deck state
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 gameManager.isShuffling = false

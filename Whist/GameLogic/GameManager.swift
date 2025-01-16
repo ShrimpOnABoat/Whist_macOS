@@ -32,7 +32,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     // Dictionary to store each card's state
     @Published var cardStates: [String: CardState] = [:]
     @Published var isShuffling: Bool = false
-    var shuffleCallback: ((_ completion: @escaping () -> Void) -> Void)?
+    var shuffleCallback: ((_ deck: [Card], _ completion: @escaping () -> Void) -> Void)?
     // Injected dependencies
     var connectionManager: ConnectionManager?
 

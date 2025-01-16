@@ -70,13 +70,20 @@ extension GameManager {
     // MARK: shuffleCards
     
     func shuffleCards(animationOnly: Bool = false, completion: @escaping () -> Void) {
+        var newDeck: [Card] = []
+        if animationOnly {
+            // We use the deck received from the dealer
+            newDeck = gameState.newDeck
+        } else {
+            // Generate a new shuffled deck
+            newDeck = gameState.deck.shuffled()
+        }
+        
+        // Call simulateShuffle with the new deck order
         if let shuffle = shuffleCallback {
-            shuffle {
-                if !animationOnly {
-                    // Shuffle the deck after the animation
-                    self.gameState.deck.shuffle()
-                }
-                completion() // Notify that shuffle is complete
+            shuffle(newDeck) {
+                print("Shuffle complete!")
+                completion()
             }
         } else {
             print("Shuffle callback is not set.")
@@ -91,7 +98,7 @@ extension GameManager {
     func updateDeck(with data: Data) {
         // Make deck same as dealer's
         if let newDeck = try? JSONDecoder().decode([Card].self, from: data) {
-            gameState.deck = newDeck
+            gameState.newDeck = newDeck
             self.isDeckReady = true
             self.checkAndAdvanceStateIfNeeded()
         } else {
