@@ -7,12 +7,16 @@
 
 import SwiftUI
 
+// MARK: PlayerView
+
 struct PlayerView: View {
     @EnvironmentObject var gameManager: GameManager
     @ObservedObject var player: Player
     let isDealer: Bool
     
     @State private var selectedCardIDs: Set<String> = []
+    @State private var displayedMessage: String = ""
+
 
     var body: some View {
         GeometryReader { geometry in
@@ -23,6 +27,7 @@ struct PlayerView: View {
                             PlayerHand()
                         }
                         VStack {
+                            StateDisplay()
                             PlayerInfo()
                             if gameManager.allPlayersBet() {
                                 TrickDisplay()
@@ -35,10 +40,16 @@ struct PlayerView: View {
                 } else {
                     // Display player info and hand (horizontal layout for the local player)
                     VStack {
-                        HStack {
+                        ZStack {
+                            VStack {
+                                StateDisplay()
+                                TrickDisplay()
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
                             PlayerInfo()
-                            TrickDisplay()
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         PlayerHand()
                     }
                 }
@@ -152,6 +163,74 @@ struct PlayerView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+    
+    // MARK: State Display
+    
+    @ViewBuilder
+    private func StateDisplay() -> some View {
+        // Define the message based on the player's state
+        let newMessage: String = {
+            if player.tablePosition != .local {
+                switch player.state {
+                case .idle: return ""
+                case .choosingTrump: return "Choisit l'atout"
+                case .bidding: return "Choisit sa mise"
+                case .discarding: return "Défausse sa carte"
+                case .playing: return "Joue une carte"
+                case .waiting: return "Attend les autres"
+                }
+            } else {
+                switch player.state {
+                case .idle: return ""
+                case .choosingTrump: return "Choisis l'atout"
+                case .bidding: return "Choisis une mise"
+                case .discarding: return "Défausse tes cartes"
+                case .playing: return "Joue une carte"
+                case .waiting: return ""
+                }
+            }
+        }()
+
+        // Update the message with animation when it changes
+        VStack {
+            if !displayedMessage.isEmpty {
+                Text(displayedMessage)
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(Color.white.opacity(0.5))
+                    .cornerRadius(5)
+                    .shadow(radius: 5)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(Color.white, lineWidth: 2)
+                    )
+                    .transition(.opacity.combined(with: .scale))
+                    .animation(.easeInOut(duration: 0.3), value: displayedMessage)
+            } else {
+                Text(displayedMessage)
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(Color.white.opacity(0.5))
+                    .cornerRadius(5)
+                    .shadow(radius: 5)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(Color.white, lineWidth: 2)
+                    )
+                    .transition(.opacity.combined(with: .scale))
+                    .animation(.easeInOut(duration: 0.3), value: displayedMessage)
+                    .opacity(0)
+            }
+        }
+        .onAppear {
+            displayedMessage = newMessage
+        }
+        .onChange(of: player.state) { _, _ in
+            withAnimation {
+                displayedMessage = newMessage
             }
         }
     }
@@ -321,7 +400,7 @@ struct PlayerView_Previews: PreviewProvider {
     static var previews: some View {
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
-        gameManager.currentPhase = .discard
+//        gameManager.currentPhase = .discard
 
         // Extract players from the game state
         let localPlayer = gameManager.gameState.localPlayer!
@@ -342,5 +421,6 @@ struct PlayerView_Previews: PreviewProvider {
         .previewLayout(.sizeThatFits)
         .padding()
         .background(Color.gray.opacity(0.2))
+        .frame(width: 400, height: 200)
     }
 }

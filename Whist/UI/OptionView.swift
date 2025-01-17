@@ -94,9 +94,9 @@ struct OptionsView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Choisis une mise")
-                .font(.title)
-                .padding(.bottom, 20)
+//            Text("Choisis une mise")
+//                .font(.title)
+//                .padding(.bottom, 20)
             
             // Calculate scores
             let scores = gameManager.gameState.players.map { $0.scores.last ?? 0 }.sorted(by: >)
@@ -120,35 +120,27 @@ struct OptionsView: View {
             } else {
                 // Display the regular betting chips
                 let numbers = Array(0...maxBet)
-                let firstRow = Array(numbers.prefix(6)) // Up to 6 buttons in the first row
-                let secondRow = Array(numbers.dropFirst(6)) // Remaining buttons in the second row
-                let size: CGFloat = 40
+                let totalItems = numbers.count
+                let minColumns = (totalItems < 7 && totalItems != 4) ? 3 : 4
+                let columns = min(minColumns, totalItems) // Max 3 columns
+                let rows = Int(ceil(Double(totalItems) / Double(columns))) // Calculate rows dynamically
+                
+                let size: CGFloat = 40 // Button size
                 
                 VStack(spacing: 20) {
-                    // First Row
-                    HStack(spacing: 20) {
-                        ForEach(firstRow, id: \.self) { number in
-                            CircularButton(
-                                text: "\(number)",
-                                size: size,
-                                backgroundColor: backgroundColor,
-                                isSelected: selectedBet == number,
-                                action: { handleBetSelection(number) }
-                            )
-                        }
-                    }
-                    
-                    // Second Row
-                    if !secondRow.isEmpty {
+                    ForEach(0..<rows, id: \.self) { rowIndex in
                         HStack(spacing: 20) {
-                            ForEach(secondRow, id: \.self) { number in
-                                CircularButton(
-                                    text: "\(number)",
-                                    size: size,
-                                    backgroundColor: backgroundColor,
-                                    isSelected: selectedBet == number,
-                                    action: { handleBetSelection(number) }
-                                )
+                            ForEach(0..<columns, id: \.self) { columnIndex in
+                                let numberIndex = rowIndex * columns + columnIndex
+                                if numberIndex < totalItems {
+                                    CircularButton(
+                                        text: "\(numbers[numberIndex])",
+                                        size: size,
+                                        backgroundColor: backgroundColor,
+                                        isSelected: selectedBet == numbers[numberIndex],
+                                        action: { handleBetSelection(numbers[numberIndex]) }
+                                    )
+                                }
                             }
                         }
                     }

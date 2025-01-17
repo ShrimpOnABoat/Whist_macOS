@@ -345,8 +345,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         gameState.trumpCards.append(removedCard)
         
-        print("trump deck last card: \(gameState.trumpCards.last!)")
-
         // Set the trump suit
         gameState.trumpSuit = card.suit
         
@@ -375,6 +373,12 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             }
         }
         checkAndAdvanceStateIfNeeded()
+    }
+    
+    func updatePlayerWithState(from playerId: PlayerId, with state: PlayerState) {
+        let player = gameState.getPlayer(by: playerId)
+        player.state = state
+        print("\(playerId) updated their state to \(state).")
     }
     
     // MARK: Choose bet

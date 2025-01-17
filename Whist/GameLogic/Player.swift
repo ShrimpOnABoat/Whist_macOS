@@ -14,6 +14,26 @@ enum TablePosition: String, Codable {
     case right
 }
 
+enum PlayerState: String, Codable {
+    case idle
+    case choosingTrump
+    case bidding
+    case discarding
+    case playing
+    case waiting
+    
+    var message: String {
+        switch self {
+        case .idle: return "Idle"
+        case .choosingTrump: return "Choosing Trump"
+        case .bidding: return "Bidding"
+        case .discarding: return "Discarding"
+        case .playing: return "Playing"
+        case .waiting: return "Waiting"
+        }
+    }
+}
+
 class Player: Identifiable, ObservableObject, Codable {
     
     // Use PlayerId enum for the player's unique identifier
@@ -31,6 +51,7 @@ class Player: Identifiable, ObservableObject, Codable {
     @Published var hand: [Card] = []
     @Published var trickCards: [Card] = []
     @Published var tablePosition: TablePosition = .local
+    @Published var state: PlayerState = .idle
     
     // Image is not codable; handle separately if needed
     @Published var image: Image?
@@ -52,7 +73,7 @@ class Player: Identifiable, ObservableObject, Codable {
         case monthlyLosses
         case bonusCards
         case connected
-        case action
+        case state
         case hand
         case trickCards
         // Exclude 'image' as it cannot be directly serialized
@@ -72,6 +93,7 @@ class Player: Identifiable, ObservableObject, Codable {
         connected = try container.decode(Bool.self, forKey: .connected)
         hand = try container.decode([Card].self, forKey: .hand)
         trickCards = try container.decode([Card].self, forKey: .trickCards)
+        state = try container.decode(PlayerState.self, forKey: .state)
         
         // 'image' remains nil upon decoding; handle image loading separately if needed
         image = nil
@@ -91,6 +113,7 @@ class Player: Identifiable, ObservableObject, Codable {
         try container.encode(connected, forKey: .connected)
         try container.encode(hand, forKey: .hand)
         try container.encode(trickCards, forKey: .trickCards)
+        try container.encode(state, forKey: .state)
         
         // 'image' is not encoded
     }

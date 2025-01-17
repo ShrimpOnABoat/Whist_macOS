@@ -163,7 +163,7 @@ extension GameManager {
         
         // Set the batch animation
         let totalCardsToMove = cardsPerPlayer.reduce(0) { $0 + $1.value }
-        print("dealCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
+//        print("dealCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: totalCardsToMove) {
             completion()
         }
@@ -201,7 +201,7 @@ extension GameManager {
                     destination = .rightPlayer
                     card.isFaceDown = gameState.round < 4 ? false : true
                 }
-                print("Dealing \(card) to \(playerID)")
+//                print("Dealing \(card) to \(playerID)")
                 moveCard(card, from: .deck, to: destination)
 
                 cardsPerPlayer[playerID]! -= 1

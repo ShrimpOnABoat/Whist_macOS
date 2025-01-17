@@ -120,6 +120,11 @@ extension GameManager {
         gameState.players[1].connected = true
         gameState.players[2].connected = true
 
+        // State
+        gameState.players[0].state = .bidding
+        gameState.players[1].state = .waiting
+        gameState.players[2].state = .choosingTrump
+
         // Dealer
         gameState.dealer = .toto
         

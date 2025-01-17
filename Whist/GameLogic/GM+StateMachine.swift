@@ -28,30 +28,44 @@ enum GamePhase {
 
 extension GameManager {
     
-//     MARK: State Machine
+//     MARK: Transition
 
     func transition(to newPhase: GamePhase) {
         print("Transitioning from \(currentPhase) to \(newPhase)")
         currentPhase = newPhase
         handleStateTransition()
     }
+    
+    // MARK: setPlayerState
+    
+    func setPlayerState(to newState: PlayerState) {
+        if gameState.localPlayer?.state != newState {
+            gameState.localPlayer?.state = newState
+            sendStateToPlayers()
+            print("My new state is \(gameState.localPlayer?.state ?? .idle)")
+        }
+    }
 
-    // This function decides what to do upon entering a new phase
+    // MARK: handleStateTransition
+
     private func handleStateTransition() {
         switch currentPhase {
         case .waitingToStart:
-            // Already in initial state, just sitting tight until everyone connects
+            setPlayerState(to: .idle)
             break
             
         case .setupGame:
+            setPlayerState(to: .idle)
             setupGame()
             transition(to: .newGame)
             
         case .newGame:
+            setPlayerState(to: .idle)
             newGame()
             transition(to: .setupNewRound)
             
         case .setupNewRound:
+            setPlayerState(to: .idle)
             newGameRound()
             if connectionManager?.localPlayerID == gameState.dealer {
                 if !isDeckReady {
@@ -64,10 +78,12 @@ extension GameManager {
             }
             
         case .renderingDeck:
+            setPlayerState(to: .idle)
             // Mark that the deck is NOT measured yet
             isDeckReady = false
             
         case .waitingForDeck:
+            setPlayerState(to: .idle)
             // remove cards from tricks, hands and table and bring them back to the deck
             gatherCards() {
                 // in case the deck was sent earlier
@@ -77,8 +93,8 @@ extension GameManager {
                 if !self.isDeckReady { print("Waiting for deck") }
             }
             
-            
         case .dealingCards:
+            setPlayerState(to: .idle)
             let isDealer = (connectionManager?.localPlayerID == gameState.dealer)
 
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
@@ -123,39 +139,69 @@ extension GameManager {
                     }
                 }
             }
+
         case .choosingTrump:
-            // Prompt the relevant player to choose a trump suit
-            // When that choice is done (via handleReceivedAction), move to .waitingForTrump
+            setPlayerState(to: .choosingTrump)
 
             chooseTrump() {}
             
         case .waitingForTrump:
+            setPlayerState(to: .waiting)
+
             // Once a trump suit is chosen and confirmed:
             if (gameState.trumpSuit != nil) && (gameState.localPlayer?.place == 2) {
                 transition(to: .discard) // In case local player is second
             }
             
         case .discard:
+            setPlayerState(to: .discarding)
             break
             
         case .bidding:
             // Either waiting until I can bid or until everybody did:
-            if isLocalPlayerTurnToBet() {
-                print("local player must bet")
-                showOptions = true
-            } else {
-                if allPlayersBet() {
-                    // Show card if round < 4
-                    if gameState.round < 4 {
-                        transition(to: .showCard)
-                    }
-                    print("All players have bet")
-                    transition(to: .playingTricks)
+//            if isLocalPlayerTurnToBet() {
+//                print("local player must bet")
+//                setPlayerState(to: .bidding)
+//                showOptions = true
+//            } else {
+//                if allPlayersBet() && lastPlayerDiscarded() {
+//                    if gameState.round < 4 {
+//                        transition(to: .showCard)
+//                    }
+//                    print("All players have bet")
+//                    transition(to: .playingTricks)
+//                } else {
+//                    setPlayerState(to: .waiting)
+//                }
+//            }
+            if gameState.round < 4 {
+                if isLocalPlayerTurnToBet() {
+                    print("local player must bet < 4")
+                    setPlayerState(to: .bidding)
+                    showOptions = true
+                } else if allPlayersBet() {
+                    transition(to: .showCard)
+                } else {
+                    setPlayerState(to: .waiting)
                 }
-                // Still waiting for local player's turn to bet.
+            } else { // round > 3
+                if allPlayersBet() {
+                    print("All players have bet")
+                    if lastPlayerDiscarded() {
+                        transition(to: .playingTricks)
+                    } else {
+                        setPlayerState(to: .waiting)
+                    }
+                } else {
+                    print("Some players have not bet")
+                    showOptions = true
+                    setPlayerState(to: .bidding)
+                    print("local player must bet > 3")
+                }
             }
             
         case .showCard:
+            setPlayerState(to: .idle)
             let localPlayer = gameState.getPlayer(by: gameState.localPlayer!.id)
             for i in localPlayer.hand.indices {
                 localPlayer.hand[i].isFaceDown = false
@@ -171,9 +217,12 @@ extension GameManager {
             }
 
             if isLocalPlayerTurnToPlay() {
+                setPlayerState(to: .playing)
                 setPlayableCards()
             } else if allPlayersPlayed() {
                 transition(to: .grabTrick)
+            } else {
+                setPlayerState(to: .waiting)
             }
             
         case .grabTrick:
@@ -181,6 +230,7 @@ extension GameManager {
             // and set the last trick
             // and refresh playOrder
             print("Assinging trick")
+            setPlayerState(to: .idle)
             assignTrick() {
                 print("Trick assigned")
                 // check if last trick
@@ -194,6 +244,7 @@ extension GameManager {
             
         case .scoring:
             // Compute scores
+            setPlayerState(to: .idle)
             computeScores()
             
             // update positions
@@ -207,6 +258,7 @@ extension GameManager {
             }
             
         case .gameOver:
+            setPlayerState(to: .idle)
             // Show final results, store the score, transition to .newGame ...
             
             break
@@ -265,8 +317,10 @@ extension GameManager {
                     transition(to: .showCard)
                 } else if gameState.localPlayer?.place == 3 {
                     transition(to: .discard)
-                } else {
+                } else if lastPlayerDiscarded() {
                     transition(to: .playingTricks)
+                } else {
+                    transition(to: .bidding)
                 }
             } else {
                 transition(to: .bidding)
@@ -346,6 +400,12 @@ extension GameManager {
     
     func allPlayersBet() -> Bool {
         return gameState.players.allSatisfy { $0.announcedTricks.count == gameState.round }
+    }
+    
+    func lastPlayerDiscarded() -> Bool {
+        if gameState.round < 4 { return true }
+        let allHandsSameCount = gameState.players.allSatisfy { $0.hand.count == max(1, gameState.round - 2)}
+        return allHandsSameCount
     }
     
     func isLocalPlayerTurnToPlay() -> Bool {

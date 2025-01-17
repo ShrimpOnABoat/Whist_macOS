@@ -87,6 +87,15 @@ extension GameManager {
             } else {
                 print("Failed to decode discarded cards.")
             }
+            
+        case .sendState:
+            print("Received state")
+            if let state = try? JSONDecoder().decode(PlayerState.self, from: action.payload) {
+                self.updatePlayerWithState(from: action.playerId, with: state)
+            } else {
+                print("Failed to decode discarded cards.")
+            }
+
         }
     }
     
@@ -192,6 +201,27 @@ extension GameManager {
             sendAction(action)
         } else {
             print("Error: Failed to encode the trump card")
+        }
+    }
+    
+    func sendStateToPlayers() {
+        guard let localPlayer = gameState.localPlayer else {
+            print("Error: Local player is not defined")
+            return
+        }
+        let state = localPlayer.state
+        print("Sending new state \(state.message) to players")
+        
+        if let state = try? JSONEncoder().encode(state) {
+            let action = GameAction(
+                playerId: localPlayer.id,
+                type: .sendState,
+                payload: state,
+                timestamp: Date().timeIntervalSince1970
+            )
+            sendAction(action)
+        } else {
+            print("Error: Failed to encode player's state")
         }
     }
     

@@ -74,7 +74,7 @@ struct GameView: View {
                                 .frame(width: 200, height: 350)
                         }
                         PlayerView(player: localPlayer, isDealer: dealer == localPlayer.id)
-                            .frame(width: 600, height: 200)
+                            .frame(width: 400, height: 200)
                     }
                 }
                 .coordinateSpace(name: "contentArea")

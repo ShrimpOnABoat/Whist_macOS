@@ -61,13 +61,7 @@ struct ScoreBoardView: View {
             }
         }
         .padding()
-//        .frame(width: 250)
-        .background(
-            ZStack {
-                Color.white
-                    .opacity(0.5)
-            }
-        )
+        .background(Color.white.opacity(0.5))
         .cornerRadius(12)
         .shadow(radius: 5)
         .overlay(
