@@ -95,6 +95,7 @@ struct OptionsView: View {
             // Calculate scores
             let scores = gameManager.gameState.players.map { $0.scores.last ?? 0 }.sorted(by: >)
             let playerScore = gameManager.gameState.localPlayer?.scores.last ?? 0
+            let bestScore = scores.first ?? 0
             let secondBestScore = scores.dropFirst().first ?? 0
             
             // Check if the player is in random bet mode
@@ -102,7 +103,8 @@ struct OptionsView: View {
             
             if (playerScore >= 2 * secondBestScore &&
                 playerScore != secondBestScore && // in case the 2 best players have 0
-                gameManager.gameState.round > 3) {
+                gameManager.gameState.round > 3 &&
+                playerScore == bestScore) { // In case of negative values
                 // Display only the "?" chip
                 CircularButton(
                     text: randomNumber != nil ? "\(randomNumber!)" : "?",

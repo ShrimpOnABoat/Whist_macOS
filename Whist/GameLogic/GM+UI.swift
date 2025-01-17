@@ -152,11 +152,11 @@ extension GameManager {
         }
         let movingCardInstance = MovingCard(
             card: card,
+            from: source,
             to: destination,
             placeholderCard: placeholderCard,
             fromState: fromState
         )
-//        print("Initiated moving \(movingCardInstance.card) from \(movingCardInstance.fromState) to \(movingCardInstance.to)")
         
         self.movingCards.append(movingCardInstance)
     }

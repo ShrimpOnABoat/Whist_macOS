@@ -146,14 +146,16 @@ struct GameView: View {
 class MovingCard: Identifiable, ObservableObject {
     let id: UUID = UUID()
     let card: Card
+    let from: CardPlace
     let to: CardPlace
     let placeholderCard: Card
     let fromState: CardState
     @Published var toState: CardState? = nil
     
     // Initializer
-    init(card: Card, to: CardPlace, placeholderCard: Card, fromState: CardState) {
+    init(card: Card,from: CardPlace, to: CardPlace, placeholderCard: Card, fromState: CardState) {
         self.card = card
+        self.from = from
         self.to = to
         self.placeholderCard = placeholderCard
         self.fromState = fromState
@@ -193,10 +195,18 @@ struct MovingCardView: View {
                 hasAnimated = true
                 let animationDuration: TimeInterval = 0.4
                 
+                // Generate a random direction for a full spin (360° clockwise or counterclockwise)
+                let randomSpin: Double
+                if [.localPlayer, .leftPlayer, .rightPlayer].contains(movingCard.from) {
+                    randomSpin = Double([-360, -180, 0, 180, 360].randomElement() ?? 0)
+                } else {
+                    randomSpin = 0 // No spin for cards originating from non-hand areas
+                }
+                
                 gameManager.playSound(named: "play card")
 
                 withAnimation(.easeOut(duration: animationDuration)) {
-                    self.rotation = toState.rotation
+                    self.rotation = toState.rotation + randomSpin
                     self.scale = toState.scale
                     self.position = toState.position
                 }
