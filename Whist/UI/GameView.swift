@@ -191,9 +191,11 @@ struct MovingCardView: View {
                 guard let toState = newToState, !hasAnimated else { return }
                 
                 hasAnimated = true
+                let animationDuration: TimeInterval = 0.4
+                
+                gameManager.playSound(named: "play card")
 
-                let animationDuration: TimeInterval = 1 // Adjust as needed
-                withAnimation(.easeOut(duration: 0.4)) {
+                withAnimation(.easeOut(duration: animationDuration)) {
                     self.rotation = toState.rotation
                     self.scale = toState.scale
                     self.position = toState.position

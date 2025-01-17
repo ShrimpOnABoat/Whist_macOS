@@ -35,6 +35,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     var shuffleCallback: ((_ deck: [Card], _ completion: @escaping () -> Void) -> Void)?
     // Injected dependencies
     var connectionManager: ConnectionManager?
+    let soundManager = SoundManager()
 
     static let SM = ScoresManager.shared
     

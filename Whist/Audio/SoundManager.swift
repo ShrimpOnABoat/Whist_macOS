@@ -9,7 +9,29 @@ import AudioToolbox
 
 class SoundManager {
     private var soundIDs: [String: SystemSoundID] = [:]
+    private let soundFiles: [String] = [
+        "card shuffle.mp3",
+        "play card.mp3"
+    ]
 
+    init() {
+        preloadAllSounds()
+    }
+
+    /// Preload all sound files listed in `soundFiles`
+    private func preloadAllSounds() {
+        for soundFile in soundFiles {
+            let components = soundFile.split(separator: ".")
+            guard components.count == 2 else {
+                print("Invalid sound file name: \(soundFile)")
+                continue
+            }
+            let name = String(components[0])
+            let ext = String(components[1])
+            preloadSound(named: name, withExtension: ext)
+        }
+    }
+    
     /// Preload a sound to reduce latency during playback
     func preloadSound(named fileName: String, withExtension fileExtension: String) {
         guard let url = Bundle.main.url(forResource: fileName, withExtension: fileExtension) else {
@@ -28,6 +50,7 @@ class SoundManager {
             print("Sound \(fileName) not preloaded. Call preloadSound() first.")
             return
         }
+        print("Playing sound \(fileName).")
         AudioServicesPlaySystemSound(soundID)
     }
 
@@ -44,5 +67,14 @@ class SoundManager {
             AudioServicesDisposeSystemSoundID(soundID)
         }
         soundIDs.removeAll()
+    }
+}
+
+extension GameManager {
+    func playSound(named filename: String) {
+#if TEST_MODE
+        guard gameState.localPlayer?.id == .dd else { return }
+#endif
+        soundManager.playSound(named: filename)
     }
 }
