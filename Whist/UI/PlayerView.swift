@@ -77,27 +77,6 @@ struct PlayerView: View {
     // MARK: - Trick Display
     @ViewBuilder
     private func TrickDisplay() -> some View {
-        if gameManager.currentPhase == .discard && player.tablePosition == .local {
-            let numberOfCardsToDiscard = (gameManager.gameState.localPlayer?.hand.count ?? 0) - max(1, gameManager.gameState.round - 2)
-            let selectedCount = selectedCardIDs.count
-            
-            VStack {
-                Button(action: {
-                    let cardsToDiscard = player.hand.filter { selectedCardIDs.contains($0.id) }
-                    gameManager.discard(cardsToDiscard: cardsToDiscard) {
-                        selectedCardIDs.removeAll()
-                    }
-                })
-                {
-                    Text("Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" :"")")
-                        .padding()
-                        .background(selectedCount == numberOfCardsToDiscard ? Color.green : Color.gray)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .disabled(selectedCount != numberOfCardsToDiscard)
-            }
-        } else {
             let roundIndex = gameManager.gameState.round - 1
             if player.announcedTricks.indices.contains(roundIndex) {
                 if player.tablePosition != .local {
@@ -165,72 +144,120 @@ struct PlayerView: View {
                 }
             }
         }
-    }
     
     // MARK: State Display
+
+    struct HoverMoveUpButtonStyle: ButtonStyle {
+        let isActive: Bool
+        @State private var yOffset: CGFloat = 0 // State to track offset changes
+
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.95 : 1.0) // Add a slight scale effect when pressed
+                .offset(y: configuration.isPressed ? -2 : (isActive ? yOffset : 0)) // Use state for hover effect
+                .animation(.easeInOut(duration: 0.05), value: configuration.isPressed)
+                .animation(.easeInOut(duration: 0.05), value: yOffset)
+                .onHover { isHovering in
+                    if isActive {
+                        withAnimation {
+                            yOffset = isHovering ? -3 : 0
+                        }
+                    }
+                }
+        }
+    }
     
     @ViewBuilder
     private func StateDisplay() -> some View {
-        // Define the message based on the player's state
-        let newMessage: String = {
-            if player.tablePosition != .local {
-                switch player.state {
-                case .idle: return ""
-                case .choosingTrump: return "Choisit l'atout"
-                case .bidding: return "Choisit sa mise"
-                case .discarding: return "Défausse sa carte"
-                case .playing: return "Joue une carte"
-                case .waiting: return "Attend les autres"
+        if gameManager.currentPhase == .discard && player.tablePosition == .local {
+            let numberOfCardsToDiscard = (gameManager.gameState.localPlayer?.hand.count ?? 0) - max(1, gameManager.gameState.round - 2)
+            let selectedCount = selectedCardIDs.count
+            
+            VStack {
+                Button(action: {
+                    let cardsToDiscard = player.hand.filter { selectedCardIDs.contains($0.id) }
+                    gameManager.discard(cardsToDiscard: cardsToDiscard) {
+                        selectedCardIDs.removeAll()
+                    }
+                }) {
+                    Text("Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" : "")")
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .background(selectedCount == numberOfCardsToDiscard ? Color.green : Color.white.opacity(0.5)) // Active vs Inactive
+                        .foregroundColor(selectedCount == numberOfCardsToDiscard ? Color.white : Color.black)
+                        .cornerRadius(5)
+                        .shadow(radius: 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(selectedCount == numberOfCardsToDiscard ? Color.green : Color.white, lineWidth: 2)
+                        )
                 }
-            } else {
-                switch player.state {
-                case .idle: return ""
-                case .choosingTrump: return "Choisis l'atout"
-                case .bidding: return "Choisis une mise"
-                case .discarding: return "Défausse tes cartes"
-                case .playing: return "Joue une carte"
-                case .waiting: return ""
+                .buttonStyle(HoverMoveUpButtonStyle(isActive: selectedCount == numberOfCardsToDiscard))
+                .disabled(selectedCount != numberOfCardsToDiscard)
+                .animation(.easeInOut, value: selectedCount) // Smooth animation for state changes
+            }
+        } else {
+            // Define the message based on the player's state
+            let newMessage: String = {
+                if player.tablePosition != .local {
+                    switch player.state {
+                    case .idle: return ""
+                    case .choosingTrump: return "Choisit l'atout"
+                    case .bidding: return "Choisit sa mise"
+                    case .discarding: return "Défausse sa carte"
+                    case .playing: return "Joue une carte"
+                    case .waiting: return "Attend les autres"
+                    }
+                } else {
+                    switch player.state {
+                    case .idle: return ""
+                    case .choosingTrump: return "Choisis l'atout"
+                    case .bidding: return "Choisis une mise"
+                    case .discarding: return "Défausse tes cartes"
+                    case .playing: return "Joue une carte"
+                    case .waiting: return ""
+                    }
+                }
+            }()
+            
+            // Update the message with animation when it changes
+            VStack {
+                if !displayedMessage.isEmpty {
+                    Text(displayedMessage)
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .background(Color.white.opacity(0.5))
+                        .cornerRadius(5)
+                        .shadow(radius: 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+                        .transition(.opacity.combined(with: .scale))
+                        .animation(.easeInOut(duration: 0.3), value: displayedMessage)
+                } else {
+                    Text(displayedMessage)
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .background(Color.white.opacity(0.5))
+                        .cornerRadius(5)
+                        .shadow(radius: 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+                        .transition(.opacity.combined(with: .scale))
+                        .animation(.easeInOut(duration: 0.3), value: displayedMessage)
+                        .opacity(0)
                 }
             }
-        }()
-
-        // Update the message with animation when it changes
-        VStack {
-            if !displayedMessage.isEmpty {
-                Text(displayedMessage)
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 10)
-                    .background(Color.white.opacity(0.5))
-                    .cornerRadius(5)
-                    .shadow(radius: 5)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(Color.white, lineWidth: 2)
-                    )
-                    .transition(.opacity.combined(with: .scale))
-                    .animation(.easeInOut(duration: 0.3), value: displayedMessage)
-            } else {
-                Text(displayedMessage)
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 10)
-                    .background(Color.white.opacity(0.5))
-                    .cornerRadius(5)
-                    .shadow(radius: 5)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(Color.white, lineWidth: 2)
-                    )
-                    .transition(.opacity.combined(with: .scale))
-                    .animation(.easeInOut(duration: 0.3), value: displayedMessage)
-                    .opacity(0)
-            }
-        }
-        .onAppear {
-            displayedMessage = newMessage
-        }
-        .onChange(of: player.state) { _, _ in
-            withAnimation {
+            .onAppear {
                 displayedMessage = newMessage
+            }
+            .onChange(of: player.state) { _, _ in
+                withAnimation {
+                    displayedMessage = newMessage
+                }
             }
         }
     }

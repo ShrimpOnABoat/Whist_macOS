@@ -58,13 +58,11 @@ struct CircularButton: View {
                 ForEach(0..<8) { i in
                     Rectangle()
                         .fill(.white) // Highlight notches when selected
-//                        .fill(isSelected ? .black : .white) // Highlight notches when selected
                         .frame(width: size * 0.1, height: size * 0.1)
                         .offset(y: -size / 2 + size * 0.05) // Move to the edge of the circle
                         .rotationEffect(Angle(degrees: Double(i) * 45)) // Distribute evenly
                 }
 
-                // Text in the center
                 Text(text)
                     .font(.system(size: size / 3).bold()) // Adjust font size
                     .foregroundColor(.white)
@@ -94,10 +92,6 @@ struct OptionsView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-//            Text("Choisis une mise")
-//                .font(.title)
-//                .padding(.bottom, 20)
-            
             // Calculate scores
             let scores = gameManager.gameState.players.map { $0.scores.last ?? 0 }.sorted(by: >)
             let playerScore = gameManager.gameState.localPlayer?.scores.last ?? 0
