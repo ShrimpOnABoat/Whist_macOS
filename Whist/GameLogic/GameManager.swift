@@ -280,12 +280,12 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
 
                     // If the current player is the dealer
                     if usernameIndex == dealerIndex {
-                        return 2 // Dealer gets rank 2
+                        return 3 // Dealer gets rank 3
                     }
 
                     // If the other player is the dealer
                     if otherPlayer?.id == gameState.dealer {
-                        return 3
+                        return 2
                     }
 
                     // If the current player is the first player to the left of the dealer
