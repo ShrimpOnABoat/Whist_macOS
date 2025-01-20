@@ -201,38 +201,37 @@ extension GameManager {
                     destination = .rightPlayer
                     card.isFaceDown = gameState.round < 4 ? false : true
                 }
-//                print("Dealing \(card) to \(playerID)")
+ 
+                // Wait for card movement to complete before dealing next card
                 moveCard(card, from: .deck, to: destination)
-
                 cardsPerPlayer[playerID]! -= 1
-            }
-            
-            // Move to the next player
-            currentIndex = (currentIndex + 1) % gameState.playOrder.count
-            
-            // Stop if all cards are dealt
-            if cardsPerPlayer.values.allSatisfy({ $0 == 0 }) {
-                // Determine the trump card if applicable
-                if gameState.round <= 3 || allScoresEqual() {
-                    if let trumpCard = gameState.deck.last {
-                        gameState.trumpSuit = trumpCard.suit
-                        withAnimation(.smooth(duration: 0.5)) {
-                            trumpCard.isFaceDown = false
+                
+                // Wait for the animation to complete before moving to next card
+                let animationDuration: TimeInterval = 0.5 / Double(max(gameState.round - 2, 1))
+                DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration) {
+                    // Move to the next player
+                    currentIndex = (currentIndex + 1) % self.gameState.playOrder.count
+                    
+                    // Stop if all cards are dealt
+                    if cardsPerPlayer.values.allSatisfy({ $0 == 0 }) {
+                        // Determine the trump card if applicable
+                        if self.gameState.round <= 3 || self.allScoresEqual() {
+                            if let trumpCard = self.gameState.deck.last {
+                                self.gameState.trumpSuit = trumpCard.suit
+                                withAnimation(.smooth(duration: 0.5)) {
+                                    trumpCard.isFaceDown = false
+                                }
+                                print("The trump card is \(trumpCard)")
+                            }
                         }
-                        print("The trump card is \(trumpCard)")
+                        self.sortLocalPlayerHand()
+                    } else {
+                        dealNextCard()
                     }
-                }
-                sortLocalPlayerHand()
-//                completion()
-                return
-            } else {
-                // Add a delay for the next card
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    dealNextCard()
                 }
             }
         }
-
+        
         dealNextCard()
     }
     
