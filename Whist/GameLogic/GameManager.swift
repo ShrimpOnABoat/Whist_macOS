@@ -41,19 +41,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
+    var isAIPlaying: Bool = false
     
     init() {
     }
-//    init(playerID: String) {
-//        self.persistence = GamePersistence(playerID: playerID)
-//        if let savedState = persistence.loadGameState() {
-//            self.gameState = savedState
-//            print("Loaded saved game state for \(playerID).")
-//        } else {
-//            self.gameState = GameState()
-//            print("No saved game state found for \(playerID), starting new game.")
-//        }
-//    }
     
     // MARK: - Game State Initialization
     
@@ -124,6 +115,9 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     func setPersistencePlayerID(with playerId: PlayerId) {
         persistence = GamePersistence(playerID: playerId)
+        if playerId != .dd {
+            isAIPlaying = true
+        }
     }
     
     func generateSeed(from string: String) -> UInt64 {

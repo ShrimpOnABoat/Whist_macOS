@@ -142,7 +142,11 @@ extension GameManager {
         case .choosingTrump:
             setPlayerState(to: .choosingTrump)
 
-            chooseTrump() {}
+            chooseTrump() {
+                if self.isAIPlaying {
+                    self.AIChooseTrumpSuit()
+                }
+            }
             
         case .waitingForTrump:
             setPlayerState(to: .waiting)
@@ -154,7 +158,9 @@ extension GameManager {
             
         case .discard:
             setPlayerState(to: .discarding)
-            break
+            if isAIPlaying {
+                AIdiscard()
+            }
             
         case .bidding:
             if gameState.round < 4 {
@@ -198,10 +204,17 @@ extension GameManager {
             if gameState.round > 3 && !allPlayersAreTied {
                 gameState.trumpCards.last?.isFaceDown = false // show the trump card to the first player
             }
+            
+            // In case someone already played a card
+            processPendingActionsForCurrentPhase()
+
 
             if isLocalPlayerTurnToPlay() {
                 setPlayerState(to: .playing)
                 setPlayableCards()
+                if isAIPlaying {
+                    AIPlayCard()
+                }
             } else if allPlayersPlayed() {
                 transition(to: .grabTrick)
             } else {
@@ -212,7 +225,7 @@ extension GameManager {
             // Wait a few seconds and grab trick automatically
             // and set the last trick
             // and refresh playOrder
-            print("Assinging trick")
+            print("Assigning trick")
             setPlayerState(to: .idle)
             assignTrick() {
                 print("Trick assigned")

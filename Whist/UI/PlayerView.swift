@@ -29,7 +29,7 @@ struct PlayerView: View {
                         VStack {
                             StateDisplay()
                             PlayerInfo()
-                            if gameManager.allPlayersBet() {
+                            if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
                                 TrickDisplay()
                             }
                         }

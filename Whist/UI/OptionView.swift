@@ -147,6 +147,11 @@ struct OptionsView: View {
         .background(Color.white.opacity(0.2))
         .cornerRadius(15)
         .shadow(radius: 10)
+        .onAppear() {
+            if gameManager.isAIPlaying {
+                handleBetSelection(Int.random(in: 0...max(gameManager.gameState.round - 2, 1)))
+            }
+        }
     }
     
     private func handleBetSelection(_ bet: Int) {
