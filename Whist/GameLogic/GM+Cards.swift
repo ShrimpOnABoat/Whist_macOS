@@ -288,6 +288,8 @@ extension GameManager {
         for card in localPlayer.hand {
             card.isPlayable = false
         }
+        
+        persistence.saveGameState(gameState)
 
         print("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
         
@@ -323,6 +325,7 @@ extension GameManager {
             print("Error: Card not found in player's hand.")
             return
         }
+        persistence.saveGameState(gameState)
         print("Card \(card) played by \(playerId.rawValue). Updated gameState.table: \(gameState.table)")
     }
     
@@ -478,6 +481,7 @@ extension GameManager {
         
         // Send other players the chosen trump suit
         sendTrumpToPlayers(trumpCard)
+        persistence.saveGameState(gameState)
         
     }
     
@@ -494,6 +498,7 @@ extension GameManager {
         
         // Send the information to other players
         sendDiscardedCards(cardsToDiscard)
+        persistence.saveGameState(gameState)
         
         print("Discarded cards: \(cardsToDiscard)")
 

@@ -42,6 +42,7 @@ extension GameManager {
         if gameState.localPlayer?.state != newState {
             gameState.localPlayer?.state = newState
             sendStateToPlayers()
+            persistence.saveGameState(gameState)
             print("My new state is \(gameState.localPlayer?.state ?? .idle)")
         }
     }
@@ -99,13 +100,10 @@ extension GameManager {
 
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
             func afterDealing() {
+                persistence.saveGameState(gameState)
                 // After dealing, decide what’s next:
                 if gameState.round < 4 {
-                    if isLocalPlayerTurnToBet() {
-                        transition(to: .bidding)
-                    } else {
-                        transition(to: .bidding)
-                    }
+                    transition(to: .bidding)
                 } else {
                     if let localPlayer = gameState.localPlayer {
                         print("My place is \(localPlayer.place)")
@@ -123,6 +121,7 @@ extension GameManager {
             if isDealer {
                 gatherCards {
                     self.shuffleCards() {
+                        self.persistence.saveGameState(self.gameState)
                         self.sendDeckToPlayers()
                         
                         // 3) Call dealCards, then call our afterDealing function
@@ -158,22 +157,6 @@ extension GameManager {
             break
             
         case .bidding:
-            // Either waiting until I can bid or until everybody did:
-//            if isLocalPlayerTurnToBet() {
-//                print("local player must bet")
-//                setPlayerState(to: .bidding)
-//                showOptions = true
-//            } else {
-//                if allPlayersBet() && lastPlayerDiscarded() {
-//                    if gameState.round < 4 {
-//                        transition(to: .showCard)
-//                    }
-//                    print("All players have bet")
-//                    transition(to: .playingTricks)
-//                } else {
-//                    setPlayerState(to: .waiting)
-//                }
-//            }
             if gameState.round < 4 {
                 if isLocalPlayerTurnToBet() {
                     print("local player must bet < 4")
@@ -260,6 +243,7 @@ extension GameManager {
         case .gameOver:
             setPlayerState(to: .idle)
             // Show final results, store the score, transition to .newGame ...
+            persistence.clearSavedGameState()
             
             break
         }

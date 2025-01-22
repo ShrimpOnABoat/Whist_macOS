@@ -37,6 +37,7 @@ struct MatchMakingView: View {
                     guard let newID = newID else { return }
                     print("Selected player: \(newID)")
                     connectionManager.setLocalPlayerID(newID)
+                    gameManager.setPersistencePlayerID(with: selectedPlayerID!)
                     isWaitingForPlayers = true
                 }
                 

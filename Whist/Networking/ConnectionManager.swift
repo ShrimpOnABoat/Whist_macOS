@@ -40,11 +40,6 @@ class ConnectionManager: NSObject, ObservableObject {
 #if TEST_MODE
     @Published var localPlayerID: PlayerId = .dd
     private var connectedPeers: [PeerConnection] = []
-//    {
-//        didSet {
-//            print("connectedPeers changed: \(connectedPeers.map { $0.playerID?.rawValue ?? "nil" })")
-//        }
-//    }
     private var listener: NWListener?
     private var isServer: Bool = false
 #endif
@@ -78,18 +73,7 @@ class ConnectionManager: NSObject, ObservableObject {
         print(borderLine)
         print(formattedMessage)
         print(borderLine)
-//            func logImportantMessage(_ message: String) {
-//                let padding = 3 // Padding around the message inside the box
-//                let lineLength = message.count + padding * 2
-//                let borderLine = String(repeating: "*", count: lineLength)
-//                let formattedMessage = "** \(message) **"
-//                
-//                print(borderLine)
-//                print(formattedMessage)
-//                print(borderLine)
-//            }
-        
-//        initializePlayers()
+
         startListening()
         print("setLocalPlayerID called. isServer: \(isServer)")
     }

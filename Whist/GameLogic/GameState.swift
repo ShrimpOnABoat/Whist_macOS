@@ -128,17 +128,6 @@ class GameState: ObservableObject, Codable {
 }
 
 extension GameState {
-    /// Updates a card's properties based on its suit and rank.
-    /// - Parameters:
-    ///   - card: The suit and rank of the card to modify
-    ///   - update: A closure that takes the card (inout) to apply the modifications.
-    /// Ex: Move the card from the player's hand to the table
-    /// gameState.modifyCard(card: card) { cardToUpdate in
-    ///     cardToUpdate.location = .table
-    /// }
-}
-
-extension GameState {
     static var preview: GameState {
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()

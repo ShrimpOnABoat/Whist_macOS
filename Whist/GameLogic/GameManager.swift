@@ -36,14 +36,24 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     // Injected dependencies
     var connectionManager: ConnectionManager?
     let soundManager = SoundManager()
-
     static let SM = ScoresManager.shared
+    var persistence: GamePersistence = GamePersistence(playerID: .dd) // default value
     
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
     
     init() {
     }
+//    init(playerID: String) {
+//        self.persistence = GamePersistence(playerID: playerID)
+//        if let savedState = persistence.loadGameState() {
+//            self.gameState = savedState
+//            print("Loaded saved game state for \(playerID).")
+//        } else {
+//            self.gameState = GameState()
+//            print("No saved game state found for \(playerID), starting new game.")
+//        }
+//    }
     
     // MARK: - Game State Initialization
     
@@ -110,10 +120,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
 
         // Create the cards
         initializeCards()
-        
-        
-        // Proceed with first game of the session
-//        newGame()
+}
+    
+    func setPersistencePlayerID(with playerId: PlayerId) {
+        persistence = GamePersistence(playerID: playerId)
     }
     
     func generateSeed(from string: String) -> UInt64 {
@@ -325,6 +335,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         } else {
             player.announcedTricks[gameState.round - 1] = bet
         }
+        persistence.saveGameState(gameState)
         print("Player \(playerId) announced tricks: \(player.announcedTricks)")
         checkAndAdvanceStateIfNeeded()
     }
@@ -347,6 +358,8 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         // Set the trump suit
         gameState.trumpSuit = card.suit
+        
+        persistence.saveGameState(gameState)
         
         checkAndAdvanceStateIfNeeded()
     }
@@ -372,12 +385,15 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
                 break
             }
         }
+        persistence.saveGameState(gameState)
+
         checkAndAdvanceStateIfNeeded()
     }
     
     func updatePlayerWithState(from playerId: PlayerId, with state: PlayerState) {
         let player = gameState.getPlayer(by: playerId)
         player.state = state
+        persistence.saveGameState(gameState)
         print("\(playerId) updated their state to \(state).")
     }
     
@@ -404,6 +420,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         // Notify other players about the action
         sendBetToPlayers(bet)
+        persistence.saveGameState(gameState)
         checkAndAdvanceStateIfNeeded()
     }
 
