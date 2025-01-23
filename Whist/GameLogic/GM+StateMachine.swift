@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-enum GamePhase {
+enum GamePhase: Encodable, Decodable {
     case waitingToStart         // Before the game starts, waiting for all players to connect
     case setupGame              // Setup the game for the evening!
     case newGame                // Setup a new game
@@ -24,6 +24,15 @@ enum GamePhase {
     case grabTrick              // One player takes the trick
     case scoring                // Calculating scores for the round
     case gameOver               // Game has ended
+    
+    var isPlayingPhase: Bool {
+        switch self {
+        case .showCard, .playingTricks, .grabTrick:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 extension GameManager {
@@ -43,7 +52,6 @@ extension GameManager {
             gameState.localPlayer?.state = newState
             sendStateToPlayers()
             persistence.saveGameState(gameState)
-            print("My new state is \(gameState.localPlayer?.state ?? .idle)")
         }
     }
 
@@ -179,7 +187,11 @@ extension GameManager {
                     if lastPlayerDiscarded() {
                         transition(to: .playingTricks)
                     } else {
-                        setPlayerState(to: .waiting)
+                        if gameState.localPlayer?.place == 3 {
+                            transition(to: .discard)
+                        } else {
+                            setPlayerState(to: .waiting)
+                        }
                     }
                 } else {
                     print("Some players have not bet")
@@ -191,9 +203,10 @@ extension GameManager {
             
         case .showCard:
             setPlayerState(to: .idle)
-            let localPlayer = gameState.getPlayer(by: gameState.localPlayer!.id)
-            for i in localPlayer.hand.indices {
-                localPlayer.hand[i].isFaceDown = false
+            if let localPlayer = gameState.localPlayer {
+                for i in localPlayer.hand.indices {
+                    localPlayer.hand[i].isFaceDown = false
+                }
             }
 
             transition(to: .playingTricks)
@@ -289,6 +302,8 @@ extension GameManager {
             // If trump chosen, I chose a bid
             if gameState.trumpSuit != nil {
                 transition(to: .bidding)
+            } else {
+                transition(to: .choosingTrump)
             }
 
         case .waitingForTrump:
@@ -336,11 +351,15 @@ extension GameManager {
             break
             
         case .grabTrick:
-            // check if last trick
-            if self.isLastTrick() {
-                self.transition(to: .scoring)
+            if gameState.table.isEmpty {
+                // check if last trick
+                if isLastTrick() {
+                    transition(to: .scoring)
+                } else {
+                    transition(to: .playingTricks)
+                }
             } else {
-                self.transition(to: .playingTricks)
+                transition(to: .grabTrick)
             }
 
         case .scoring:
@@ -402,6 +421,7 @@ extension GameManager {
     func lastPlayerDiscarded() -> Bool {
         if gameState.round < 4 { return true }
         let allHandsSameCount = gameState.players.allSatisfy { $0.hand.count == max(1, gameState.round - 2)}
+        print("All players discarded: \(allHandsSameCount)")
         return allHandsSameCount
     }
     

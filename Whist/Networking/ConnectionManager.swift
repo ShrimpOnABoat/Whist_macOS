@@ -373,13 +373,13 @@ class ConnectionManager: NSObject, ObservableObject {
     #if TEST_MODE
         var dataWithDelimiter = data
         dataWithDelimiter.append("\n".data(using: .utf8)!)
-        print("sendData: \(connectedPeers.count) connected")
+//        print("sendData: \(connectedPeers.count) connected")
 
         // Check if a specific connection is provided
         if let connection = connection {
             // Send data to the specific player
             if let peer = connectedPeers.first(where: { $0.connection.endpoint == connection.endpoint }) {
-                print("Sending \(data) to \(peer.connection.endpoint)")
+//                print("Sending \(data) to \(peer.connection.endpoint)")
                 peer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                     if let error = error {
                         print("Send error: \(error)")
@@ -404,7 +404,7 @@ class ConnectionManager: NSObject, ObservableObject {
             } else {
                 // A client sends only to the server
                 if let serverPeer = connectedPeers.first(where: { $0.isServer }) {
-                    print("Client sending \(data) to server at \(serverPeer.connection.endpoint)")
+//                    print("Client sending \(data) to server at \(serverPeer.connection.endpoint)")
                     serverPeer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                         if let error = error {
                             print("Send error: \(error)")

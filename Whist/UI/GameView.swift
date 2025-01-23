@@ -24,7 +24,12 @@ struct CardTransformPreferenceKey: PreferenceKey {
 struct GameView: View {
     @EnvironmentObject var gameManager: GameManager
     @State private var cardTransforms: [String: CardState] = [:]
-
+    @State private var showMatchmaking = true
+    @State private var showAlert = false
+    @State private var showConfirmation = false
+    @State private var savedGameExists = false
+    @State private var playerID: String = ""
+    
     @State private var background: AnyView = AnyView(FeltBackgroundView(
         radialShadingStrength: 0.5,
         wearIntensity: CGFloat.random(in: 0...1),
@@ -33,7 +38,7 @@ struct GameView: View {
         showScratches: Bool.random()
     ))
     @State private var didMeasureDeck: Bool = false
- 
+    
     
     var body: some View {
         GeometryReader { geometry in
@@ -46,13 +51,13 @@ struct GameView: View {
                 ZStack {
                     // Background
                     background
-//                    GridOverlay(spacing: 50)
+                    //                    GridOverlay(spacing: 50)
                     
                     VStack {
                         HStack {
                             PlayerView(player: leftPlayer, isDealer: dealer == leftPlayer.id)
                                 .frame(width: 200, height: 350)
-
+                            
                             VStack {
                                 HStack {
                                     TrumpView()
@@ -60,7 +65,7 @@ struct GameView: View {
                                     DeckView(gameState: gameManager.gameState)
                                 }
                                 .frame(width: 400, height: 150)
-
+                                
                                 ZStack {
                                     if gameManager.gameState.currentPhase != .choosingTrump {
                                         TableView(gameState: gameManager.gameState)
@@ -114,12 +119,12 @@ struct GameView: View {
         }
         .onPreferenceChange(CardTransformPreferenceKey.self) { transforms in
             self.cardTransforms = transforms
-
+            
             // For cards initialization
             for (cardID, cardState) in transforms {
                 // Update each card’s fromState
                 gameManager.cardStates[cardID] = cardState
-           }
+            }
             
             // If all deck cards are now measured,
             // let the GameManager know we’re ready to deal.
@@ -138,6 +143,57 @@ struct GameView: View {
                 }
             }
         }
+        .alert("Reprendre ou Commencer une Nouvelle Partie ?", isPresented: $showAlert) {
+            Button("Reprendre") {
+                resumeGame()
+            }
+            Button("Effacer", role: .destructive) {
+                showConfirmation = true
+            }
+            Button("Annuler", role: .cancel) { }
+        } message: {
+            Text("Une partie sauvegardée a été trouvée. Voulez-vous la reprendre ou en commencer une nouvelle ?")
+        }
+        .alert("Attention", isPresented: $showConfirmation) {
+            Button("Supprimer", role: .destructive) {
+                eraseGameState()
+            }
+            Button("Annuler", role: .cancel) { }
+        } message: {
+            Text("Êtes-vous sûr de vouloir supprimer la partie sauvegardée ? Cette action est irréversible.")
+        }
+        .onAppear() {
+            checkSavedGame()
+        }
+    }
+    
+    private func checkSavedGame() {
+        savedGameExists = gameManager.persistence.loadGameState() != nil
+        if savedGameExists {
+            showAlert = true
+            showMatchmaking = true
+        } else {
+            startNewGame()
+        }
+    }
+    
+    private func resumeGame() {
+        gameManager.resumeGameState()
+        showMatchmaking = false
+        print("Game resumed for player: \(playerID)")
+    }
+    
+    private func eraseGameState() {
+        gameManager.persistence.clearSavedGameState()
+        savedGameExists = false
+        showMatchmaking = false
+        startNewGame()
+        print("Saved game erased for player: \(playerID)")
+    }
+    
+    private func startNewGame() {
+        showMatchmaking = false
+        print("New game started for player: \(playerID)")
     }
 }
 
@@ -198,13 +254,13 @@ struct MovingCardView: View {
                 // Generate a random direction for a full spin (360° clockwise or counterclockwise)
                 let randomSpin: Double
                 if [.localPlayer, .leftPlayer, .rightPlayer].contains(movingCard.from) {
-                    randomSpin = Double([-360, -180, 0, 180, 360].randomElement() ?? 0)
+                    randomSpin = Double([-360, 0, 360].randomElement() ?? 0)
                 } else {
                     randomSpin = 0 // No spin for cards originating from non-hand areas
                 }
                 
                 gameManager.playSound(named: "play card")
-
+                
                 withAnimation(.easeOut(duration: animationDuration)) {
                     self.rotation = toState.rotation + randomSpin
                     self.scale = toState.scale
@@ -223,7 +279,7 @@ struct MovingCardView: View {
 
 struct GridOverlay: View {
     let spacing: CGFloat
-
+    
     var body: some View {
         GeometryReader { geometry in
             Path { path in

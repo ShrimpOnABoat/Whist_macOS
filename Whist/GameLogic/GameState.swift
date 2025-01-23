@@ -16,7 +16,11 @@ class GameState: ObservableObject, Codable {
     @Published var table: [Card] = [] // Must be [] after each trick grab. It follows the same order as in playOrder
     @Published var lastTrick: [PlayerId: Card] = [:]
     @Published var players: [Player] = []
-    @Published var trumpSuit: Suit? = nil // When the trump card is defined, the first card of the deck or twos is returned and trumpSuit is defined
+    @Published var trumpSuit: Suit? = nil {
+        didSet {
+            print("Trump suit changed to: \(String(describing: trumpSuit))")
+        }
+    } // When the trump card is defined, the first card of the deck or twos is returned and trumpSuit is defined
     @Published var playOrder: [PlayerId] = [] // should be reset after each trick grab
     @Published var dealer: PlayerId? = nil
     @Published var currentPhase: GamePhase = .waitingToStart
@@ -31,6 +35,7 @@ class GameState: ObservableObject, Codable {
         case trumpSuit
         case playOrder
         case dealer
+        case currentPhase
         // Include other properties here
     }
     
@@ -58,6 +63,7 @@ class GameState: ObservableObject, Codable {
         trumpSuit = try container.decodeIfPresent(Suit.self, forKey: .trumpSuit)
         playOrder = try container.decode([PlayerId].self, forKey: .playOrder)
         dealer = try container.decodeIfPresent(PlayerId.self, forKey: .dealer)
+        currentPhase = try container.decode(GamePhase.self, forKey: .currentPhase)
         if players.isEmpty { self.createDefaultPlayers() }
     }
     
@@ -72,6 +78,7 @@ class GameState: ObservableObject, Codable {
         try container.encodeIfPresent(trumpSuit, forKey: .trumpSuit)
         try container.encode(playOrder, forKey: .playOrder)
         try container.encodeIfPresent(dealer, forKey: .dealer)
+        try container.encode(currentPhase, forKey: .currentPhase)
         // Encode other properties as needed
     }
     

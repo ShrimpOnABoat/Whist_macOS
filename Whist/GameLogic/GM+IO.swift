@@ -228,7 +228,7 @@ extension GameManager {
     func sendAction(_ action: GameAction) {
         if let actionData = try? JSONEncoder().encode(action) {
             connectionManager?.sendData(actionData)
-            print("Sent action \(action.type) to other players")
+//            print("Sent action \(action.type) to other players")
         } else {
             print("Failed to encode action")
         }

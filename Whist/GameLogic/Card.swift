@@ -52,7 +52,7 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
     @Published var isPlaceholder: Bool = false
     // New properties for random values
     var randomOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
-    var randomAngle: CGFloat = CGFloat.random(in: -10...10)
+    var randomAngle: CGFloat = CGFloat.random(in: -10...10) + CGFloat([-180, 0, 180].randomElement() ?? 0)
     
     // Initializer
     init(suit: Suit, rank: Rank, isPlaceholder: Bool = false) {

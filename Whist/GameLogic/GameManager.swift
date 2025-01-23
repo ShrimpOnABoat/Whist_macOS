@@ -144,6 +144,63 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         }
     }
     
+    // MARK: resumeGameState
+    
+    func resumeGameState() {
+        guard let savedState = persistence.loadGameState() else {
+            newGame()
+            return
+        }
+        gameState = savedState
+
+        // Identify localPlayer, leftPlayer, and rightPlayer
+        if let localPlayerID = connectionManager?.localPlayerID {
+            gameState.updatePlayerReferences(for: localPlayerID)
+        } else {
+            fatalError("Error: Unable to determine main player or neighbors.")
+        }
+        
+        for player in gameState.players {
+            let isLocalPlayer = (player.tablePosition == .local)
+
+            if isLocalPlayer {
+                let shouldRevealCards = gameState.round >= 4 || gameState.currentPhase.isPlayingPhase
+                player.hand.indices.forEach { player.hand[$0].isFaceDown = !shouldRevealCards }
+            } else {  // left and right players
+                let shouldHideCards = gameState.round >= 4
+                player.hand.indices.forEach { player.hand[$0].isFaceDown = shouldHideCards }
+            }
+        }
+        
+        // Show the trump card
+        print("Trump suit: \(String(describing: gameState.trumpSuit ?? nil))")
+        if gameState.trumpSuit != nil {
+            print("Local player's place: \(gameState.localPlayer?.place ?? -1)")
+            print("All scores equal: \(allScoresEqual())")
+            if gameState.localPlayer?.place != 1 || gameState.currentPhase.isPlayingPhase || allScoresEqual() { // I can see the trump card
+                if gameState.round < 4 || allScoresEqual() {
+                    gameState.deck.last?.isFaceDown = false
+                } else {
+                    gameState.trumpCards.last?.isFaceDown = false
+                }
+            }
+        }
+        
+        // show the cards on the table
+        if gameState.currentPhase.isPlayingPhase {
+            gameState.table.indices.forEach { gameState.table[$0].isFaceDown = false }
+        }
+        
+        // Set the players' places
+        updatePlayersPositions()
+        
+        isDeckReady = true
+        
+        print("Current phase: \(gameState.currentPhase)")
+        checkAndAdvanceStateIfNeeded()
+        
+    }
+    
     // MARK: - Game Logic Functions
     
     func newGame() {

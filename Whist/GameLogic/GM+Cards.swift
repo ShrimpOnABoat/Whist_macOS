@@ -295,32 +295,6 @@ extension GameManager {
         
     }
     
-    func AIPlayCard() {
-        // Ensure the local player is defined
-        guard let localPlayer = gameState.localPlayer else {
-            fatalError("Error: Local player is not defined.")
-        }
-
-        // Filter playable cards
-        let playableCards = localPlayer.hand.filter { $0.isPlayable }
-        
-        // Ensure there are playable cards
-        guard !playableCards.isEmpty else {
-            fatalError("Error: No playable cards available.")
-        }
-
-        // Select a random playable card
-        if let selectedCard = playableCards.randomElement() {
-            print("AI is playing card: \(selectedCard)")
-            
-            // Play the selected card
-            playCard(selectedCard) {
-                print("AI played card \(selectedCard)")
-            }
-        }
-        checkAndAdvanceStateIfNeeded()
-    }
-    
     // MARK: Received played card
     
     func updateGameStateWithPlayedCard(from playerId: PlayerId, with card: Card, completion: @escaping () -> Void) {
@@ -510,12 +484,6 @@ extension GameManager {
         persistence.saveGameState(gameState)
     }
     
-    func AIChooseTrumpSuit() {
-        selectTrumpSuit(gameState.table.randomElement()!) {
-            self.checkAndAdvanceStateIfNeeded()
-        }
-    }
-    
     // MARK: discard
     
     func discard(cardsToDiscard: [Card], completion: @escaping () -> Void) {
@@ -537,6 +505,50 @@ extension GameManager {
 
         // Transition to next phase
         checkAndAdvanceStateIfNeeded()
+    }
+    
+    // MARK: AI functions
+    
+    func AIPlayCard() {
+        // Ensure the local player is defined
+        guard let localPlayer = gameState.localPlayer else {
+            fatalError("Error: Local player is not defined.")
+        }
+        
+        guard let localIndex = gameState.playOrder.firstIndex(of: localPlayer.id) else {
+            fatalError("Error: Local player index is not defined.")
+        }
+
+        if !gameState.table.indices.contains(localIndex) {
+            // Filter playable cards
+            let playableCards = localPlayer.hand.filter { $0.isPlayable }
+            
+            // Ensure there are playable cards
+            guard !playableCards.isEmpty else {
+                fatalError("Error: No playable cards available.")
+            }
+
+            // Select a random playable card
+            if let selectedCard = playableCards.randomElement() {
+                print("AI is playing card: \(selectedCard)")
+                
+                // Play the selected card
+                playCard(selectedCard) {
+                    print("AI played card \(selectedCard)")
+                }
+            }
+        }
+        checkAndAdvanceStateIfNeeded()
+    }
+    
+    func AIChooseTrumpSuit() {
+        if gameState.trumpSuit == nil && !gameState.table.isEmpty {
+            selectTrumpSuit(gameState.table.randomElement()!) {
+                self.checkAndAdvanceStateIfNeeded()
+            }
+        } else {
+            print("the trump suit was already chosen by AI or the table is empty")
+        }
     }
     
     func AIdiscard() {

@@ -25,7 +25,7 @@ class GamePersistence {
         do {
             let encodedData = try JSONEncoder().encode(state)
             try encodedData.write(to: fileURL)
-            print("Game state saved to: \(fileURL.path)")
+            print("State saved in \(fileURL.path)")
         } catch {
             print("Error saving game state to file: \(error.localizedDescription)")
         }
