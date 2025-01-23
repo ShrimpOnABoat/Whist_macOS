@@ -35,11 +35,11 @@ struct CardView: View {
         }
         .frame(width: 60, height: 90)
         .shadow(radius: 2) // Keep shadow but limit its impact
-        .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.currentPhase == .discard) ? -30 : 0)   // Move card up on hover
+        .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.gameState.currentPhase == .discard) ? -30 : 0)   // Move card up on hover
         .opacity(card.isPlaceholder ? 0.0 : 1.0)
         .contentShape(Rectangle())
         .onHover { hovering in
-            guard gameManager.currentPhase == .discard
+            guard gameManager.gameState.currentPhase == .discard
                   ? canSelect || isSelected // allow hover if we can still select OR we’re already selected
                   : card.isPlayable
             else {
@@ -56,7 +56,7 @@ struct CardView: View {
     
     private func handleCardTap() {
         // 1. If we’re in “discard” phase, handle discarding:
-        if gameManager.currentPhase == .discard {
+        if gameManager.gameState.currentPhase == .discard {
             // Let the parent do the toggling logic
             if canSelect || isSelected {
                 onTap()

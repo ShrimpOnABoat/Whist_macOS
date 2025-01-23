@@ -169,7 +169,7 @@ struct PlayerView: View {
     
     @ViewBuilder
     private func StateDisplay() -> some View {
-        if gameManager.currentPhase == .discard && player.tablePosition == .local {
+        if gameManager.gameState.currentPhase == .discard && player.tablePosition == .local {
             let numberOfCardsToDiscard = (gameManager.gameState.localPlayer?.hand.count ?? 0) - max(1, gameManager.gameState.round - 2)
             let selectedCount = selectedCardIDs.count
             
@@ -427,7 +427,7 @@ struct PlayerView_Previews: PreviewProvider {
     static var previews: some View {
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
-//        gameManager.currentPhase = .discard
+//        gameManager.gameState.currentPhase = .discard
 
         // Extract players from the game state
         let localPlayer = gameManager.gameState.localPlayer!

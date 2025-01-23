@@ -18,7 +18,6 @@ enum PlayerId: String, Codable, CaseIterable {
 
 class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var gameState: GameState = GameState()
-    @Published var currentPhase: GamePhase = .waitingToStart
     @Published var showOptions: Bool = false
     @Published var showTrumps: Bool = false
     @Published var showTopDeckCardFaceUp = false

@@ -519,7 +519,7 @@ extension GameManager {
     // MARK: discard
     
     func discard(cardsToDiscard: [Card], completion: @escaping () -> Void) {
-        guard currentPhase == .discard else { return }
+        guard gameState.currentPhase == .discard else { return }
         
         beginBatchMove(totalCards: cardsToDiscard.count) { completion() }
         for card in cardsToDiscard {

@@ -29,7 +29,7 @@ extension GameManager {
                     print("Waiting for all players to connect...")
                     return
                 }
-                print("Game phase: \(self.currentPhase). Calling setupGame()")
+                print("Game phase: \(self.gameState.currentPhase). Calling setupGame()")
                 self.setupGame()
                 self.checkAndAdvanceStateIfNeeded()
             }
@@ -46,7 +46,7 @@ extension GameManager {
             } else {
                 // Store the action for later
                 self.pendingActions.append(action)
-                print("Stored action \(action.type) for later because currentPhase = \(self.currentPhase)")
+                print("Stored action \(action.type) for later because currentPhase = \(self.gameState.currentPhase)")
             }
         }
     }

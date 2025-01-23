@@ -62,7 +62,7 @@ struct GameView: View {
                                 .frame(width: 400, height: 150)
 
                                 ZStack {
-                                    if gameManager.currentPhase != .choosingTrump {
+                                    if gameManager.gameState.currentPhase != .choosingTrump {
                                         TableView(gameState: gameManager.gameState)
                                     } else {
                                         TableView(gameState: gameManager.gameState, mode: .trumps)

@@ -19,7 +19,8 @@ class GameState: ObservableObject, Codable {
     @Published var trumpSuit: Suit? = nil // When the trump card is defined, the first card of the deck or twos is returned and trumpSuit is defined
     @Published var playOrder: [PlayerId] = [] // should be reset after each trick grab
     @Published var dealer: PlayerId? = nil
-    
+    @Published var currentPhase: GamePhase = .waitingToStart
+
     // MARK: - Codable Conformance
     enum CodingKeys: String, CodingKey {
         case round

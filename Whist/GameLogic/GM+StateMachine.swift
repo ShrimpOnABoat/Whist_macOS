@@ -31,8 +31,8 @@ extension GameManager {
 //     MARK: Transition
 
     func transition(to newPhase: GamePhase) {
-        print("Transitioning from \(currentPhase) to \(newPhase)")
-        currentPhase = newPhase
+        print("Transitioning from \(gameState.currentPhase) to \(newPhase)")
+        gameState.currentPhase = newPhase
         handleStateTransition()
     }
     
@@ -50,7 +50,7 @@ extension GameManager {
     // MARK: handleStateTransition
 
     private func handleStateTransition() {
-        switch currentPhase {
+        switch gameState.currentPhase {
         case .waitingToStart:
             setPlayerState(to: .idle)
             break
@@ -267,8 +267,8 @@ extension GameManager {
     // Call this after actions come in or after dealing
     // to see if conditions are met to move to next phase
     func checkAndAdvanceStateIfNeeded() {
-        print("checkAndAdvanceStateIfNeeded: \(currentPhase)")
-        switch currentPhase {
+        print("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
+        switch gameState.currentPhase {
         case .waitingToStart:
             if gameState.players.count == 3 && gameState.players.allSatisfy({ $0.connected }) {
                 transition(to: .setupGame)
@@ -479,7 +479,7 @@ extension GameManager {
     }
     
     func isActionValidInCurrentPhase(_ actionType: GameAction.ActionType) -> Bool {
-        return (actionType.associatedPhases.contains(currentPhase) || actionType.associatedPhases == [])
+        return (actionType.associatedPhases.contains(gameState.currentPhase) || actionType.associatedPhases == [])
     }
     
     func processPendingActionsForCurrentPhase() {

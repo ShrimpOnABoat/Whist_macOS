@@ -32,7 +32,7 @@ extension GameManager {
     
     func onDeckMeasured() {
         // If we’re in .renderingDeck, flip the flag and check the state
-        guard currentPhase == .renderingDeck else { return }
+        guard gameState.currentPhase == .renderingDeck else { return }
         
         isDeckReady = true
         checkAndAdvanceStateIfNeeded()
