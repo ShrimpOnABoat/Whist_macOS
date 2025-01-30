@@ -29,23 +29,23 @@ class GameKitManager: NSObject, ObservableObject {
         #if !TEST_MODE
         GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
             if let error = error {
-                print("Authentication error: \(error.localizedDescription)")
+                logWithTimestamp("Authentication error: \(error.localizedDescription)")
             }
 
             if let vc = viewController {
                 self?.presentAuthenticationViewController(vc)
             } else if GKLocalPlayer.local.isAuthenticated {
                 self?.isAuthenticated = true
-                print("Game Center authentication successful.")
+                logWithTimestamp("Game Center authentication successful.")
             } else {
                 self?.isAuthenticated = false
-                print("Game Center authentication failed.")
+                logWithTimestamp("Game Center authentication failed.")
             }
         }
         #else
         // In test mode, simulate successful authentication
         self.isAuthenticated = true
-        print("Test mode: Authentication simulated as successful.")
+        logWithTimestamp("Test mode: Authentication simulated as successful.")
         #endif
     }
 
@@ -55,7 +55,7 @@ class GameKitManager: NSObject, ObservableObject {
         if let window = NSApplication.shared.windows.first {
             window.contentViewController?.presentAsModalWindow(viewController)
         } else {
-            print("No window available to present the authentication view controller.")
+            logWithTimestamp("No window available to present the authentication view controller.")
         }
     }
     #endif

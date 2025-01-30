@@ -23,7 +23,7 @@ class SoundManager {
         for soundFile in soundFiles {
             let components = soundFile.split(separator: ".")
             guard components.count == 2 else {
-                print("Invalid sound file name: \(soundFile)")
+                logWithTimestamp("Invalid sound file name: \(soundFile)")
                 continue
             }
             let name = String(components[0])
@@ -35,7 +35,7 @@ class SoundManager {
     /// Preload a sound to reduce latency during playback
     func preloadSound(named fileName: String, withExtension fileExtension: String) {
         guard let url = Bundle.main.url(forResource: fileName, withExtension: fileExtension) else {
-            print("Sound file \(fileName).\(fileExtension) not found.")
+            logWithTimestamp("Sound file \(fileName).\(fileExtension) not found.")
             return
         }
 
@@ -47,10 +47,10 @@ class SoundManager {
     /// Play a preloaded sound
     func playSound(named fileName: String) {
         guard let soundID = soundIDs[fileName] else {
-            print("Sound \(fileName) not preloaded. Call preloadSound() first.")
+            logWithTimestamp("Sound \(fileName) not preloaded. Call preloadSound() first.")
             return
         }
-        print("Playing sound \(fileName).")
+//        logWithTimestamp("Playing sound \(fileName).")
         AudioServicesPlaySystemSound(soundID)
     }
 

@@ -35,7 +35,7 @@ struct MatchMakingView: View {
                 .padding()
                 .onChange(of: selectedPlayerID) { _, newID in
                     guard let newID = newID else { return }
-                    print("Selected player: \(newID)")
+                    logWithTimestamp("Selected player: \(newID)")
                     connectionManager.setLocalPlayerID(newID)
                     gameManager.setPersistencePlayerID(with: selectedPlayerID!)
                     isWaitingForPlayers = true
@@ -52,9 +52,10 @@ struct MatchMakingView: View {
                     .environmentObject(gameManager)
             }
         }
-        .onChange(of: gameManager.gameState.allPlayersConnected) { old, allConnected in
+        .onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
             if allConnected {
-                print("All players are connected!")
+                logWithTimestamp("All players are connected!")
+                gameManager.checkAndAdvanceStateIfNeeded() // Should start the game
                 isWaitingForPlayers = false
                 navigateToGame = true
             }
@@ -92,11 +93,11 @@ struct MatchMakingView: View {
 //                .padding()
 //                .onChange(of: selectedPlayerID) { oldID, newID in
 //                    if let newID = newID {
-//                        print("Selected player: \(newID)")
+//                        logWithTimestamp("Selected player: \(newID)")
 //                        connectionManager.setLocalPlayerID(newID)
 //                        isGameStarted = true
 //                    } else {
-//                        print("No player ID selected")
+//                        logWithTimestamp("No player ID selected")
 //                    }
 //                }
 //                

@@ -20,6 +20,9 @@ struct GameAction: Codable {
             switch self {
             case .playCard: return [.playingTricks]
             case .sendDeck: return [.waitingForDeck]
+            case .discard: return [.choosingTrump, .waitingForTrump, .bidding, .discard]
+            case .choseBet: return [.choosingTrump, .waitingForTrump, .bidding, .discard]
+            case .choseTrump: return [.choosingTrump, .waitingForTrump, .bidding, .discard]
             default: return []
             }
         }

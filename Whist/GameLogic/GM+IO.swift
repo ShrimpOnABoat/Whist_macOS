@@ -9,32 +9,6 @@ import Foundation
 import SwiftUI
 
 extension GameManager {
-    // MARK: - Subscription Setup
-    func setupSubscriptions() {
-        gameState.$players
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] players in
-                guard let self = self else { return }
-                
-                print("Updated players: \(players.map { $0.username })")
-
-                let totalPlayers = self.gameState.players.count
-                let connectedPlayers = self.gameState.players.filter { $0.connected }.count
-                print("setupSubscriptions - Total players created: \(totalPlayers), Players connected: \(connectedPlayers)")
-                
-                // Proceed only if all players have connected
-                let expectedNumberOfPlayers: Int = 3
-                guard players.count >= expectedNumberOfPlayers,
-                      players.allSatisfy({ $0.connected }) else {
-                    print("Waiting for all players to connect...")
-                    return
-                }
-                print("Game phase: \(self.gameState.currentPhase). Calling setupGame()")
-                self.setupGame()
-                self.checkAndAdvanceStateIfNeeded()
-            }
-            .store(in: &cancellables)
-    }
     
     // MARK: - handleReceivedAction
     
@@ -43,23 +17,28 @@ extension GameManager {
             // Check if the action is valid for the current phase
             if self.isActionValidInCurrentPhase(action.type) {
                 self.processAction(action)
+                if action.type != .sendState {
+                    self.checkAndAdvanceStateIfNeeded()
+                }
             } else {
                 // Store the action for later
                 self.pendingActions.append(action)
-                print("Stored action \(action.type) for later because currentPhase = \(self.gameState.currentPhase)")
+                logWithTimestamp("Stored action \(action.type) from \(action.playerId) for later because currentPhase = \(self.gameState.currentPhase)")
             }
         }
     }
     
     func processAction(_ action: GameAction) {
+        logWithTimestamp("Processing action \(action.type) from player \(action.playerId)...")
         switch action.type {
         case .playCard:
             guard let card = try? JSONDecoder().decode(Card.self, from: action.payload) else {
-                print("Failed to decode played card.")
+                logWithTimestamp("Failed to decode played card.")
                 return
             }
             self.updateGameStateWithPlayedCard(from: action.playerId, with: card) {
-                self.checkAndAdvanceStateIfNeeded()
+//                self.checkAndAdvanceStateIfNeeded()
+                return
             }
             
         case .sendDeck:
@@ -69,31 +48,31 @@ extension GameManager {
             if let bet = try? JSONDecoder().decode(Int.self, from: action.payload) {
                 self.updateGameStateWithBet(from: action.playerId, with: bet)
             } else {
-                print("Failed to decode bet value.")
+                logWithTimestamp("Failed to decode bet value.")
             }
             
         case .choseTrump:
-            print("Received trump")
+            logWithTimestamp("Received trump")
             if let trumpCard = try? JSONDecoder().decode(Card.self, from: action.payload) {
                 self.updateGameStateWithTrump(from: action.playerId, with: trumpCard)
             } else {
-                print("Failed to decode trump suit.")
+                logWithTimestamp("Failed to decode trump suit.")
             }
             
         case .discard:
-            print("Received discard")
+            logWithTimestamp("Received discard")
             if let discardedCards = try? JSONDecoder().decode([Card].self, from: action.payload) {
                 self.updateGameStateWithDiscardedCards(from: action.playerId, with: discardedCards) {}
             } else {
-                print("Failed to decode discarded cards.")
+                logWithTimestamp("Failed to decode discarded cards.")
             }
             
         case .sendState:
-            print("Received state")
+//            logWithTimestamp("Received state")
             if let state = try? JSONDecoder().decode(PlayerState.self, from: action.payload) {
                 self.updatePlayerWithState(from: action.playerId, with: state)
             } else {
-                print("Failed to decode discarded cards.")
+                logWithTimestamp("Failed to decode discarded cards.")
             }
 
         }
@@ -102,10 +81,10 @@ extension GameManager {
     // MARK: - Send data
     
     func sendDeckToPlayers() {
-        print("Sending deck to players")
+        logWithTimestamp("Sending deck to players")
         // Ensure localPlayer is defined
         guard let localPlayer = gameState.localPlayer else {
-            print("Error: Local player is not defined")
+            logWithTimestamp("Error: Local player is not defined")
             return
         }
         
@@ -119,15 +98,15 @@ extension GameManager {
             )
             sendAction(action)
         } else {
-            print("Error: Failed to encode the deck cards")
+            logWithTimestamp("Error: Failed to encode the deck cards")
         }
     }
 
     
     func sendPlayCardtoPlayers(_ card: Card) {
-        print("Sending play card \(card) to players")
+        logWithTimestamp("Sending play card \(card) to players")
         guard let localPlayer = gameState.localPlayer else {
-            print("Error: Local player is not defined")
+            logWithTimestamp("Error: Local player is not defined")
             return
         }
         
@@ -140,14 +119,14 @@ extension GameManager {
             )
             sendAction(action)
         } else {
-            print("Error: Failed to encode the card")
+            logWithTimestamp("Error: Failed to encode the card")
         }
     }
     
     func sendBetToPlayers(_ bet: Int) {
-        print("Sending bet \(bet) to players")
+        logWithTimestamp("Sending bet \(bet) to players")
         guard let localPlayer = gameState.localPlayer else {
-            print("Error: Local player is not defined")
+            logWithTimestamp("Error: Local player is not defined")
             return
         }
         
@@ -160,14 +139,14 @@ extension GameManager {
             )
             sendAction(action)
         } else {
-            print("Error: Failed to encode the bet")
+            logWithTimestamp("Error: Failed to encode the bet")
         }
     }
     
     func sendTrumpToPlayers(_ trump: Card) {
-        print("Sending trump \(trump) to players")
+        logWithTimestamp("Sending trump \(trump) to players")
         guard let localPlayer = gameState.localPlayer else {
-            print("Error: Local player is not defined")
+            logWithTimestamp("Error: Local player is not defined")
             return
         }
         
@@ -180,14 +159,14 @@ extension GameManager {
             )
             sendAction(action)
         } else {
-            print("Error: Failed to encode the trump card")
+            logWithTimestamp("Error: Failed to encode the trump card")
         }
     }
     
     func sendDiscardedCards(_ discardedCards: [Card]) {
-        print("Sending discarded cards \(discardedCards) to players")
+        logWithTimestamp("Sending discarded cards \(discardedCards) to players")
         guard let localPlayer = gameState.localPlayer else {
-            print("Error: Local player is not defined")
+            logWithTimestamp("Error: Local player is not defined")
             return
         }
         
@@ -200,17 +179,17 @@ extension GameManager {
             )
             sendAction(action)
         } else {
-            print("Error: Failed to encode the trump card")
+            logWithTimestamp("Error: Failed to encode the trump card")
         }
     }
     
     func sendStateToPlayers() {
         guard let localPlayer = gameState.localPlayer else {
-            print("Error: Local player is not defined")
+            logWithTimestamp("Error: Local player is not defined")
             return
         }
         let state = localPlayer.state
-        print("Sending new state \(state.message) to players")
+//        logWithTimestamp("Sending new state \(state.message) to players")
         
         if let state = try? JSONEncoder().encode(state) {
             let action = GameAction(
@@ -221,28 +200,28 @@ extension GameManager {
             )
             sendAction(action)
         } else {
-            print("Error: Failed to encode player's state")
+            logWithTimestamp("Error: Failed to encode player's state")
         }
     }
     
     func sendAction(_ action: GameAction) {
         if let actionData = try? JSONEncoder().encode(action) {
             connectionManager?.sendData(actionData)
-//            print("Sent action \(action.type) to other players")
+//            logWithTimestamp("Sent action \(action.type) to other players")
         } else {
-            print("Failed to encode action")
+            logWithTimestamp("Failed to encode action")
         }
     }
     
     func syncPlayersFromConnections(_ connectedPeers: [PeerConnection]) {
         var connectedPlayerIDs = connectedPeers.compactMap { $0.playerID }
-        print("--> Connected players: \(connectedPlayerIDs)")
+        logWithTimestamp("--> Connected players: \(connectedPlayerIDs)")
         
         // Add the local player since they're always "connected" by definition
         if let localPlayerID = connectionManager?.localPlayerID {
             connectedPlayerIDs.append(localPlayerID)
         }
-        print("--> Connected players: \(connectedPlayerIDs)")
+        logWithTimestamp("--> Connected players: \(connectedPlayerIDs)")
 
         for (index, player) in gameState.players.enumerated() {
             let wasConnected = player.connected
@@ -251,15 +230,15 @@ extension GameManager {
             // Update the player connected status by replacing it in the array (if Player is a class this might not be needed, but it's safer)
             if wasConnected != isConnected {
                 gameState.players[index].connected = isConnected
-                print("Player \(gameState.players[index].id) is updated to \(gameState.players[index].connected ? "connected" : "disconnected")")
+                logWithTimestamp("Player \(gameState.players[index].id) is updated to \(gameState.players[index].connected ? "connected" : "disconnected")")
             } else {
-                print("Player \(gameState.players[index].id) stays \(gameState.players[index].connected ? "connected" : "disconnected")")
+                logWithTimestamp("Player \(gameState.players[index].id) stays \(gameState.players[index].connected ? "connected" : "disconnected")")
             }
         }
 
         // Force update
         self.objectWillChange.send()
         
-        checkAndAdvanceStateIfNeeded()
+//        checkAndAdvanceStateIfNeeded()
     }
 }

@@ -31,6 +31,9 @@ struct PlayerView: View {
                             PlayerInfo()
                             if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
                                 TrickDisplay()
+                                    .onTapGesture {
+                                        gameManager.showLastTrick.toggle()
+                                    }
                             }
                         }
                         if player.tablePosition == .right {
@@ -44,6 +47,9 @@ struct PlayerView: View {
                             VStack {
                                 StateDisplay()
                                 TrickDisplay()
+                                    .onTapGesture {
+                                        gameManager.showLastTrick.toggle()
+                                    }
                             }
                             .frame(maxWidth: .infinity, alignment: .center)
                             PlayerInfo()
@@ -178,6 +184,7 @@ struct PlayerView: View {
                     let cardsToDiscard = player.hand.filter { selectedCardIDs.contains($0.id) }
                     gameManager.discard(cardsToDiscard: cardsToDiscard) {
                         selectedCardIDs.removeAll()
+                        gameManager.checkAndAdvanceStateIfNeeded()
                     }
                 }) {
                     Text("Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" : "")")

@@ -50,16 +50,18 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
     @Published var offset: CGFloat = CGFloat.random(in: -10...10)
     @Published var scale: CGFloat = 1.0
     @Published var isPlaceholder: Bool = false
+    @Published var isLastTrick: Bool = false
     // New properties for random values
     var randomOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
     var randomAngle: CGFloat = CGFloat.random(in: -10...10) + CGFloat([-180, 0, 180].randomElement() ?? 0)
     
     // Initializer
-    init(suit: Suit, rank: Rank, isPlaceholder: Bool = false) {
+    init(suit: Suit, rank: Rank, isPlaceholder: Bool = false, isLastTrick: Bool = false) {
         self.suit = suit
         self.rank = rank
         self.isPlaceholder = isPlaceholder
-        self.id = "\(suit.rawValue)_\(rank.rawValue)" + (isPlaceholder ? "_placeholder" : "")
+        self.isLastTrick = isLastTrick
+        self.id = "\(suit.rawValue)_\(rank.rawValue)" + (isPlaceholder ? "_placeholder" : "") + (isLastTrick ? "_lastTrick" : "")
     }
 
     // Codable conformance

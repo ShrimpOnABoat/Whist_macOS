@@ -70,7 +70,7 @@ extension GameManager {
                 }
             }
         }
-        print("Hands assigned: Deck has \(gameState.deck.count) cards left.")
+        logWithTimestamp("Hands assigned: Deck has \(gameState.deck.count) cards left.")
     }
 
     func setupTrickCardsForPreview() {
@@ -80,7 +80,7 @@ extension GameManager {
             gameState.table.append(card)
             card.isFaceDown = false
         }
-        print("Trick cards set up: Table has \(gameState.table.count) entries.")
+        logWithTimestamp("Trick cards set up: Table has \(gameState.table.count) entries.")
     }
     
     func setupPlayerTricksForPreview() {
@@ -95,9 +95,22 @@ extension GameManager {
         if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
         if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
         if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
-        if let card = gameState.deck.last {gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)}
+        if let card = gameState.deck.last {
+            gameState.lastTrick[.gg] = card
+            gameState.lastTrick[.gg]?.isFaceDown = false
+            gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)
+        }
+        if let card = gameState.deck.last {
+            gameState.lastTrick[.dd] = card
+            gameState.lastTrick[.dd]?.isFaceDown = false
+            gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)
+        }
+        if let card = gameState.deck.last {
+            gameState.lastTrick[.toto] = card
+            gameState.lastTrick[.toto]?.isFaceDown = false
+            gameState.moveCardPreview(from: &gameState.deck, to: &gameState.players[1].trickCards, card: card)
+        }
+        
         
     }
     

@@ -52,7 +52,7 @@ extension MatchmakingViewModel: GKMatchmakerViewControllerDelegate, GKMatchDeleg
     func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFailWithError error: Error) {
         isMatchmaking = false
         viewController.dismiss(nil)
-        print("Matchmaking failed: \(error.localizedDescription)")
+        logWithTimestamp("Matchmaking failed: \(error.localizedDescription)")
     }
     
     func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFind match: GKMatch) {
@@ -61,7 +61,7 @@ extension MatchmakingViewModel: GKMatchmakerViewControllerDelegate, GKMatchDeleg
         self.match = match
         match.delegate = self
         GameKitManager.shared.match = match
-        print("Match found with players: \(match.players)")
+        logWithTimestamp("Match found with players: \(match.players)")
         // Proceed to the game
     }
 }

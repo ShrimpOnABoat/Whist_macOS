@@ -40,7 +40,7 @@ extension GameManager {
 //     MARK: Transition
 
     func transition(to newPhase: GamePhase) {
-        print("Transitioning from \(gameState.currentPhase) to \(newPhase)")
+        logWithTimestamp("Transitioning from \(gameState.currentPhase) to \(newPhase)")
         gameState.currentPhase = newPhase
         handleStateTransition()
     }
@@ -58,6 +58,7 @@ extension GameManager {
     // MARK: handleStateTransition
 
     private func handleStateTransition() {
+        processPendingActionsForCurrentPhase(checkState: false)
         switch gameState.currentPhase {
         case .waitingToStart:
             setPlayerState(to: .idle)
@@ -94,12 +95,14 @@ extension GameManager {
         case .waitingForDeck:
             setPlayerState(to: .idle)
             // remove cards from tricks, hands and table and bring them back to the deck
-            gatherCards() {
-                // in case the deck was sent earlier
-                self.processPendingActionsForCurrentPhase()
-                
-                // otherwise nothing to do but wait
-                if !self.isDeckReady { print("Waiting for deck") }
+            waitForAnimationsToFinish {
+                self.gatherCards() {
+                    // in case the deck was sent earlier
+                    self.processPendingActionsForCurrentPhase()
+                    
+                    // otherwise nothing to do but wait
+                    if !self.isDeckReady { logWithTimestamp("Waiting for deck") }
+                }
             }
             
         case .dealingCards:
@@ -114,7 +117,7 @@ extension GameManager {
                     transition(to: .bidding)
                 } else {
                     if let localPlayer = gameState.localPlayer {
-                        print("My place is \(localPlayer.place)")
+                        logWithTimestamp("My place is \(localPlayer.place)")
                         switch localPlayer.place {
                         case 1: transition(to: .bidding)
                         case 2: transition(to: .waitingForTrump)
@@ -126,33 +129,45 @@ extension GameManager {
             }
 
             // 2) Now branch out whether we do gatherCards + shuffle or not:
-            if isDealer {
-                gatherCards {
-                    self.shuffleCards() {
-                        self.persistence.saveGameState(self.gameState)
-                        self.sendDeckToPlayers()
-                        
-                        // 3) Call dealCards, then call our afterDealing function
-                        self.dealCards {
-                            afterDealing()
+            waitForAnimationsToFinish {
+                if isDealer {
+                    self.gatherCards {
+                        self.shuffleCards() {
+                            self.persistence.saveGameState(self.gameState)
+                            self.sendDeckToPlayers()
+                            
+                            // 3) Call dealCards, then call our afterDealing function
+                            self.waitForAnimationsToFinish {
+                                self.dealCards {
+                                    afterDealing()
+                                }
+                            }
                         }
                     }
-                }
-            } else {
-                // 4) Same dealCards call, same completion logic
-                self.shuffleCards(animationOnly: true) {
-                    self.dealCards {
-                        afterDealing()
+                } else {
+                    // 4) Same dealCards call, same completion logic
+                    self.shuffleCards(animationOnly: true) {
+                        self.waitForAnimationsToFinish {
+                            self.dealCards {
+                                afterDealing()
+                            }
+                        }
                     }
                 }
             }
 
         case .choosingTrump:
             setPlayerState(to: .choosingTrump)
-
-            chooseTrump() {
-                if self.isAIPlaying {
-                    self.AIChooseTrumpSuit()
+            
+            waitForAnimationsToFinish {
+                self.chooseTrump() {
+                    if self.isAIPlaying {
+                        self.waitForAnimationsToFinish {
+                            self.AIChooseTrumpSuit() {
+                                self.transition(to: .bidding)
+                            }
+                        }
+                    }
                 }
             }
             
@@ -167,13 +182,23 @@ extension GameManager {
         case .discard:
             setPlayerState(to: .discarding)
             if isAIPlaying {
-                AIdiscard()
+                waitForAnimationsToFinish {
+                    self.AIdiscard() {
+                        if let place = self.gameState.localPlayer?.place {
+                            if place == 2 {
+                                self.transition(to: .bidding)
+                            } else {
+                                self.transition(to: .playingTricks)
+                            }
+                        }
+                    }
+                }
             }
             
         case .bidding:
             if gameState.round < 4 {
                 if isLocalPlayerTurnToBet() {
-                    print("local player must bet < 4")
+                    logWithTimestamp("local player must bet < 4")
                     setPlayerState(to: .bidding)
                     showOptions = true
                 } else if allPlayersBet() {
@@ -183,7 +208,7 @@ extension GameManager {
                 }
             } else { // round > 3
                 if allPlayersBet() {
-                    print("All players have bet")
+                    logWithTimestamp("All players have bet")
                     if lastPlayerDiscarded() {
                         transition(to: .playingTricks)
                     } else {
@@ -194,10 +219,10 @@ extension GameManager {
                         }
                     }
                 } else {
-                    print("Some players have not bet")
+                    logWithTimestamp("Some players have not bet")
                     showOptions = true
                     setPlayerState(to: .bidding)
-                    print("local player must bet > 3")
+                    logWithTimestamp("local player must bet > 3")
                 }
             }
             
@@ -226,7 +251,15 @@ extension GameManager {
                 setPlayerState(to: .playing)
                 setPlayableCards()
                 if isAIPlaying {
-                    AIPlayCard()
+                    waitForAnimationsToFinish {
+                        self.AIPlayCard() {
+                            if self.allPlayersPlayed() {
+                                self.transition(to: .grabTrick)
+                            } else {
+                                self.setPlayerState(to: .waiting)
+                            }
+                        }
+                    }
                 }
             } else if allPlayersPlayed() {
                 transition(to: .grabTrick)
@@ -238,32 +271,37 @@ extension GameManager {
             // Wait a few seconds and grab trick automatically
             // and set the last trick
             // and refresh playOrder
-            print("Assigning trick")
+            logWithTimestamp("Assigning trick")
             setPlayerState(to: .idle)
-            assignTrick() {
-                print("Trick assigned")
-                // check if last trick
-                if self.isLastTrick() {
-                    self.transition(to: .scoring)
-                } else {
-                    self.transition(to: .playingTricks)
+            waitForAnimationsToFinish {
+                self.assignTrick() {
+                    self.gameState.currentTrick += 1
+                    logWithTimestamp("Trick assigned, current trick is now \(self.gameState.currentTrick)")
+                    // check if last trick
+                    if self.isLastTrick() {
+                        self.transition(to: .scoring)
+                    } else {
+                        self.transition(to: .playingTricks)
+                    }
                 }
             }
             
             
         case .scoring:
-            // Compute scores
-            setPlayerState(to: .idle)
-            computeScores()
-            
-            // update positions
-            updatePlayersPositions()
-            
-            // if last round, transition to gameOver
-            if gameState.round == 12 {
-                transition(to: .gameOver)
-            } else { // proceed to the next round
-                transition(to: .setupNewRound)
+            waitForAnimationsToFinish {
+                // Compute scores
+                self.setPlayerState(to: .idle)
+                self.computeScores()
+                
+                // update positions
+                self.updatePlayersPositions()
+                
+                // if last round, transition to gameOver
+                if self.gameState.round == 12 {
+                    self.transition(to: .gameOver)
+                } else { // proceed to the next round
+                    self.transition(to: .setupNewRound)
+                }
             }
             
         case .gameOver:
@@ -280,7 +318,7 @@ extension GameManager {
     // Call this after actions come in or after dealing
     // to see if conditions are met to move to next phase
     func checkAndAdvanceStateIfNeeded() {
-        print("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
+        logWithTimestamp("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingToStart:
             if gameState.players.count == 3 && gameState.players.allSatisfy({ $0.connected }) {
@@ -295,7 +333,7 @@ extension GameManager {
 
         case .dealingCards:
             // This state is handled in handleStateTransition
-            print("Dealing cards")
+            logWithTimestamp("Dealing cards")
             break
 
         case .choosingTrump:
@@ -351,7 +389,7 @@ extension GameManager {
             break
             
         case .grabTrick:
-            if gameState.table.isEmpty {
+            if gameState.table.isEmpty && !allPlayersPlayed() {
                 // check if last trick
                 if isLastTrick() {
                     transition(to: .scoring)
@@ -377,13 +415,13 @@ extension GameManager {
     
     func isLocalPlayerTurnToBet() -> Bool {
         guard let localPlayerID = connectionManager?.localPlayerID else {
-            print("Error: Local player ID not found.")
+            logWithTimestamp("Error: Local player ID not found.")
             return false
         }
 
         if gameState.round < 4 {
             guard let playerIndex = gameState.playOrder.firstIndex(of: localPlayerID) else {
-                print("Error: Local player not found in play order.")
+                logWithTimestamp("Error: Local player not found in play order.")
                 return false
             }
             
@@ -391,7 +429,7 @@ extension GameManager {
             for index in 0..<playerIndex {
                 let previousPlayerID = gameState.playOrder[index]
                 guard let previousPlayer = gameState.players.first(where: { $0.id == previousPlayerID }) else {
-                    print("Error: Player \(previousPlayerID) not found.")
+                    logWithTimestamp("Error: Player \(previousPlayerID) not found.")
                     return false
                 }
                 
@@ -421,7 +459,7 @@ extension GameManager {
     func lastPlayerDiscarded() -> Bool {
         if gameState.round < 4 { return true }
         let allHandsSameCount = gameState.players.allSatisfy { $0.hand.count == max(1, gameState.round - 2)}
-        print("All players discarded: \(allHandsSameCount)")
+        logWithTimestamp("All players discarded: \(allHandsSameCount)")
         return allHandsSameCount
     }
     
@@ -436,10 +474,10 @@ extension GameManager {
 
         // Check if it's the local player's turn to play
         if gameState.table.count == playerIndex {
-            print("It's my turn to play")
+            logWithTimestamp("It's my turn to play")
             return true
         } else {
-            print("Not my turn to play yet")
+            logWithTimestamp("Not my turn to play yet")
             return false
         }
     }
@@ -468,7 +506,7 @@ extension GameManager {
             // Ensure the player has announced and made tricks for this round
             guard player.announcedTricks.indices.contains(roundIndex),
                   player.madeTricks.indices.contains(roundIndex) else {
-                print("Error: Missing announced or made tricks for player \(player.username)")
+                logWithTimestamp("Error: Missing announced or made tricks for player \(player.username)")
                 continue
             }
             
@@ -494,7 +532,7 @@ extension GameManager {
             let totalScore = (player.scores.last ?? 0) + roundScore
             player.scores.append(totalScore)
             
-            print("Player \(player.username): Announced \(announced), Made \(made), Round Score \(roundScore), Total Score \(totalScore)")
+            logWithTimestamp("Player \(player.username): Announced \(announced), Made \(made), Round Score \(roundScore), Total Score \(totalScore)")
         }
     }
     
@@ -502,20 +540,31 @@ extension GameManager {
         return (actionType.associatedPhases.contains(gameState.currentPhase) || actionType.associatedPhases == [])
     }
     
-    func processPendingActionsForCurrentPhase() {
-        print("Pending actions count: \(pendingActions.count)")
+    func processPendingActionsForCurrentPhase(checkState: Bool = true) {
+        guard pendingActions.isEmpty == false else { return }
         
-        // Iterate through the actions in pendingActions
-        var processedIndices: [Int] = []
+        logWithTimestamp("Pending actions count: \(pendingActions.count)")
+        var atLeastOneActionProcessed = false
         
-        for (index, action) in pendingActions.enumerated() {
+        let remainingActions = pendingActions
+        pendingActions.removeAll()
+
+        for action in remainingActions {
             if isActionValidInCurrentPhase(action.type) {
-                self.processAction(action)
-                processedIndices.append(index)
+                logWithTimestamp("Action \(action.type) is valid in current phase, processing it")
+                processAction(action)
+                atLeastOneActionProcessed = true
+            } else {
+                logWithTimestamp("Action \(action.type) is NOT valid in current phase, skipping it")
+                pendingActions.append(action)  // Re-add invalid actions
             }
+        }
+
+        if atLeastOneActionProcessed && checkState {
+            checkAndAdvanceStateIfNeeded()
         }
         
         // Remove processed actions from pendingActions
-        pendingActions = pendingActions.enumerated().filter { !processedIndices.contains($0.offset) }.map { $0.element }
+        logWithTimestamp("Pending actions left: \(pendingActions.count)")
     }
 }

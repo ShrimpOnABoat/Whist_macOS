@@ -56,9 +56,9 @@ class ScoresManager {
         do {
             let data = try JSONEncoder().encode(scores)
             try data.write(to: scoresFileURL)
-            print("Scores saved locally in TEST_MODE!")
+            logWithTimestamp("Scores saved locally in TEST_MODE!")
         } catch {
-            print("Error saving scores: \(error)")
+            logWithTimestamp("Error saving scores: \(error)")
         }
         #else
         let record = CKRecord(recordType: "GameScores")
@@ -67,13 +67,13 @@ class ScoresManager {
             record["scores"] = data as CKRecordValue
             CKContainer.default().privateCloudDatabase.save(record) { _, error in
                 if let error = error {
-                    print("Error saving scores to CloudKit: \(error)")
+                    logWithTimestamp("Error saving scores to CloudKit: \(error)")
                 } else {
-                    print("Scores saved to CloudKit!")
+                    logWithTimestamp("Scores saved to CloudKit!")
                 }
             }
         } catch {
-            print("Error encoding scores for CloudKit: \(error)")
+            logWithTimestamp("Error encoding scores for CloudKit: \(error)")
         }
         #endif
     }
@@ -87,7 +87,7 @@ class ScoresManager {
             let data = try Data(contentsOf: scoresFileURL)
             return try decoder.decode([GameScore].self, from: data)
         } catch {
-            print("Error loading scores: \(error)")
+            logWithTimestamp("Error loading scores: \(error)")
             return []
         }
         #else
@@ -96,7 +96,7 @@ class ScoresManager {
         let semaphore = DispatchSemaphore(value: 0)
         CKContainer.default().privateCloudDatabase.perform(query, inZoneWith: nil) { records, error in
             if let error = error {
-                print("Error loading scores from CloudKit: \(error)")
+                logWithTimestamp("Error loading scores from CloudKit: \(error)")
             } else if let records = records {
                 for record in records {
                     if let data = record["scores"] as? Data {
@@ -104,7 +104,7 @@ class ScoresManager {
                             let decodedScores = try JSONDecoder().decode([GameScore].self, from: data)
                             scores.append(contentsOf: decodedScores)
                         } catch {
-                            print("Error decoding scores: \(error)")
+                            logWithTimestamp("Error decoding scores: \(error)")
                         }
                     }
                 }

@@ -25,9 +25,9 @@ class GamePersistence {
         do {
             let encodedData = try JSONEncoder().encode(state)
             try encodedData.write(to: fileURL)
-            print("State saved in \(fileURL.path)")
+//            logWithTimestamp("State saved in \(fileURL.path)")
         } catch {
-            print("Error saving game state to file: \(error.localizedDescription)")
+            logWithTimestamp("Error saving game state to file: \(error.localizedDescription)")
         }
     }
 
@@ -35,10 +35,10 @@ class GamePersistence {
         do {
             let data = try Data(contentsOf: fileURL)
             let decodedState = try JSONDecoder().decode(GameState.self, from: data)
-            print("Game state loaded from: \(fileURL.path)")
+//            logWithTimestamp("Game state loaded from: \(fileURL.path)")
             return decodedState
         } catch {
-            print("Error loading game state from file: \(error.localizedDescription)")
+            logWithTimestamp("Error loading game state from file: \(error.localizedDescription)")
             return nil
         }
     }
@@ -48,10 +48,10 @@ class GamePersistence {
         do {
             if fileManager.fileExists(atPath: fileURL.path) {
                 try fileManager.removeItem(at: fileURL)
-                print("Cleared saved game state for player: \(playerID)")
+//                logWithTimestamp("Cleared saved game state for player: \(playerID)")
             }
         } catch {
-            print("Error clearing saved game state: \(error.localizedDescription)")
+            logWithTimestamp("Error clearing saved game state: \(error.localizedDescription)")
         }
     }
 }

@@ -310,20 +310,20 @@ struct PerlinNoiseOverlay_Previews: PreviewProvider {
                 Button("Save as Image") {
                     // Call the snapshot() extension on TilingPerlinView
                     guard let nsImage = tilingView.snapshot() else {
-                        print("Snapshot failed")
+                        logWithTimestamp("Snapshot failed")
                         return
                     }
                     
                     // Convert NSImage -> CGImage
                     guard let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-                        print("Failed to create CGImage")
+                        logWithTimestamp("Failed to create CGImage")
                         return
                     }
                     
                     // Convert CGImage -> NSBitmapImageRep -> Data
                     let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
                     guard let data = bitmapRep.representation(using: .png, properties: [:]) else {
-                        print("Failed to create PNG data")
+                        logWithTimestamp("Failed to create PNG data")
                         return
                     }
                     
@@ -332,9 +332,9 @@ struct PerlinNoiseOverlay_Previews: PreviewProvider {
                     
                     do {
                         try data.write(to: fileURL)
-                        print("Image saved to \(fileURL.path)")
+                        logWithTimestamp("Image saved to \(fileURL.path)")
                     } catch {
-                        print("Failed to save image: \(error)")
+                        logWithTimestamp("Failed to save image: \(error)")
                     }
                 }
                 .padding()

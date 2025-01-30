@@ -21,7 +21,7 @@ struct CardView: View {
     
     var body: some View {
         ZStack {
-            if card.isFaceDown {
+            if card.isFaceDown && !card.isLastTrick {
                 Image("Card_back")
                     .resizable()
                     .scaledToFit()
@@ -65,7 +65,6 @@ struct CardView: View {
         }
         
         // 2. If we’re in some other phase, e.g. playing a trick:
-        //    (Re-use your old logic here)
         if !card.isFaceDown && card.isPlayable {
             card.isPlayable = false
             if card.rank != .two {
@@ -76,6 +75,10 @@ struct CardView: View {
                 gameManager.selectTrumpSuit(card) {
                     gameManager.checkAndAdvanceStateIfNeeded()
                 }
+            }
+        } else {
+            if gameManager.gameState.players.contains(where: { $0.trickCards.contains(where: { $0.id == card.id }) }) {
+                gameManager.showLastTrick.toggle()
             }
         }
     }
@@ -124,7 +127,8 @@ struct TransformableCardView: View {
                                     y: geometry.frame(in: .named("contentArea")).midY + yOffset
                                 ),
                                 rotation: rotation,
-                                scale: scale
+                                scale: scale,
+                                zIndex: Double(10)
                             )
                         ])
                 }

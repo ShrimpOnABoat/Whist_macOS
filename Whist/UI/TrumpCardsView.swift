@@ -40,6 +40,7 @@ struct TrumpView_Previews: PreviewProvider {
     static var previews: some View {
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
+        gameManager.gameState.trumpCards.last?.isFaceDown = false
 
         return TrumpView()
             .environmentObject(gameManager)

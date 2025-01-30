@@ -66,14 +66,48 @@ struct GameView: View {
                                 }
                                 .frame(width: 400, height: 150)
                                 
-                                ZStack {
-                                    if gameManager.gameState.currentPhase != .choosingTrump {
-                                        TableView(gameState: gameManager.gameState)
-                                    } else {
-                                        TableView(gameState: gameManager.gameState, mode: .trumps)
+                                if gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks {
+                                    ZStack {
+//                                        LastTrickView(gameState: gameManager.gameState)
+                                        VStack {
+                                            if gameManager.gameState.lastTrick.isEmpty {
+                                                Text("Pas de dernier pli")
+                                                    .font(.headline)
+                                                    .foregroundColor(.gray)
+                                            } else {
+                                                GeometryReader { geometry in
+                                                    ZStack {
+                                                        ForEach(gameManager.gameState.lastTrickCardStates.sorted(by: { $0.value.zIndex < $1.value.zIndex }), id: \.key) { playerId, cardState in
+                                                            if let card = gameManager.gameState.lastTrick[playerId] {
+                                                                TransformableCardView(
+                                                                    card: card,
+                                                                    rotation: cardState.rotation,
+                                                                    xOffset: cardState.position.x,
+                                                                    yOffset: cardState.position.y
+                                                                )
+                                                                .zIndex(cardState.zIndex) // Apply the stored z-index
+                                                            }
+                                                        }
+                                                    }
+                                                }
+//                                                .coordinateSpace(name: "contentArea")
+                                            }
+                                        }
                                     }
+                                    .background(Color.yellow.opacity(1))
+                                    .frame(width: 400, height: 180)
+                                    .transition(.scale)
+                                    .animation(.easeInOut, value: gameManager.showLastTrick)
+                                } else {
+                                    ZStack {
+                                        if gameManager.gameState.currentPhase != .choosingTrump {
+                                            TableView(gameState: gameManager.gameState)
+                                        } else {
+                                            TableView(gameState: gameManager.gameState, mode: .trumps)
+                                        }
+                                    }
+                                    .frame(width: 400, height: 180)
                                 }
-                                .frame(width: 400, height: 180)
                             }
                             PlayerView(player: rightPlayer, isDealer: dealer == rightPlayer.id)
                                 .frame(width: 200, height: 350)
@@ -104,12 +138,22 @@ struct GameView: View {
             if gameManager.showOptions {
                 ZStack {
                     OptionsView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center) // Center the OptionsView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
                 .zIndex(1) // Ensure it's above everything else
                 .transition(.scale) // Smooth scaling effect
                 .animation(.easeInOut, value: gameManager.showOptions)
             }
+            
+//            if gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks {
+//                ZStack {
+//                    LastTrickView(gameState: gameManager.gameState)
+//                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center) 
+//                }
+//                .zIndex(1) 
+//                .transition(.scale) 
+//                .animation(.easeInOut, value: gameManager.showLastTrick)
+//            }
             
             // Overlay Moving Cards
             ForEach(gameManager.movingCards) { movingCard in
@@ -162,9 +206,9 @@ struct GameView: View {
         } message: {
             Text("Êtes-vous sûr de vouloir supprimer la partie sauvegardée ? Cette action est irréversible.")
         }
-        .onAppear() {
-            checkSavedGame()
-        }
+//        .onAppear() {
+//            checkSavedGame()
+//        }
     }
     
     private func checkSavedGame() {
@@ -180,7 +224,7 @@ struct GameView: View {
     private func resumeGame() {
         gameManager.resumeGameState()
         showMatchmaking = false
-        print("Game resumed for player: \(playerID)")
+        logWithTimestamp("Game resumed for player: \(playerID)")
     }
     
     private func eraseGameState() {
@@ -188,12 +232,12 @@ struct GameView: View {
         savedGameExists = false
         showMatchmaking = false
         startNewGame()
-        print("Saved game erased for player: \(playerID)")
+        logWithTimestamp("Saved game erased for player: \(playerID)")
     }
     
     private func startNewGame() {
         showMatchmaking = false
-        print("New game started for player: \(playerID)")
+        logWithTimestamp("New game started for player: \(playerID)")
     }
 }
 
@@ -340,7 +384,9 @@ struct GameView_Previews: PreviewProvider {
         // Initialize GameManager and set up the preview game state
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
-        gameManager.showTrumps = true
+        gameManager.showTrumps = false
+        gameManager.showLastTrick = true
+        gameManager.gameState.currentPhase = .playingTricks
         
         return GameView()
             .environmentObject(gameManager)

@@ -20,7 +20,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var gameState: GameState = GameState()
     @Published var showOptions: Bool = false
     @Published var showTrumps: Bool = false
-    @Published var showTopDeckCardFaceUp = false
+    @Published var showLastTrick: Bool = false {
+        didSet {
+            logWithTimestamp("showLastTrick is now \(showLastTrick)")
+            logWithTimestamp("Last trick: \(String(describing: gameState.lastTrick))")
+            logWithTimestamp("States: \(String(describing: gameState.lastTrickCardStates))")
+
+        }
+    }
     @Published var movingCards: [MovingCard] = []
     private var timerCancellable: AnyCancellable?
     var isDeckReady: Bool = false
@@ -48,14 +55,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     // MARK: - Game State Initialization
     
     func setupGame() {
-        print("--> SetupGame()")
+        logWithTimestamp("--> SetupGame()")
         let totalPlayers = gameState.players.count
         let connectedPlayers = gameState.players.filter { $0.connected }.count
-        print("Total players created: \(totalPlayers), Players connected: \(connectedPlayers)")
+        logWithTimestamp("Total players created: \(totalPlayers), Players connected: \(connectedPlayers)")
         
         // Check if the game is already set up
         guard !isGameSetup else {
-            print("Game is already set up.")
+            logWithTimestamp("Game is already set up.")
             return
         }
         
@@ -78,18 +85,18 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         // 6. Update the game state
         gameState.playOrder = shuffledPlayerIDs
         gameState.dealer = gameState.playOrder.first
-        print("Dealer is \(String(describing: gameState.dealer))")
+        logWithTimestamp("Dealer is \(String(describing: gameState.dealer))")
         
         // Set the previous loser's monthlyLosses
         if let loser = GameManager.SM.findLoser(),
            let loserIndex = gameState.players.firstIndex(where: { $0.username == loser.playerId }) {
             gameState.players[loserIndex].monthlyLosses = loser.losingMonths
-            print("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
+            logWithTimestamp("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
         } else {
             if let loser = GameManager.SM.findLoser() {
-                print("Loser \(loser.playerId) not found in players.")
+                logWithTimestamp("Loser \(loser.playerId) not found in players.")
             } else {
-                print("No loser found.")
+                logWithTimestamp("No loser found.")
             }
         }
         
@@ -101,7 +108,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         }
         
         if let localPlayer = gameState.localPlayer, let leftPlayer = gameState.leftPlayer, let rightPlayer = gameState.rightPlayer {
-            print("Main Player: \(localPlayer.username), Left Player: \(leftPlayer.username), Right Player: \(rightPlayer.username)")
+            logWithTimestamp("Main Player: \(localPlayer.username), Left Player: \(leftPlayer.username), Right Player: \(rightPlayer.username)")
         } else {
             fatalError("Players could not be assigned correctly.")
         }
@@ -173,10 +180,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         }
         
         // Show the trump card
-        print("Trump suit: \(String(describing: gameState.trumpSuit ?? nil))")
+        logWithTimestamp("Trump suit: \(String(describing: gameState.trumpSuit ?? nil))")
         if gameState.trumpSuit != nil {
-            print("Local player's place: \(gameState.localPlayer?.place ?? -1)")
-            print("All scores equal: \(allScoresEqual())")
+            logWithTimestamp("Local player's place: \(gameState.localPlayer?.place ?? -1)")
+            logWithTimestamp("All scores equal: \(allScoresEqual())")
             if gameState.localPlayer?.place != 1 || gameState.currentPhase.isPlayingPhase || allScoresEqual() { // I can see the trump card
                 if gameState.round < 4 || allScoresEqual() {
                     gameState.deck.last?.isFaceDown = false
@@ -196,7 +203,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         isDeckReady = true
         
-        print("Current phase: \(gameState.currentPhase)")
+        logWithTimestamp("Current phase: \(gameState.currentPhase)")
         checkAndAdvanceStateIfNeeded()
         
     }
@@ -209,18 +216,23 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     func newGameRound() {
         if let message = gameState.localPlayer?.id.rawValue.uppercased() {
+            let message2 = message + " / round \(gameState.round + 1)"
             let padding = 3 // Padding around the message inside the box
-            let lineLength = message.count + padding * 2
+            let lineLength = message2.count + padding * 2
             let borderLine = String(repeating: "*", count: lineLength)
-            let formattedMessage = "** \(message) **"
+            let formattedMessage = "** \(message2) **"
             
-            print(borderLine)
-            print(formattedMessage)
-            print(borderLine)
+            logWithTimestamp(borderLine)
+            logWithTimestamp(formattedMessage)
+            logWithTimestamp(borderLine)
         }
 
         gameState.round += 1
         gameState.trumpSuit = nil
+        gameState.tricksGrabbed = Array(repeating: false, count: max(gameState.round - 2, 1))
+        gameState.currentTrick = 0
+        gameState.lastTrick.removeAll()
+        gameState.lastTrickCardStates.removeAll()
         
         // Move to the next dealer in playOrder
         guard let dealer = gameState.dealer,
@@ -230,7 +242,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         let nextIndex = (currentIndex + 1) % gameState.playOrder.count
         // TODO: Add withAnimation?
         gameState.dealer = gameState.playOrder[nextIndex]
-        print("Dealer is now \(gameState.dealer!.rawValue).")
+        logWithTimestamp("Dealer is now \(gameState.dealer!.rawValue).")
         
         // Set the first player to play
         updatePlayerPlayOrder(startingWith: .dealer(gameState.dealer!))
@@ -267,7 +279,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         let reorderedPlayOrder = gameState.playOrder[startingIndex...] + gameState.playOrder[..<startingIndex]
         gameState.playOrder = Array(reorderedPlayOrder)
-        print("New players order: \(gameState.playOrder)")
+        logWithTimestamp("New players order: \(gameState.playOrder)")
     }
     
     // Enum for distinguishing conditions
@@ -386,14 +398,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             player.announcedTricks[gameState.round - 1] = bet
         }
         persistence.saveGameState(gameState)
-        print("Player \(playerId) announced tricks: \(player.announcedTricks)")
-        checkAndAdvanceStateIfNeeded()
+        logWithTimestamp("Player \(playerId) announced tricks: \(player.announcedTricks)")
+//        checkAndAdvanceStateIfNeeded()
     }
     
     func updateGameStateWithTrump(from playerId: PlayerId, with card: Card) {
         // move the card on top of the trump deck
         guard let index = gameState.trumpCards.firstIndex(of: card) else {
-            print("Card \(card) not found in trumpCards.")
+            logWithTimestamp("Card \(card) not found in trumpCards.")
             return
         }
 
@@ -409,27 +421,29 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         // Set the trump suit
         gameState.trumpSuit = card.suit
         
+        self.objectWillChange.send() // To force a refresh for the 2nd player
+        
         persistence.saveGameState(gameState)
         
-        checkAndAdvanceStateIfNeeded()
+//        checkAndAdvanceStateIfNeeded()
     }
     
     func updateGameStateWithDiscardedCards(from playerId: PlayerId, with cards: [Card], completion: @escaping () -> Void) {
         // Validate the player
         let player = gameState.getPlayer(by: playerId)
-        
-        beginBatchMove(totalCards: cards.count) { completion() }
-
+ 
         // Ensure the cards are part of the player's hand
         for card in cards {
             guard player.hand.firstIndex(of: card) != nil else {
-                print("Error: Card \(card) is not in \(playerId)'s hand.")
+                logWithTimestamp("Error: Card \(card) is not in \(playerId)'s hand.")
                 return
             }
             switch player.tablePosition {
                 case .left:
+                beginBatchMove(totalCards: 1) { completion() }
                 moveCard(card, from: .leftPlayer, to: .deck)
             case .right:
+                beginBatchMove(totalCards: 1) { completion() }
                 moveCard(card, from: .rightPlayer, to: .deck)
             default:
                 break
@@ -437,14 +451,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         }
         persistence.saveGameState(gameState)
 
-        checkAndAdvanceStateIfNeeded()
+//        checkAndAdvanceStateIfNeeded()
     }
     
     func updatePlayerWithState(from playerId: PlayerId, with state: PlayerState) {
         let player = gameState.getPlayer(by: playerId)
         player.state = state
         persistence.saveGameState(gameState)
-        print("\(playerId) updated their state to \(state).")
+//        logWithTimestamp("\(playerId) updated their state to \(state).")
     }
     
     // MARK: Choose bet
@@ -456,7 +470,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         if gameState.round < 4 {
             showOptions = false
-            print("the optionsView should disappear now.")
+            logWithTimestamp("the optionsView should disappear now.")
         }
         
         if localPlayer.announcedTricks.count == gameState.round {
@@ -471,7 +485,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         // Notify other players about the action
         sendBetToPlayers(bet)
         persistence.saveGameState(gameState)
-        checkAndAdvanceStateIfNeeded()
+//        checkAndAdvanceStateIfNeeded()
     }
 
+}
+
+func logWithTimestamp(_ message: String) {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "HH:mm:ss"
+    let timestamp = formatter.string(from: Date())
+    print("[\(timestamp)] \(message)")
 }

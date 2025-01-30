@@ -14,16 +14,24 @@ class GameState: ObservableObject, Codable {
     var newDeck: [Card] = [] // Used to store the deck from the dealer
     @Published var trumpCards: [Card] = [Card(suit: .clubs, rank: .two), Card(suit: .spades, rank: .two), Card(suit: .diamonds, rank: .two), Card(suit: .hearts, rank: .two)]
     @Published var table: [Card] = [] // Must be [] after each trick grab. It follows the same order as in playOrder
-    @Published var lastTrick: [PlayerId: Card] = [:]
+    @Published var lastTrick: [PlayerId: Card] = [:] {
+        didSet {
+            logWithTimestamp("Last trick updated: \(String(describing: lastTrick))")
+        }
+    }
+    @Published var lastTrickCardStates: [PlayerId: CardState] = [:]
     @Published var players: [Player] = []
     @Published var trumpSuit: Suit? = nil {
         didSet {
-            print("Trump suit changed to: \(String(describing: trumpSuit))")
+            logWithTimestamp("Trump suit changed to: \(String(describing: trumpSuit))")
         }
     } // When the trump card is defined, the first card of the deck or twos is returned and trumpSuit is defined
     @Published var playOrder: [PlayerId] = [] // should be reset after each trick grab
     @Published var dealer: PlayerId? = nil
     @Published var currentPhase: GamePhase = .waitingToStart
+    var tricksGrabbed: [Bool] = []
+    var currentTrick: Int = 0
+
 
     // MARK: - Codable Conformance
     enum CodingKeys: String, CodingKey {

@@ -158,6 +158,7 @@ struct OptionsView: View {
         if selectedBet != bet {
             selectedBet = bet
             gameManager.choseBet(bet: bet)
+            gameManager.checkAndAdvanceStateIfNeeded()
         }
     }
     

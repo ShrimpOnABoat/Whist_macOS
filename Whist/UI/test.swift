@@ -73,6 +73,6 @@
 //        text: "10", //\(Int.random(in: 0...10))",
 //        size: 80,
 //        backgroundColor: .pink,
-//        action: {print("coucou")})
+//        action: {logWithTimestamp("coucou")})
 //    .frame(width: 100, height: 100)
 //}
