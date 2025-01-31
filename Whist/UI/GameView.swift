@@ -66,48 +66,37 @@ struct GameView: View {
                                 }
                                 .frame(width: 400, height: 150)
                                 
-                                if gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks {
-                                    ZStack {
-//                                        LastTrickView(gameState: gameManager.gameState)
-                                        VStack {
-                                            if gameManager.gameState.lastTrick.isEmpty {
-                                                Text("Pas de dernier pli")
-                                                    .font(.headline)
-                                                    .foregroundColor(.gray)
-                                            } else {
-                                                GeometryReader { geometry in
-                                                    ZStack {
-                                                        ForEach(gameManager.gameState.lastTrickCardStates.sorted(by: { $0.value.zIndex < $1.value.zIndex }), id: \.key) { playerId, cardState in
-                                                            if let card = gameManager.gameState.lastTrick[playerId] {
-                                                                TransformableCardView(
-                                                                    card: card,
-                                                                    rotation: cardState.rotation,
-                                                                    xOffset: cardState.position.x,
-                                                                    yOffset: cardState.position.y
-                                                                )
-                                                                .zIndex(cardState.zIndex) // Apply the stored z-index
-                                                            }
-                                                        }
-                                                    }
-                                                }
-//                                                .coordinateSpace(name: "contentArea")
-                                            }
-                                        }
-                                    }
-                                    .background(Color.yellow.opacity(1))
-                                    .frame(width: 400, height: 180)
-                                    .transition(.scale)
-                                    .animation(.easeInOut, value: gameManager.showLastTrick)
-                                } else {
-                                    ZStack {
+                                ZStack {
+                                    if !(gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks) {
                                         if gameManager.gameState.currentPhase != .choosingTrump {
                                             TableView(gameState: gameManager.gameState)
                                         } else {
                                             TableView(gameState: gameManager.gameState, mode: .trumps)
                                         }
+                                    } else {
+                                        // Display a background for the last trick
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(Color.white.opacity(0.5)) // Background with opacity
+                                                .frame(width: 400, height: 180) // Match the size of the other UI elements
+                                                .overlay(
+                                                    VStack {
+                                                        Spacer() // Push the title to the bottom
+                                                        Text(gameManager.gameState.lastTrick.isEmpty ? "Pas de dernier pli" : "Dernier pli")
+                                                            .font(.headline)
+                                                            .foregroundColor(.black)
+                                                            .padding(.bottom, 8) // Ensure padding at the bottom
+                                                    }
+                                                )
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .stroke(Color.white, lineWidth: 2) // Add a white border
+                                                )
+                                        }
+
                                     }
-                                    .frame(width: 400, height: 180)
                                 }
+                                .frame(width: 400, height: 180)
                             }
                             PlayerView(player: rightPlayer, isDealer: dealer == rightPlayer.id)
                                 .frame(width: 200, height: 350)
@@ -145,15 +134,29 @@ struct GameView: View {
                 .animation(.easeInOut, value: gameManager.showOptions)
             }
             
-//            if gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks {
-//                ZStack {
-//                    LastTrickView(gameState: gameManager.gameState)
-//                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center) 
-//                }
-//                .zIndex(1) 
-//                .transition(.scale) 
-//                .animation(.easeInOut, value: gameManager.showLastTrick)
-//            }
+            // MARK: Show last trick
+            if gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks {
+                ZStack {
+                    if !gameManager.gameState.lastTrick.isEmpty {
+                        GeometryReader { geometry in
+                            ZStack {
+                                ForEach(gameManager.gameState.lastTrickCardStates.sorted(by: { $0.value.zIndex < $1.value.zIndex }), id: \.key) { playerId, cardState in
+                                    if let card = gameManager.gameState.lastTrick[playerId] {
+                                        TransformableCardView(
+                                            card: card,
+                                            rotation: cardState.rotation,
+                                            xOffset: cardState.position.x,
+                                            yOffset: cardState.position.y
+                                        )
+                                        .zIndex(cardState.zIndex) // Apply the stored z-index
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .animation(.easeInOut, value: gameManager.showLastTrick)
+            }
             
             // Overlay Moving Cards
             ForEach(gameManager.movingCards) { movingCard in

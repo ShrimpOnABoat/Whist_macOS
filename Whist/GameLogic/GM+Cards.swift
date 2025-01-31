@@ -423,7 +423,7 @@ extension GameManager {
                 let LTCard = Card(suit: card.suit, rank: card.rank, isLastTrick: true)
                 gameState.lastTrick[playerId] = LTCard
                 gameState.lastTrickCardStates[playerId] = CardState(
-                    position: state.position,
+                    position: CGPoint(x: state.position.x - 30, y: state.position.y - 45),
                     rotation: state.rotation,
                     scale: state.scale,
                     zIndex: Double(index)
