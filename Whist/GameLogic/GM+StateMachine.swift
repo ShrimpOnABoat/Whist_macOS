@@ -38,8 +38,13 @@ enum GamePhase: Encodable, Decodable {
 extension GameManager {
     
 //     MARK: Transition
-
+    
     func transition(to newPhase: GamePhase) {
+        let multiplePhases: Set<GamePhase> = [.bidding, .playingTricks]
+        if gameState.currentPhase == newPhase && !multiplePhases.contains(newPhase) {
+            return
+        }
+        
         logWithTimestamp("Transitioning from \(gameState.currentPhase) to \(newPhase)")
         gameState.currentPhase = newPhase
         handleStateTransition()
@@ -62,7 +67,6 @@ extension GameManager {
         switch gameState.currentPhase {
         case .waitingToStart:
             setPlayerState(to: .idle)
-            break
             
         case .setupGame:
             setPlayerState(to: .idle)
