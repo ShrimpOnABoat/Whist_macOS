@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ScoreBoardView: View {
     @EnvironmentObject var gameManager: GameManager
+    var dynamicSize: DynamicSize
 
     var body: some View {
         let players = gameManager.gameState.players.sorted { player1, player2 in
@@ -75,11 +76,14 @@ struct ScoreBoardView_Previews: PreviewProvider {
     static var previews: some View {
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
-
-        return ScoreBoardView()
-            .environmentObject(gameManager)
-            .previewDisplayName("Scoreboard Preview")
-            .previewLayout(.sizeThatFits)
-            .padding()
+        
+        return GeometryReader { geometry in
+            let dynamicSize: DynamicSize = DynamicSize(from: geometry)
+            ScoreBoardView(dynamicSize: dynamicSize)
+                .environmentObject(gameManager)
+                .previewDisplayName("Scoreboard Preview")
+                .previewLayout(.sizeThatFits)
+                .padding()
+        }
     }
 }

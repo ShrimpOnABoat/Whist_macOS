@@ -30,18 +30,19 @@ struct GameView: View {
     @State private var savedGameExists = false
     @State private var playerID: String = ""
     
-    @State private var background: AnyView = AnyView(FeltBackgroundView(
-        radialShadingStrength: 0.5,
-        wearIntensity: CGFloat.random(in: 0...1),
-        motifVisibility: CGFloat.random(in: 0...0.5),
-        motifScale: CGFloat.random(in: 0...1),
-        showScratches: Bool.random()
-    ))
+        @State private var background: AnyView = AnyView(FeltBackgroundView(
+            radialShadingStrength: 0.5,
+            wearIntensity: CGFloat.random(in: 0...1),
+            motifVisibility: CGFloat.random(in: 0...0.5),
+            motifScale: CGFloat.random(in: 0...1),
+            showScratches: Bool.random()
+        ))
     @State private var didMeasureDeck: Bool = false
     
     
     var body: some View {
         GeometryReader { geometry in
+            let dynamicSize = DynamicSize(from: geometry)
             // Extract players from the game state
             if let localPlayer = gameManager.gameState.localPlayer,
                let leftPlayer = gameManager.gameState.leftPlayer,
@@ -55,30 +56,31 @@ struct GameView: View {
                     
                     VStack {
                         HStack {
-                            PlayerView(player: leftPlayer, isDealer: dealer == leftPlayer.id)
-                                .frame(width: 200, height: 350)
+                            PlayerView(player: leftPlayer, dynamicSize: dynamicSize, isDealer: dealer == leftPlayer.id)
+                                .frame(width: dynamicSize.sidePlayerWidth, height: dynamicSize.sidePlayerHeight)
                             
                             VStack {
-                                HStack {
-                                    TrumpView()
-                                    ScoreBoardView()
-                                    DeckView(gameState: gameManager.gameState)
+                                Group {
+                                    HStack {
+                                        TrumpView(dynamicSize: dynamicSize)
+                                        ScoreBoardView(dynamicSize: dynamicSize)
+                                        DeckView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
+                                    }
                                 }
-                                .frame(width: 400, height: 150)
+                                .frame(width: dynamicSize.scoreboardWidth, height: dynamicSize.scoreboardHeight)
                                 
                                 ZStack {
                                     if !(gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks) {
                                         if gameManager.gameState.currentPhase != .choosingTrump {
-                                            TableView(gameState: gameManager.gameState)
+                                            TableView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
                                         } else {
-                                            TableView(gameState: gameManager.gameState, mode: .trumps)
+                                            TableView(gameState: gameManager.gameState, dynamicSize: dynamicSize, mode: .trumps)
                                         }
                                     } else {
                                         // Display a background for the last trick
                                         ZStack {
                                             RoundedRectangle(cornerRadius: 12)
                                                 .fill(Color.white.opacity(0.5)) // Background with opacity
-                                                .frame(width: 400, height: 180) // Match the size of the other UI elements
                                                 .overlay(
                                                     VStack {
                                                         Spacer() // Push the title to the bottom
@@ -96,13 +98,13 @@ struct GameView: View {
 
                                     }
                                 }
-                                .frame(width: 400, height: 180)
+                                .frame(width: dynamicSize.tableWidth, height: dynamicSize.tableHeight)
                             }
-                            PlayerView(player: rightPlayer, isDealer: dealer == rightPlayer.id)
-                                .frame(width: 200, height: 350)
+                            PlayerView(player: rightPlayer, dynamicSize: dynamicSize, isDealer: dealer == rightPlayer.id)
+                                .frame(width: dynamicSize.sidePlayerWidth, height: dynamicSize.sidePlayerHeight)
                         }
-                        PlayerView(player: localPlayer, isDealer: dealer == localPlayer.id)
-                            .frame(width: 400, height: 200)
+                        PlayerView(player: localPlayer, dynamicSize: dynamicSize, isDealer: dealer == localPlayer.id)
+                            .frame(width: dynamicSize.localPlayerWidth, height: dynamicSize.localPlayerHeight)
                     }
                 }
                 .coordinateSpace(name: "contentArea")
@@ -126,7 +128,7 @@ struct GameView: View {
             // Overlay OptionsView if showOptions is true
             if gameManager.showOptions {
                 ZStack {
-                    OptionsView()
+                    OptionsView(dynamicSize: dynamicSize)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
                 .zIndex(1) // Ensure it's above everything else
@@ -146,7 +148,8 @@ struct GameView: View {
                                             card: card,
                                             rotation: cardState.rotation,
                                             xOffset: cardState.position.x,
-                                            yOffset: cardState.position.y
+                                            yOffset: cardState.position.y,
+                                            dynamicSize: dynamicSize
                                         )
                                         .zIndex(cardState.zIndex) // Apply the stored z-index
                                     }
@@ -160,7 +163,7 @@ struct GameView: View {
             
             // Overlay Moving Cards
             ForEach(gameManager.movingCards) { movingCard in
-                MovingCardView(movingCard: movingCard)
+                MovingCardView(movingCard: movingCard, dynamicSize: dynamicSize)
                     .environmentObject(gameManager)
             }
         }
@@ -274,6 +277,7 @@ extension MovingCard: CustomStringConvertible {
 struct MovingCardView: View {
     @EnvironmentObject var gameManager: GameManager
     @ObservedObject var movingCard: MovingCard
+    var dynamicSize: DynamicSize
     
     @State private var position: CGPoint = .zero
     @State private var rotation: Double = 0
@@ -281,8 +285,8 @@ struct MovingCardView: View {
     @State private var hasAnimated: Bool = false // To ensure animation occurs only once
     
     var body: some View {
-        CardView(card: movingCard.card, isSelected: false, canSelect: false, onTap: {})
-            .frame(width: 60, height: 90)
+        CardView(card: movingCard.card, isSelected: false, canSelect: false, onTap: {}, dynamicSize: dynamicSize)
+            .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)
             .rotationEffect(.degrees(rotation))
             .scaleEffect(scale)
             .position(position)

@@ -312,8 +312,10 @@ extension GameManager {
             setPlayerState(to: .idle)
             // Show final results, store the score, transition to .newGame ...
             persistence.clearSavedGameState()
-            
-            break
+            // save the game
+            saveScore()
+            // display the winner
+            // show a "New game" button
         }
     }
     

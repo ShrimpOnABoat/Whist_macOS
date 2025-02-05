@@ -487,6 +487,41 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         persistence.saveGameState(gameState)
 //        checkAndAdvanceStateIfNeeded()
     }
+    
+    // MARK: Save scores
+    func saveScore() {
+        // Retrieve players by their ID using the gameState helper.
+        let ggPlayer = gameState.getPlayer(by: .gg)
+        let ddPlayer = gameState.getPlayer(by: .dd)
+        let totoPlayer = gameState.getPlayer(by: .toto)
+        
+        // Get the latest score for each player (defaulting to 0 if not available).
+        let ggScore = ggPlayer.scores.last ?? 0
+        let ddScore = ddPlayer.scores.last ?? 0
+        let totoScore = totoPlayer.scores.last ?? 0
+
+        // Create a new GameScore instance with current date, scores, and positions.
+        let newScore = GameScore(
+            date: Date(),
+            ggScore: ggScore,
+            ddScore: ddScore,
+            totoScore: totoScore,
+            ggPosition: ggPlayer.place,
+            ddPosition: ddPlayer.place,
+            totoPosition: totoPlayer.place
+        )
+        
+        // Load existing scores; if none exist, this will be an empty array.
+        var existingScores = ScoresManager.shared.loadScores()
+        
+        // Append the new score.
+        existingScores.append(newScore)
+        
+        // Save the updated scores array.
+        ScoresManager.shared.saveScores(existingScores)
+        
+        logWithTimestamp("New game score saved: \(newScore)")
+    }
 
 }
 

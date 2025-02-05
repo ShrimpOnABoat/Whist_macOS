@@ -28,7 +28,7 @@ struct DealerButton: View {
                         endPoint: .bottom
                     )
                 )
-                .frame(width: size * 0.96, height: size * 0.96)
+                .frame(width: size, height: size)
             
             // "D" letter
             Text("DEALER")

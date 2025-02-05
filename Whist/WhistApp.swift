@@ -49,21 +49,22 @@ class Preferences: ObservableObject {
         set { patternScaleStorage = Double(newValue) }
     }
     
-    let availableFelts: [Color] = [
-        Color(red: 34/255, green: 139/255, blue: 34/255), // Classic Green
-        Color(red: 0, green: 0, blue: 139/255),           // Deep Blue
-        Color(red: 139/255, green: 0, blue: 0),           // Wine Red
-        Color(red: 75/255, green: 0, blue: 130/255),      // Royal Purple
-        Color(red: 0, green: 128/255, blue: 128/255),     // Teal
-        Color(red: 54/255, green: 69/255, blue: 79/255),  // Charcoal Gray
-        Color(red: 205/255, green: 92/255, blue: 0/255),  // Burnt Orange
-        Color(red: 34/255, green: 90/255, blue: 34/255),  // Forest Green
-        Color(red: 139/255, green: 69/255, blue: 19/255), // Chocolate Brown
-        Color(red: 220/255, green: 20/255, blue: 60/255)  // Crimson Red
-    ]
+//    let availableFelts: [Color] = [
+//        Color(red: 34/255, green: 139/255, blue: 34/255), // Classic Green
+//        Color(red: 0, green: 0, blue: 139/255),           // Deep Blue
+//        Color(red: 139/255, green: 0, blue: 0),           // Wine Red
+//        Color(red: 75/255, green: 0, blue: 130/255),      // Royal Purple
+//        Color(red: 0, green: 128/255, blue: 128/255),     // Teal
+//        Color(red: 54/255, green: 69/255, blue: 79/255),  // Charcoal Gray
+//        Color(red: 205/255, green: 92/255, blue: 0/255),  // Burnt Orange
+//        Color(red: 34/255, green: 90/255, blue: 34/255),  // Forest Green
+//        Color(red: 139/255, green: 69/255, blue: 19/255), // Chocolate Brown
+//        Color(red: 220/255, green: 20/255, blue: 60/255)  // Crimson Red
+//    ]
 
     var currentFelt: Color {
-        availableFelts[selectedFeltIndex]
+//        availableFelts[selectedFeltIndex]
+        GameConstants.feltColors[selectedFeltIndex]
     }
 }
 
@@ -82,10 +83,10 @@ struct PreferencesView: View {
             Section(header: Text("Couleur du tapis")) {
                 HStack {
                     Picker("Couleur du tapis", selection: $preferences.selectedFeltIndex) {
-                        ForEach(0..<preferences.availableFelts.count, id: \.self) { idx in
+                        ForEach(0..<GameConstants.feltColors.count, id: \.self) { idx in
                             HStack {
                                 Circle()
-                                    .fill(preferences.availableFelts[idx])
+                                    .fill(GameConstants.feltColors[idx])
                                     .frame(width: 20, height: 20)
                                 Text(feltName(for: idx))
                             }
@@ -131,7 +132,7 @@ struct PreferencesView: View {
         .frame(minWidth: 300, minHeight: 400)
         .onChange(of: isRandom) { oldValue, newValue in
             if newValue {
-                preferences.selectedFeltIndex = Int.random(in: 0..<preferences.availableFelts.count)
+                preferences.selectedFeltIndex = Int.random(in: 0..<GameConstants.feltColors.count)
             }
         }
     }

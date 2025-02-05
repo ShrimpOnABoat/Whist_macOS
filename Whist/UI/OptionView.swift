@@ -77,21 +77,23 @@ struct CircularButton: View {
 // MARK: OptionsView
 
 struct OptionsView: View {
+    var dynamicSize: DynamicSize
     @State private var selectedBet: Int? = nil // Tracks the currently selected bet
     @State private var backgroundColor: Color // Store the random color
     @EnvironmentObject var gameManager: GameManager
     @State private var randomNumber: Int? = nil // Current number during animation
     @State private var isAnimating = false // Tracks if the animation is running
     
-    init() {
+    init(dynamicSize: DynamicSize) {
         _backgroundColor = State(initialValue: [
             .red, .orange, .yellow, .green, .mint, .teal,
             .cyan, .blue, .indigo, .purple, .pink, .brown, .gray
         ].randomElement() ?? .blue)
+        self.dynamicSize = dynamicSize
     }
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: dynamicSize.optionsVerticalSpacing) {
             // Calculate scores
             let scores = gameManager.gameState.players.map { $0.scores.last ?? 0 }.sorted(by: >)
             let playerScore = gameManager.gameState.localPlayer?.scores.last ?? 0
@@ -121,9 +123,7 @@ struct OptionsView: View {
                 let columns = min(minColumns, totalItems) // Max 3 columns
                 let rows = Int(ceil(Double(totalItems) / Double(columns))) // Calculate rows dynamically
                 
-                let size: CGFloat = 40 // Button size
-                
-                VStack(spacing: 20) {
+                VStack(spacing: dynamicSize.optionsVerticalSpacing) {
                     ForEach(0..<rows, id: \.self) { rowIndex in
                         HStack(spacing: 20) {
                             ForEach(0..<columns, id: \.self) { columnIndex in
@@ -131,7 +131,7 @@ struct OptionsView: View {
                                 if numberIndex < totalItems {
                                     CircularButton(
                                         text: "\(numbers[numberIndex])",
-                                        size: size,
+                                        size: dynamicSize.optionsButtonSize,
                                         backgroundColor: backgroundColor,
                                         isSelected: selectedBet == numbers[numberIndex],
                                         action: { handleBetSelection(numbers[numberIndex]) }
@@ -176,7 +176,7 @@ struct OptionsView: View {
             randomNumber = numbers.randomElement()
             elapsedTime += 0.05
             
-            if elapsedTime >= 2 { // Stop after 2 seconds
+            if elapsedTime >= GameConstants.optionsRandomDuration {
                 timer.invalidate()
                 isAnimating = false
                 
@@ -198,10 +198,13 @@ struct OptionsView_Previews: PreviewProvider {
         gameManager.setupPreviewGameState()
         
         gameManager.gameState.round = 12
-
-        return OptionsView()
-            .environmentObject(gameManager)
-            .previewDisplayName("Options View Preview")
-            .previewLayout(.sizeThatFits)
+        
+        return GeometryReader { geometry in
+            let dynamicSize: DynamicSize = DynamicSize(from: geometry)
+            OptionsView(dynamicSize: dynamicSize)
+                .environmentObject(gameManager)
+                .previewDisplayName("Options View Preview")
+                .previewLayout(.sizeThatFits)
+        }
     }
 }

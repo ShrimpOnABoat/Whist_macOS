@@ -39,18 +39,7 @@ struct FeltBackgroundView: View {
         showScratches: Bool = Bool.random()
     ) {
         // Set all parameters using provided values or defaults
-        self.baseColor = baseColor ?? [
-            Color(red: 34 / 255, green: 139 / 255, blue: 34 / 255), // Classic Green
-            Color(red: 0 / 255, green: 0 / 255, blue: 139 / 255),   // Deep Blue
-            Color(red: 139 / 255, green: 0 / 255, blue: 0 / 255),   // Wine Red
-            Color(red: 75 / 255, green: 0 / 255, blue: 130 / 255),  // Royal Purple
-            Color(red: 0 / 255, green: 128 / 255, blue: 128 / 255), // Teal
-            Color(red: 54 / 255, green: 69 / 255, blue: 79 / 255),  // Charcoal Gray
-            Color(red: 205 / 255, green: 92 / 255, blue: 0 / 255),  // Burnt Orange
-            Color(red: 34 / 255, green: 90 / 255, blue: 34 / 255),  // Forest Green
-            Color(red: 139 / 255, green: 69 / 255, blue: 19 / 255), // Chocolate Brown
-            Color(red: 220 / 255, green: 20 / 255, blue: 60 / 255)  // Crimson Red
-        ].randomElement() ?? Color(red: 34 / 255, green: 139 / 255, blue: 34 / 255) // Fallback to Classic Green
+        self.baseColor = baseColor ?? GameConstants.feltColors.randomElement() ?? GameConstants.feltColors[0]
         
         self.radialShadingStrength = radialShadingStrength
         self.wearIntensity = wearIntensity
@@ -82,13 +71,12 @@ struct FeltBackgroundView: View {
                 
                 // 3. Wear & Tear Overlays
                 if wearIntensity > 0 {
-//                    SpotsOverlay(intensity: wearIntensity, isLight: true)
-//                        .blendMode(.colorDodge)
-//                        .allowsHitTesting(false)
+                    HandWearOverlay(wearIntensity: wearIntensity)
+                        .blendMode(.multiply)
+                        .allowsHitTesting(false)
                     
-//                    SpotsOverlay(intensity: wearIntensity, isLight: false)
-//                        .blendMode(.darken)
-//                        .allowsHitTesting(false)
+                    DynamicWearOverlay(wearIntensity: wearIntensity, timeOffset: 0)
+                        .blendMode(.softLight)
                     
                     StainsOverlay(
                         beerStainProbability: wearIntensity,
@@ -98,9 +86,6 @@ struct FeltBackgroundView: View {
                         intensity: wearIntensity
                     )
                     .blendMode(.overlay) // overlay
-                    
-//                    BrushedWearOverlay()
-//                        .blendMode(.overlay)
                     
                     if showScratches {
                         ScratchesOverlay(intensity: wearIntensity)
@@ -748,192 +733,6 @@ struct StainsOverlay: View {
     }
 }
 
-/// A SwiftUI view that overlays "brushed wear" marks on a fabric.
-struct BrushedWearOverlay: View {
-    /// How many separate brush passes to draw. More passes => heavier wear.
-    var brushPassCount: Int = 15
-    
-    /// Range for brush stroke size
-    var minStrokeSize: CGFloat = 80
-    var maxStrokeSize: CGFloat = 200
-    
-    /// Probability that a stroke is “lighter” vs. “darker.”
-    /// e.g. 0.7 => 70% chance to lighten, 30% to darken.
-    var lightenProbability: Double = 0.7
-    
-    /// Overall intensity. 0 => no effect, 1 => normal.
-    /// Past 1 => stronger effect.
-    var intensity: Double = 1.0
-    
-    /// If true, some brush strokes become arcs instead of straight lines
-    var allowCurvedStrokes: Bool = true
-    
-    /// Possibly fix a random seed if you want repeatable results
-    // var seed: Int?
-    
-    var body: some View {
-        Canvas { context, size in
-            for _ in 0..<brushPassCount {
-                drawBrushedPass(context: &context, size: size)
-            }
-        }
-        .drawingGroup()
-        // The blendMode can help integrate the wear with the fabric color:
-        // e.g. .multiply, .overlay, .screen, etc.
-        // .overlay often works decently for wear
-        // so you might do .blendMode(.overlay)
-    }
-    
-    /// Draws one brushed stroke or arc.
-    private func drawBrushedPass(context: inout GraphicsContext, size: CGSize) {
-        // 1) Choose a random center or start point
-        let center = CGPoint(
-            x: CGFloat.random(in: 0...size.width),
-            y: CGFloat.random(in: 0...size.height)
-        )
-        
-        // 2) Random direction (angle) and length
-        let angle = Double.random(in: 0..<360).degreesToRadians
-        let brushWidth = CGFloat.random(in: minStrokeSize/2 ... maxStrokeSize/2)
-        let brushLength = CGFloat.random(in: minStrokeSize ... maxStrokeSize)
-        
-        // 3) Possibly curve the brush stroke
-        let isCurved = allowCurvedStrokes && Bool.random(probability: 0.5)
-        
-        // 4) Decide lighten or darken
-        let lighten = Bool.random(probability: lightenProbability)
-        
-        // 5) Base color shift:
-        // For cloth wear, we often lighten it (fibers get “fuzzy” or bleached),
-        // but sometimes repeated friction can darken with grime.
-        let overlayColor = lighten ? Color.white : Color.black
-        // Pick a random alpha based on intensity
-        let alpha = Double.random(in: 0.05...0.2) * intensity
-        
-        // 6) Build a shape for the brush stroke
-        context.drawLayer { layerContext in
-            let path: Path = isCurved
-                ? buildArcPath(center: center, length: brushLength, width: brushWidth, angle: angle)
-                : buildStraightStroke(center: center, length: brushLength, width: brushWidth, angle: angle)
-            
-            // Optionally add some noise or lumps inside that shape
-            // (for an even more textured, random look).
-            
-            // 7) Fill the shape with a gradient or uniform overlay
-            let fadeGradient = Gradient(stops: [
-                // Start: near-center => maximum effect
-                .init(color: overlayColor.opacity(alpha), location: 0.0),
-                // Mid => partial effect
-                .init(color: overlayColor.opacity(alpha * 0.5), location: 0.7),
-                // Edge => fade to clear
-                .init(color: Color.clear, location: 1.0),
-            ])
-            
-            // Use radial or linear gradient. For a brush stroke, linear might be more realistic:
-            // We'll do a linear gradient aligned with the stroke direction.
-            
-            // To get a linear gradient’s angle, define start/end in the stroke bounding box
-            let bounds = path.boundingRect
-            // For simplicity, pick the boundingRect center as start, plus some offset as end
-            let startPt = CGPoint(x: bounds.midX, y: bounds.midY)
-            // offset in direction of angle
-            let endPt = CGPoint(
-                x: startPt.x + cos(angle)*bounds.width,
-                y: startPt.y + sin(angle)*bounds.height
-            )
-            
-            layerContext.fill(
-                path,
-                with: .linearGradient(
-                    fadeGradient,
-                    startPoint: startPt,
-                    endPoint: endPt
-                )
-            )
-        }
-    }
-    
-    /// Builds a straight stroke shape—like a rectangle angled at `angle`.
-    private func buildStraightStroke(center: CGPoint,
-                                     length: CGFloat,
-                                     width: CGFloat,
-                                     angle: CGFloat) -> Path
-    {
-        var path = Path()
-        
-        // We'll define a rectangle centered at `center`, oriented by `angle`.
-        let halfLen = length / 2
-        let halfWid = width / 2
-        
-        // The rectangle corners in local coords (angle = 0)
-        let p1 = CGPoint(x: -halfLen, y: -halfWid)
-        let p2 = CGPoint(x:  halfLen, y: -halfWid)
-        let p3 = CGPoint(x:  halfLen, y:  halfWid)
-        let p4 = CGPoint(x: -halfLen, y:  halfWid)
-        
-        // We'll rotate each corner around (0,0), then translate to `center`.
-        path.move(to: rotatePoint(p1, by: angle, around: .zero).offset(by: center))
-        path.addLine(to: rotatePoint(p2, by: angle, around: .zero).offset(by: center))
-        path.addLine(to: rotatePoint(p3, by: angle, around: .zero).offset(by: center))
-        path.addLine(to: rotatePoint(p4, by: angle, around: .zero).offset(by: center))
-        path.closeSubpath()
-        
-        return path
-    }
-    
-    /// Builds a gently curved stroke shape.
-    private func buildArcPath(center: CGPoint,
-                              length: CGFloat,
-                              width: CGFloat,
-                              angle: CGFloat) -> Path
-    {
-        // We'll approximate a curved stroke by an arc or wedge shape.
-        // For example, define an arc that covers `length` degrees or so.
-        
-        let halfLen = Double(length / 2)
-        let radius = halfLen / Double.random(in: 0.3...0.8) // choose a radius so the arc covers ~the stroke length
-        
-        // We’ll pick an arc center offset from the main center.
-        // This is purely to get a somewhat random arc shape.
-        let arcCenterOffset = CGPoint(x: 0, y: -CGFloat(radius))
-        
-        // The arc angles
-        let arcSpan = CGFloat.random(in: 40...120) // degrees of arc
-        let startAngle = -arcSpan/2
-        let endAngle   =  arcSpan/2
-        
-        // The “outer” arc path
-        var arcPath = Path()
-        arcPath.addArc(
-            center: arcCenterOffset,
-            radius: CGFloat(radius),
-            startAngle: Angle(degrees: Double(startAngle)),
-            endAngle:   Angle(degrees: Double(endAngle)),
-            clockwise: false
-        )
-        
-        // We'll offset up/down by “width” to create a thicker wedge
-        // Then close the shape. This is approximate, but it looks somewhat like a wide arc.
-        let transformUp   = CGAffineTransform(translationX: 0, y: -(width/2))
-        let transformDown = CGAffineTransform(translationX: 0, y:  (width/2))
-        
-        let topArc   = arcPath.applying(transformUp)
-        let bottomArc = arcPath.reversedPath().applying(transformDown)
-        
-        // Merge them
-        var wedge = topArc
-        wedge.addPath(bottomArc)
-        wedge.closeSubpath()
-        
-        // Now rotate that wedge by `angle`, then shift it so that the wedge’s
-        // center is at `center`.
-        let rotate = CGAffineTransform(rotationAngle: angle)
-        let shift  = CGAffineTransform(translationX: center.x, y: center.y)
-        
-        return wedge.applying(rotate).applying(shift)
-    }
-}
-
 // MARK: TilingPerlinView
 
 struct TilingPerlinView: View {
@@ -1203,12 +1002,117 @@ extension Comparable {
     }
 }
 
+// MARK: HandWearOverlay
+/// An overlay that simulates generic wear from repeated hand contact.
+struct HandWearOverlay: View {
+    /// Controls the overall intensity of the hand wear.
+    var wearIntensity: Double
+
+    var body: some View {
+        Canvas { context, size in
+            // Determine how many wear marks to draw.
+            let markCount = Int(ceil(wearIntensity * 3))
+            
+            for _ in 0..<markCount {
+                // Choose a random width (20-40% of the total width) and a fixed-ish height.
+                let markWidth = Double.random(in: Double(size.width) * 0.2 ... Double(size.width) * 0.4)
+                let markHeight = Double.random(in: 20...50)
+                
+                // Position the mark near the lower part of the felt.
+                let x = Double.random(in: 0...(Double(size.width) - markWidth))
+                let y = Double.random(in: Double(size.height) * 0.75 ... Double(size.height) * 0.95)
+                let rect = CGRect(x: x, y: y, width: markWidth, height: markHeight)
+                
+                // Create a soft radial gradient to simulate the worn, smudged area.
+                let gradient = Gradient(stops: [
+                    .init(color: Color.black.opacity(0.15 * wearIntensity), location: 0.0),
+                    .init(color: Color.black.opacity(0.05 * wearIntensity), location: 0.7),
+                    .init(color: Color.clear, location: 1.0)
+                ])
+                
+                context.fill(
+                    Path(ellipseIn: rect),
+                    with: .radialGradient(
+                        gradient,
+                        center: CGPoint(x: rect.midX, y: rect.midY),
+                        startRadius: 0,
+                        endRadius: min(rect.width, rect.height) / 2
+                    )
+                )
+            }
+        }
+        .drawingGroup()
+    }
+}
+
+// MARK: DynamicWearOverlay
+struct DynamicWearOverlay: View {
+    var wearIntensity: Double
+    // An offset to animate the noise—could be tied to a timer.
+    var timeOffset: Double = 0
+
+    var body: some View {
+        Canvas { context, size in
+            // Determine how many wear marks to draw.
+            let markCount = Int(ceil(wearIntensity * 10))
+            
+            for _ in 0..<markCount {
+                // Random size and position for each mark.
+                let markWidth = Double.random(in: Double(size.width) * 0.2 ... Double(size.width) * 0.4)
+                let markHeight = Double.random(in: 20...50)
+                let region = Int.random(in: 0...2) // 0 = left, 1 = right, 2 = bottom
+                let x: Double
+                let y: Double
+
+                switch region {
+                case 0: // Left side (5-25%)
+                    x = Double.random(in: size.width * -0.1...size.width * 0.10)
+                    y = Double.random(in: 0...size.height)
+                case 1: // Right side (75-95%)
+                    x = Double.random(in: size.width * 0.65...size.width * 0.85)
+                    y = Double.random(in: 0...size.height)
+                case 2: // Bottom (75-95%)
+                    x = Double.random(in: size.width * -0.1...size.width * 0.9)
+                    y = Double.random(in: size.height * 0.75...size.height * 0.95)
+                default:
+                    fatalError("Unexpected region value")
+                }
+                let rect = CGRect(x: x, y: y, width: markWidth, height: markHeight)
+                
+                // Sample Perlin noise (with time offset) to decide on lightening or darkening.
+                let noiseVal = perlinNoise(x + timeOffset, y + timeOffset)
+                let lighten = noiseVal > 0
+                let overlayColor: Color = lighten ? .white : .black
+                let baseOpacity = 0.2 * wearIntensity
+                let adjustedOpacity = baseOpacity + (abs(noiseVal) * 0.1)
+                
+                let gradient = Gradient(stops: [
+                    .init(color: overlayColor.opacity(adjustedOpacity), location: 0.0),
+                    .init(color: overlayColor.opacity(adjustedOpacity * 0.5), location: 0.7),
+                    .init(color: Color.clear, location: 1.0)
+                ])
+                
+                context.fill(
+                    Path(ellipseIn: rect),
+                    with: .radialGradient(
+                        gradient,
+                        center: CGPoint(x: rect.midX, y: rect.midY),
+                        startRadius: 0,
+                        endRadius: min(rect.width, rect.height) / 2
+                    )
+                )
+            }
+        }
+        .drawingGroup()
+    }
+}
+
 // MARK: - Preview
 
 struct AdvancedFeltView_Previews: PreviewProvider {
     static var previews: some View {
         FeltBackgroundView(
-            baseColor: Color(red: 34/255, green: 139/255, blue: 34/255),
+            baseColor: GameConstants.feltColors[0],
             radialShadingStrength: 0.4,
             wearIntensity: 1,
             motifVisibility: 0.2,

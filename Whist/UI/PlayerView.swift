@@ -12,32 +12,34 @@ import SwiftUI
 struct PlayerView: View {
     @EnvironmentObject var gameManager: GameManager
     @ObservedObject var player: Player
+    let dynamicSize: DynamicSize
     let isDealer: Bool
     
     @State private var selectedCardIDs: Set<String> = []
     @State private var displayedMessage: String = ""
-
-
+    
+    
     var body: some View {
         GeometryReader { geometry in
             VStack {
                 if player.tablePosition != .local {
-                    HStack(spacing: 30) {
+                    HStack(spacing: dynamicSize.playerViewHorizontalSpacing) {
                         if player.tablePosition == .left {
-                            PlayerHand()
+                            PlayerHand(dynamicSize: dynamicSize)
                         }
                         VStack {
                             StateDisplay()
-                            PlayerInfo()
+                            PlayerInfo(dynamicSize: dynamicSize)
                             if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
-                                TrickDisplay()
+                                TrickDisplay(dynamicSize: dynamicSize)
                                     .onTapGesture {
                                         gameManager.showLastTrick.toggle()
                                     }
                             }
                         }
+                        .frame(maxHeight: .infinity, alignment: .top)
                         if player.tablePosition == .right {
-                            PlayerHand()
+                            PlayerHand(dynamicSize: dynamicSize)
                         }
                     }
                 } else {
@@ -46,17 +48,17 @@ struct PlayerView: View {
                         ZStack {
                             VStack {
                                 StateDisplay()
-                                TrickDisplay()
+                                TrickDisplay(dynamicSize: dynamicSize)
                                     .onTapGesture {
                                         gameManager.showLastTrick.toggle()
                                     }
                             }
                             .frame(maxWidth: .infinity, alignment: .center)
-                            PlayerInfo()
+                            PlayerInfo(dynamicSize: dynamicSize)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        PlayerHand()
+                        .frame(maxWidth: geometry.size.width * 0.5, maxHeight: .infinity)
+                        PlayerHand(dynamicSize: dynamicSize)
                     }
                 }
             }
@@ -67,14 +69,14 @@ struct PlayerView: View {
     
     // MARK: - Player Info
     @ViewBuilder
-    private func PlayerInfo() -> some View {
+    private func PlayerInfo(dynamicSize: DynamicSize) -> some View {
         ZStack {
-            PlayerImageView(player: player)
+            PlayerImageView(player: player, dynamicSize: dynamicSize)
             
             // Dealer button overlay
             if isDealer {
-                DealerButton(size: 30)
-                    .offset(player.tablePosition == .local ? CGSize(width: -40, height: -30) : CGSize(width: (player.tablePosition == .left ? 50 : -50), height: -20))
+                DealerButton(size: dynamicSize.dealerButtonSize)
+                    .offset(player.tablePosition == .local ? dynamicSize.dealerButtonLocalOffset : CGSize(width: (player.tablePosition == .left ? dynamicSize.dealerButtonSideOffset.x : -dynamicSize.dealerButtonSideOffset.x), height: -dynamicSize.dealerButtonSideOffset.y))
                     .animation(.easeInOut, value: isDealer)
             }
         }
@@ -82,81 +84,81 @@ struct PlayerView: View {
     
     // MARK: - Trick Display
     @ViewBuilder
-    private func TrickDisplay() -> some View {
-            let roundIndex = gameManager.gameState.round - 1
-            if player.announcedTricks.indices.contains(roundIndex) {
-                if player.tablePosition != .local {
-                    VStack(spacing: 0) {
-                        // Announced Tricks
-                        ForEach(0..<player.announcedTricks[roundIndex], id: \.self) { index in
-                            if index * 3 + 2 < player.trickCards.count {
+    private func TrickDisplay(dynamicSize: DynamicSize) -> some View {
+        let roundIndex = gameManager.gameState.round - 1
+        if player.announcedTricks.indices.contains(roundIndex) {
+            if player.tablePosition != .local {
+                VStack(spacing: dynamicSize.otherTrickSpacing) {
+                    // Announced Tricks
+                    ForEach(0..<player.announcedTricks[roundIndex], id: \.self) { index in
+                        if index * 3 + 2 < player.trickCards.count {
+                            ZStack {
+                                ForEach(0..<3, id: \.self) { cardIndex in
+                                    TransformableCardView(card: player.trickCards[index * 3 + cardIndex], scale: dynamicSize.trickScale, rotation: 90, dynamicSize: dynamicSize)
+                                }
+                            }
+                        } else {
+                            PlaceholderTrick(dynamicSize: dynamicSize)
+                        }
+                    }
+                    
+                    // Extra Tricks
+                    let extraTricks = player.madeTricks[roundIndex] - player.announcedTricks[roundIndex]
+                    if extraTricks > 0 {
+                        ForEach(0..<extraTricks, id: \.self) { index in
+                            let extraIndex = (index + player.announcedTricks[roundIndex]) * 3
+                            if extraIndex + 2 < player.trickCards.count {
                                 ZStack {
                                     ForEach(0..<3, id: \.self) { cardIndex in
-                                        TransformableCardView(card: player.trickCards[index * 3 + cardIndex], scale: 1 / 3, rotation: 90)
+                                        TransformableCardView(card: player.trickCards[extraIndex + cardIndex], scale: dynamicSize.trickScale, rotation: 90, dynamicSize: dynamicSize)
                                     }
                                 }
-                            } else {
-                                PlaceholderTrick()
-                            }
-                        }
-                        
-                        // Extra Tricks
-                        let extraTricks = player.madeTricks[roundIndex] - player.announcedTricks[roundIndex]
-                        if extraTricks > 0 {
-                            ForEach(0..<extraTricks, id: \.self) { index in
-                                let extraIndex = (index + player.announcedTricks[roundIndex]) * 3
-                                if extraIndex + 2 < player.trickCards.count {
-                                    ZStack {
-                                        ForEach(0..<3, id: \.self) { cardIndex in
-                                            TransformableCardView(card: player.trickCards[extraIndex + cardIndex], scale: 1 / 3, rotation: 90)
-                                        }
-                                    }
-                                    .hueRotation(Angle(degrees: 90))
-                                }
+                                .hueRotation(Angle(degrees: 90))
                             }
                         }
                     }
-                } else { // local player
-                    HStack(spacing: 5) {
-                        // Announced Tricks
-                        ForEach(0..<player.announcedTricks[roundIndex], id: \.self) { index in
-                            if index * 3 + 2 < player.trickCards.count {
+                }
+            } else { // local player
+                HStack(spacing: dynamicSize.localTrickSpacing) {
+                    // Announced Tricks
+                    ForEach(0..<player.announcedTricks[roundIndex], id: \.self) { index in
+                        if index * 3 + 2 < player.trickCards.count {
+                            ZStack {
+                                ForEach(0..<3, id: \.self) { cardIndex in
+                                    TransformableCardView(card: player.trickCards[index * 3 + cardIndex], scale: dynamicSize.trickScale, dynamicSize: dynamicSize)
+                                }
+                            }
+                        } else {
+                            PlaceholderTrick(dynamicSize: dynamicSize).rotationEffect(.degrees(90))
+                        }
+                    }
+                    
+                    // Extra Tricks
+                    let extraTricks = player.madeTricks[roundIndex] - player.announcedTricks[roundIndex]
+                    if extraTricks > 0 {
+                        ForEach(0..<extraTricks, id: \.self) { index in
+                            let extraIndex = (index + player.announcedTricks[roundIndex]) * 3
+                            if extraIndex + 2 < player.trickCards.count {
                                 ZStack {
                                     ForEach(0..<3, id: \.self) { cardIndex in
-                                        TransformableCardView(card: player.trickCards[index * 3 + cardIndex], scale: 1 / 3)
+                                        TransformableCardView(card: player.trickCards[extraIndex + cardIndex], scale: dynamicSize.trickScale, dynamicSize: dynamicSize)
                                     }
                                 }
-                            } else {
-                                PlaceholderTrick().rotationEffect(.degrees(90))
-                            }
-                        }
-                        
-                        // Extra Tricks
-                        let extraTricks = player.madeTricks[roundIndex] - player.announcedTricks[roundIndex]
-                        if extraTricks > 0 {
-                            ForEach(0..<extraTricks, id: \.self) { index in
-                                let extraIndex = (index + player.announcedTricks[roundIndex]) * 3
-                                if extraIndex + 2 < player.trickCards.count {
-                                    ZStack {
-                                        ForEach(0..<3, id: \.self) { cardIndex in
-                                            TransformableCardView(card: player.trickCards[extraIndex + cardIndex], scale: 1 / 3)
-                                        }
-                                    }
-                                    .hueRotation(Angle(degrees: 90))
-                                }
+                                .hueRotation(Angle(degrees: 90))
                             }
                         }
                     }
                 }
             }
         }
+    }
     
     // MARK: State Display
-
+    
     struct HoverMoveUpButtonStyle: ButtonStyle {
         let isActive: Bool
         @State private var yOffset: CGFloat = 0 // State to track offset changes
-
+        
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
                 .scaleEffect(configuration.isPressed ? 0.95 : 1.0) // Add a slight scale effect when pressed
@@ -271,16 +273,15 @@ struct PlayerView: View {
     
     // MARK: - Player Hand
     @ViewBuilder
-    private func PlayerHand() -> some View {
-        let fanRadius: CGFloat = 300
-        let minCardAngle: CGFloat = 5
-        let cardSize = CGSize(width: 60, height: 90)
+    private func PlayerHand(dynamicSize: DynamicSize) -> some View {
+        //        let fanRadius: CGFloat = 300
+        //        let minCardAngle: CGFloat = 5
         let handCount = player.hand.count
         
         if handCount == 0 {
             EmptyView()
         } else {
-            let angleBetweenCards = min(minCardAngle, 180 / CGFloat(handCount))
+            let angleBetweenCards = min(dynamicSize.minCardAngle, 180 / CGFloat(handCount))
             let totalAngle = angleBetweenCards * CGFloat(handCount - 1)
             let startAngle = -totalAngle / 2
             
@@ -294,8 +295,8 @@ struct PlayerView: View {
             let cardPositions = player.hand.enumerated().map { (cardIndex, card) -> (Card, CGFloat, CGFloat, CGFloat) in
                 let cardAngle = startAngle + CGFloat(cardIndex) * angleBetweenCards
                 let angleInRadians = cardAngle * .pi / 180
-                var xOffset = fanRadius * sin(angleInRadians)
-                var yOffset = fanRadius * (1 - cos(angleInRadians))
+                var xOffset = dynamicSize.fanRadius * sin(angleInRadians)
+                var yOffset = dynamicSize.fanRadius * (1 - cos(angleInRadians))
                 var rotation = cardAngle
                 
                 let isLeft = (player.tablePosition == .left)
@@ -310,8 +311,8 @@ struct PlayerView: View {
                 )
                 
                 // Compute bounding box of the rotated card
-                let cardWidth = cardSize.width
-                let cardHeight = cardSize.height
+                let cardWidth = dynamicSize.cardWidth
+                let cardHeight = dynamicSize.cardHeight
                 let rad = rotation * .pi / 180
                 
                 // Width and height of rotated bounding box
@@ -351,7 +352,8 @@ struct PlayerView: View {
                             } else {
                                 selectedCardIDs.insert(card.id)
                             }
-                        }
+                        },
+                        dynamicSize: dynamicSize
                     )
                 }
             }
@@ -360,12 +362,13 @@ struct PlayerView: View {
     
     // MARK: - Placeholder Trick
     @ViewBuilder
-    private func PlaceholderTrick() -> some View {
+    private func PlaceholderTrick(dynamicSize: DynamicSize) -> some View {
         RoundedRectangle(cornerRadius: 4)
             .stroke(Color.gray, style: StrokeStyle(lineWidth: 2))
             .opacity(0.8)
             .blendMode(.multiply)
-            .frame(width: 30, height: 20)
+            .frame(width: dynamicSize.cardHeight * dynamicSize.trickScale,
+                   height: dynamicSize.cardWidth * dynamicSize.trickScale)
             .background(Color.white.opacity(0.2))
     }
     
@@ -394,7 +397,7 @@ struct PlayerView: View {
         
         return (newXOffset, newYOffset, newRotation)
     }
-
+    
 }
 
 // MARK: PlayerImageVIew
@@ -402,6 +405,7 @@ struct PlayerView: View {
 struct PlayerImageView: View {
     @EnvironmentObject var gameManager: GameManager
     let player: Player
+    var dynamicSize: DynamicSize
     
     var body: some View {
         VStack {
@@ -409,7 +413,7 @@ struct PlayerImageView: View {
             if player.connected {
                 (player.image ?? Image(systemName: "person.crop.circle"))
                     .resizable()
-                    .frame(width: 50, height: 50)
+                    .frame(width: dynamicSize.playerImageWidth, height: dynamicSize.playerImageHeight)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(Color.white, lineWidth: 2))
             } else {
@@ -429,32 +433,51 @@ struct PlayerImageView: View {
 }
 
 // MARK: Preview
-
 struct PlayerView_Previews: PreviewProvider {
+    // Set up a shared game manager for previews
+    static var gameManager: GameManager = {
+        let manager = GameManager()
+        manager.setupPreviewGameState()
+        return manager
+    }()
+    
     static var previews: some View {
-        let gameManager = GameManager()
-        gameManager.setupPreviewGameState()
-//        gameManager.gameState.currentPhase = .discard
-
-        // Extract players from the game state
-        let localPlayer = gameManager.gameState.localPlayer!
-        let leftPlayer = gameManager.gameState.leftPlayer!
-        let rightPlayer = gameManager.gameState.rightPlayer!
-
-        return Group {
-            PlayerView(player: localPlayer, isDealer: true)
-                .environmentObject(gameManager)
-                .previewDisplayName("Local Player View Preview")
-            PlayerView(player: leftPlayer, isDealer: true)
-                .environmentObject(gameManager)
-                .previewDisplayName("Left Player View Preview")
-            PlayerView(player: rightPlayer, isDealer: true)
-                .environmentObject(gameManager)
-                .previewDisplayName("Right Player View Preview")
+        Group {
+            // Local Player Preview
+            GeometryReader { geometry in
+                let dynamicSize = DynamicSize(from: geometry)
+                PlayerView(player: gameManager.gameState.localPlayer!, dynamicSize: dynamicSize, isDealer: true)
+                    .environmentObject(gameManager)
+            }
+            .previewDisplayName("Local Player View")
+            .previewLayout(.sizeThatFits)
+            .padding()
+            .background(Color.gray.opacity(0.2))
+            .frame(width: 800, height: 600)
+            
+            // Left Player Preview
+            GeometryReader { geometry in
+                let dynamicSize = DynamicSize(from: geometry)
+                PlayerView(player: gameManager.gameState.leftPlayer!, dynamicSize: dynamicSize, isDealer: true)
+                    .environmentObject(gameManager)
+            }
+            .previewDisplayName("Left Player View")
+            .previewLayout(.sizeThatFits)
+            .padding()
+            .background(Color.gray.opacity(0.2))
+            .frame(width: 800, height: 600)
+            
+            // Right Player Preview
+            GeometryReader { geometry in
+                let dynamicSize = DynamicSize(from: geometry)
+                PlayerView(player: gameManager.gameState.rightPlayer!, dynamicSize: dynamicSize, isDealer: true)
+                    .environmentObject(gameManager)
+            }
+            .previewDisplayName("Right Player View")
+            .previewLayout(.sizeThatFits)
+            .padding()
+            .background(Color.gray.opacity(0.2))
+            .frame(width: 800, height: 600)
         }
-        .previewLayout(.sizeThatFits)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .frame(width: 400, height: 200)
     }
 }

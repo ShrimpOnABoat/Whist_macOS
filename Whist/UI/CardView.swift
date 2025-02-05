@@ -18,7 +18,8 @@ struct CardView: View {
     let isSelected: Bool      // Is this card currently selected?
     let canSelect: Bool       // Can we select more cards, or have we hit the limit?
     let onTap: () -> Void     // Callback to parent for toggling selection
-    
+    var dynamicSize: DynamicSize
+
     var body: some View {
         ZStack {
             if card.isFaceDown && !card.isLastTrick {
@@ -33,9 +34,9 @@ struct CardView: View {
                     .cornerRadius(4)
             }
         }
-        .frame(width: 60, height: 90)
-        .shadow(radius: 2) // Keep shadow but limit its impact
-        .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.gameState.currentPhase == .discard) ? -30 : 0)   // Move card up on hover
+        .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)
+        .shadow(radius: dynamicSize.cardShadowRadius)
+        .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.gameState.currentPhase == .discard) ? -dynamicSize.cardHoverOffset : 0)   // Move card up on hover
         .opacity(card.isPlaceholder ? 0.0 : 1.0)
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -88,6 +89,7 @@ struct CardView: View {
 
 struct TransformableCardView: View {
     @EnvironmentObject var gameManager: GameManager
+    var dynamicSize: DynamicSize
 
     @ObservedObject var card: Card // Observe changes
     let scale: CGFloat
@@ -100,7 +102,7 @@ struct TransformableCardView: View {
     let canSelect: Bool       // Can we select more cards, or have we hit the limit?
     let onTap: () -> Void     // Callback to parent for toggling selection
     
-    init(card: Card, scale: CGFloat = 1.0, rotation: Double = 0, xOffset: CGFloat = 0, yOffset: CGFloat = 0, isSelected: Bool = false, canSelect: Bool = false, onTap: @escaping () -> Void = {} ) {
+    init(card: Card, scale: CGFloat = 1.0, rotation: Double = 0, xOffset: CGFloat = 0, yOffset: CGFloat = 0, isSelected: Bool = false, canSelect: Bool = false, onTap: @escaping () -> Void = {}, dynamicSize: DynamicSize ) {
         self.card = card
         self.scale = scale
         self.rotation = rotation
@@ -109,11 +111,12 @@ struct TransformableCardView: View {
         self.isSelected = isSelected
         self.canSelect = canSelect
         self.onTap = onTap
+        self.dynamicSize = dynamicSize
     }
     
     var body: some View {
-        CardView(card: card, isSelected: isSelected, canSelect: canSelect, onTap: onTap)
-            .frame(width: 60 * scale, height: 90 * scale)
+        CardView(card: card, isSelected: isSelected, canSelect: canSelect, onTap: onTap, dynamicSize: dynamicSize)
+            .frame(width: dynamicSize.cardWidth * scale, height: dynamicSize.cardHeight * scale)
             .scaleEffect(scale)
             .rotationEffect(Angle(degrees: rotation))
             .offset(x: xOffset, y: yOffset)
@@ -149,9 +152,14 @@ struct CardView_Previews: PreviewProvider {
         let scale = CGFloat.random(in: 0.8...1.2)
         let rotation = Double.random(in: -35...35)
 
-        return TransformableCardView(card: sampleCard, scale: scale, rotation: rotation, xOffset: 0, yOffset: 0)
-            .previewDisplayName("Card View Preview")
-            .previewLayout(.sizeThatFits)
-            .frame(width: 100, height: 150)
+        return
+            GeometryReader { geometry in
+                let dynamicSize = DynamicSize(from: geometry)
+                TransformableCardView(card: sampleCard, scale: scale, rotation: rotation, xOffset: 0, yOffset: 0, dynamicSize: dynamicSize)
+                    .previewDisplayName("Card View Preview")
+                    .previewLayout(.sizeThatFits)
+                    .frame(width: 100, height: 150)
+            
+        }
     }
 }

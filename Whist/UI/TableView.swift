@@ -10,6 +10,7 @@ import SwiftUI
 struct TableView: View {
     @EnvironmentObject var gameManager: GameManager
     @ObservedObject var gameState: GameState
+    var dynamicSize: DynamicSize
     
     enum Mode {
         case tricks, trumps
@@ -17,9 +18,10 @@ struct TableView: View {
     
     let mode: Mode
 
-    init(gameState: GameState, mode: Mode = .tricks) {
+    init(gameState: GameState, dynamicSize: DynamicSize, mode: Mode = .tricks) {
         self.gameState = gameState
         self.mode = mode
+        self.dynamicSize = dynamicSize
     }
     
     var body: some View {
@@ -28,10 +30,10 @@ struct TableView: View {
                 switch mode {
                 case .tricks:
                     // Default: Display cards on the table
-                    displayTrickCards(geometry: geometry)
+                    displayTrickCards(dynamicSize: dynamicSize)
                 case .trumps:
                     // Display trump cards
-                    displayTrumpCards(geometry: geometry)
+                    displayTrumpCards(dynamicSize: dynamicSize)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -40,7 +42,7 @@ struct TableView: View {
     }
     
     // MARK: - Display Trick Cards
-    private func displayTrickCards(geometry: GeometryProxy) -> some View {
+    private func displayTrickCards(dynamicSize: DynamicSize) -> some View {
         ZStack {
             let offset: CGFloat = 40
 
@@ -48,7 +50,7 @@ struct TableView: View {
                let localIndex = gameState.playOrder.firstIndex(of: localPlayer.id),
                localIndex < gameState.table.count {
                 let card = gameState.table[localIndex]
-                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle, xOffset: card.randomOffset.x, yOffset: card.offset + card.randomOffset.y)
+                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle, xOffset: card.randomOffset.x, yOffset: card.offset + card.randomOffset.y, dynamicSize: dynamicSize)
                     .zIndex(Double(localIndex))
             }
             
@@ -56,7 +58,7 @@ struct TableView: View {
                let leftIndex = gameState.playOrder.firstIndex(of: leftPlayer.id),
                leftIndex < gameState.table.count {
                 let card = gameState.table[leftIndex]
-                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle + CGFloat(90), xOffset: -offset + card.offset + card.randomOffset.x, yOffset: -offset + card.randomOffset.y)
+                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle + CGFloat(90), xOffset: -offset + card.offset + card.randomOffset.x, yOffset: -offset + card.randomOffset.y, dynamicSize: dynamicSize)
                     .zIndex(Double(leftIndex))
             }
             
@@ -64,14 +66,14 @@ struct TableView: View {
                let rightIndex = gameState.playOrder.firstIndex(of: rightPlayer.id),
                rightIndex < gameState.table.count {
                 let card = gameState.table[rightIndex]
-                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle + CGFloat(90), xOffset: offset + card.offset + card.randomOffset.x, yOffset: -offset + card.randomOffset.y)
+                TransformableCardView(card: card, rotation: card.rotation + card.randomAngle + CGFloat(90), xOffset: offset + card.offset + card.randomOffset.x, yOffset: -offset + card.randomOffset.y, dynamicSize: dynamicSize)
                     .zIndex(Double(rightIndex))
             }
         }
     }
     
     // MARK: - Display Trump Cards
-    private func displayTrumpCards(geometry: GeometryProxy) -> some View {
+    private func displayTrumpCards(dynamicSize: DynamicSize) -> some View {
         let trumpCards = gameState.table
             .sorted { card1, card2 in
                 // Sort by suit order: hearts, clubs, diamonds, spades
@@ -85,15 +87,12 @@ struct TableView: View {
                     card: card,
                     rotation: 0, // No rotation for trump cards
                     xOffset: 0,
-                    yOffset: 0
+                    yOffset: 0,
+                    dynamicSize: dynamicSize
                 )
             }
         }
-        .frame(
-            width: geometry.size.width,
-            height: geometry.size.height,
-            alignment: .center
-        )
+        .frame(alignment: .center)
     }
 }
 
@@ -121,21 +120,25 @@ struct TableView_Previews: PreviewProvider {
         }
         
         return Group {
-            // Trick Cards Preview
-            TableView(gameState: gameManager.gameState, mode: .tricks)
+            GeometryReader { geometry in
+                let dynamicSize: DynamicSize = DynamicSize(from: geometry)
+                // Trick Cards Preview
+                TableView(gameState: gameManager.gameState, dynamicSize: dynamicSize, mode: .tricks)
+                    .environmentObject(gameManager)
+                    .previewDisplayName("Trick Cards")
+                    .previewLayout(.fixed(width: 600, height: 400))
+                
+                // Trump Cards Preview
+                TableView(gameState: {
+                    let gameState = gameManager.gameState
+                    gameState.table = trumpCards // Use trump cards for this preview
+                    return gameState
+                }(), dynamicSize: dynamicSize
+                          , mode: .trumps)
                 .environmentObject(gameManager)
-                .previewDisplayName("Trick Cards")
-                .previewLayout(.fixed(width: 600, height: 400))
-            
-            // Trump Cards Preview
-            TableView(gameState: {
-                let gameState = gameManager.gameState
-                gameState.table = trumpCards // Use trump cards for this preview
-                return gameState
-            }(), mode: .trumps)
-            .environmentObject(gameManager)
-            .previewDisplayName("Trump Cards")
-            .previewLayout(.fixed(width: 600, height: 200))
+                .previewDisplayName("Trump Cards")
+                .previewLayout(.fixed(width: 600, height: 200))
+            }
         }
     }
 }
