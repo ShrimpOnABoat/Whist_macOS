@@ -508,7 +508,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             totoScore: totoScore,
             ggPosition: ggPlayer.place,
             ddPosition: ddPlayer.place,
-            totoPosition: totoPlayer.place
+            totoPosition: totoPlayer.place,
+            ggConsecutiveWins: consecutiveWins(by: .gg),
+            ddConsecutiveWins: consecutiveWins(by: .dd),
+            totoConsecutiveWins: consecutiveWins(by: .toto)
         )
         
         // Load existing scores; if none exist, this will be an empty array.
@@ -521,6 +524,21 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         ScoresManager.shared.saveScores(existingScores)
         
         logWithTimestamp("New game score saved: \(newScore)")
+    }
+    
+    func consecutiveWins(by playerId: PlayerId) -> Int {
+        let player = gameState.getPlayer(by: playerId)
+        var count = 0
+
+        for round in 0..<player.announcedTricks.count {
+            if player.announcedTricks[round] == player.madeTricks[round] {
+                count += 1
+            } else {
+                break // Stop counting if a round was lost
+            }
+        }
+        
+        return count
     }
 
 }

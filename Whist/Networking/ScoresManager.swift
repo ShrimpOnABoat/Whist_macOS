@@ -8,7 +8,8 @@
 import Foundation
 import CloudKit
 
-struct GameScore: Codable {
+struct GameScore: Codable, Identifiable {
+    let id = UUID() // Unique ID for each game
     let date: Date
     let ggScore: Int
     let ddScore: Int
@@ -16,6 +17,9 @@ struct GameScore: Codable {
     let ggPosition: Int?
     let ddPosition: Int?
     let totoPosition: Int?
+    let ggConsecutiveWins: Int?
+    let ddConsecutiveWins: Int?
+    let totoConsecutiveWins: Int?
     
     enum CodingKeys: String, CodingKey {
         case date
@@ -25,6 +29,9 @@ struct GameScore: Codable {
         case ggPosition = "gg_position"
         case ddPosition = "dd_position"
         case totoPosition = "toto_position"
+        case ggConsecutiveWins = "gg_consecutive_wins"
+        case ddConsecutiveWins = "dd_consecutive_wins"
+        case totoConsecutiveWins = "toto_consecutive_wins"
     }
 }
 
@@ -37,11 +44,18 @@ class ScoresManager {
     static let shared = ScoresManager()
     
     private let fileManager = FileManager.default
-    private var scoresFileURL: URL {
+    private var scoresDirectoryURL: URL {
         #if TEST_MODE
         // /Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents
         let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentDirectory.appendingPathComponent("scores/scores_\(currentYear).json")
+        return documentDirectory.appendingPathComponent("scores/")
+        #else
+        fatalError("Use CloudKit in release mode")
+        #endif
+    }
+    private var scoresFileURL: URL {
+        #if TEST_MODE
+        return scoresDirectoryURL.appendingPathComponent("scores_\(currentYear).json")
         #else
         fatalError("Use CloudKit in release mode")
         #endif
@@ -79,12 +93,35 @@ class ScoresManager {
     }
     
     // MARK: Load Scores
-    func loadScores() -> [GameScore] {
+    func loadScores(for year: Int = Calendar.current.component(.year, from: Date())) -> [GameScore] {
         #if TEST_MODE
         do {
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601 // Handle ISO 8601 dates
-            let data = try Data(contentsOf: scoresFileURL)
+            
+            // Custom date decoding strategy to handle different formats
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+                
+                let iso8601Formatter = ISO8601DateFormatter()
+                iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                
+                let alternateFormatter = DateFormatter()
+                alternateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+                
+                if let date = iso8601Formatter.date(from: dateString) {
+                    return date
+                } else if let date = alternateFormatter.date(from: dateString) {
+                    return date
+                } else {
+                    throw DecodingError.dataCorruptedError(
+                        in: container,
+                        debugDescription: "Date string does not match expected formats"
+                    )
+                }
+            }
+
+            let data = try Data(contentsOf: scoresDirectoryURL.appendingPathComponent("scores_\(year).json"))
             return try decoder.decode([GameScore].self, from: data)
         } catch {
             logWithTimestamp("Error loading scores: \(error)")
@@ -101,7 +138,30 @@ class ScoresManager {
                 for record in records {
                     if let data = record["scores"] as? Data {
                         do {
-                            let decodedScores = try JSONDecoder().decode([GameScore].self, from: data)
+                            let decoder = JSONDecoder()
+                            decoder.dateDecodingStrategy = .custom { decoder in
+                                let container = try decoder.singleValueContainer()
+                                let dateString = try container.decode(String.self)
+                                
+                                let iso8601Formatter = ISO8601DateFormatter()
+                                iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                                
+                                let alternateFormatter = DateFormatter()
+                                alternateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+                                
+                                if let date = iso8601Formatter.date(from: dateString) {
+                                    return date
+                                } else if let date = alternateFormatter.date(from: dateString) {
+                                    return date
+                                } else {
+                                    throw DecodingError.dataCorruptedError(
+                                        in: container,
+                                        debugDescription: "Date string does not match expected formats"
+                                    )
+                                }
+                            }
+                            
+                            let decodedScores = try decoder.decode([GameScore].self, from: data)
                             scores.append(contentsOf: decodedScores)
                         } catch {
                             logWithTimestamp("Error decoding scores: \(error)")
@@ -118,7 +178,7 @@ class ScoresManager {
     
     // MARK: Find Loser
     func findLoser() -> Loser? {
-        let scores = loadScores()
+        let scores = loadScores(for: currentYear)
         guard !scores.isEmpty else { return nil }
         
         let currentMonth = Calendar.current.component(.month, from: Date())

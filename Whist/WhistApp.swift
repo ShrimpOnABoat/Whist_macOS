@@ -13,7 +13,7 @@ struct WhistApp: App {
     @StateObject private var gameKitManager = GameKitManager()
     @StateObject private var connectionManager = ConnectionManager()
     @StateObject var preferences = Preferences()
-
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -28,10 +28,34 @@ struct WhistApp: App {
                 }
         }
         .defaultSize(width: 800, height: 600)
-    
+        
         Settings {
             PreferencesView()
                 .environmentObject(preferences)
+        }
+        
+        // Secondary window for ScoresView with an identifier.
+        Window("Scores", id: "ScoresWindow") {
+            ScoresView()
+                .environmentObject(gameManager)
+        }
+    }
+    
+    // Add your commands in the computed property below.
+    var commands: some Commands {
+        ScoresMenuCommands()
+    }
+}
+
+struct ScoresMenuCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+    
+    var body: some Commands {
+        CommandMenu("View") {
+            Button("Voir les scores") {
+                openWindow(id: "ScoresWindow")
+            }
+            .keyboardShortcut("s", modifiers: [.command])
         }
     }
 }
@@ -49,21 +73,7 @@ class Preferences: ObservableObject {
         set { patternScaleStorage = Double(newValue) }
     }
     
-//    let availableFelts: [Color] = [
-//        Color(red: 34/255, green: 139/255, blue: 34/255), // Classic Green
-//        Color(red: 0, green: 0, blue: 139/255),           // Deep Blue
-//        Color(red: 139/255, green: 0, blue: 0),           // Wine Red
-//        Color(red: 75/255, green: 0, blue: 130/255),      // Royal Purple
-//        Color(red: 0, green: 128/255, blue: 128/255),     // Teal
-//        Color(red: 54/255, green: 69/255, blue: 79/255),  // Charcoal Gray
-//        Color(red: 205/255, green: 92/255, blue: 0/255),  // Burnt Orange
-//        Color(red: 34/255, green: 90/255, blue: 34/255),  // Forest Green
-//        Color(red: 139/255, green: 69/255, blue: 19/255), // Chocolate Brown
-//        Color(red: 220/255, green: 20/255, blue: 60/255)  // Crimson Red
-//    ]
-
     var currentFelt: Color {
-//        availableFelts[selectedFeltIndex]
         GameConstants.feltColors[selectedFeltIndex]
     }
 }
