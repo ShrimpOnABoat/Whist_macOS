@@ -15,6 +15,7 @@ struct GameAction: Codable {
         case choseBet
         case choseTrump
         case sendState
+        case startNewGame
         
         var associatedPhases: [GamePhase] {
             switch self {
@@ -23,6 +24,7 @@ struct GameAction: Codable {
             case .discard: return [.choosingTrump, .waitingForTrump, .bidding, .discard]
             case .choseBet: return [.choosingTrump, .waitingForTrump, .bidding, .discard]
             case .choseTrump: return [.choosingTrump, .waitingForTrump, .bidding, .discard]
+            case .startNewGame: return [.waitingToStart]
             default: return []
             }
         }

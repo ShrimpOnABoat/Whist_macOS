@@ -100,7 +100,8 @@ extension GameManager {
         if let newDeck = try? JSONDecoder().decode([Card].self, from: data) {
             gameState.newDeck = newDeck
             self.isDeckReady = true
-//            self.checkAndAdvanceStateIfNeeded()
+            self.isDeckReceived = true
+            logWithTimestamp("Updated deck from dealer, isDeckReady now true")
         } else {
             logWithTimestamp("Failed to decode deck data.")
         }
@@ -110,6 +111,8 @@ extension GameManager {
     
     func dealCards(completion: @escaping () -> Void) {
         var cardsToDeal: Int
+        
+        isDeckReceived = false 
         
         // Sort players by the last score
         gameState.players.sort { (a, b) -> Bool in

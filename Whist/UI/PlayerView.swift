@@ -205,6 +205,25 @@ struct PlayerView: View {
                 .disabled(selectedCount != numberOfCardsToDiscard)
                 .animation(.easeInOut, value: selectedCount) // Smooth animation for state changes
             }
+        } else if gameManager.gameState.currentPhase == .waitingToStart && player.tablePosition == .local {
+            VStack {
+                Button(action: {
+                    gameManager.startNewGameAction()
+                }) {
+                    Text("Nouvelle partie")
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(5)
+                        .shadow(radius: 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+                }
+                .buttonStyle(HoverMoveUpButtonStyle(isActive: true))
+            }
         } else {
             // Define the message based on the player's state
             let newMessage: String = {
@@ -216,6 +235,7 @@ struct PlayerView: View {
                     case .discarding: return "Défausse sa carte"
                     case .playing: return "Joue une carte"
                     case .waiting: return "Attend les autres"
+                    default: return ""
                     }
                 } else {
                     switch player.state {
@@ -225,6 +245,7 @@ struct PlayerView: View {
                     case .discarding: return "Défausse tes cartes"
                     case .playing: return "Joue une carte"
                     case .waiting: return ""
+                    default: return ""
                     }
                 }
             }()
@@ -397,6 +418,7 @@ struct PlayerView: View {
         
         return (newXOffset, newYOffset, newRotation)
     }
+    
     
 }
 

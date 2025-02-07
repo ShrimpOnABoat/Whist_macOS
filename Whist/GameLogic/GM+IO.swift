@@ -42,6 +42,7 @@ extension GameManager {
             }
             
         case .sendDeck:
+            logWithTimestamp("Received deck from \(action.playerId).")
             self.updateDeck(with: action.payload)
 
         case .choseBet:
@@ -74,6 +75,9 @@ extension GameManager {
             } else {
                 logWithTimestamp("Failed to decode discarded cards.")
             }
+            
+        case .startNewGame:
+            self.startNewGame()
 
         }
     }
@@ -202,6 +206,19 @@ extension GameManager {
         } else {
             logWithTimestamp("Error: Failed to encode player's state")
         }
+    }
+    
+    func sendStartNewGameAction() {
+        logWithTimestamp("Sending start new game action to players")
+        guard let localPlayer = gameState.localPlayer else { return }
+
+        let action = GameAction(
+            playerId: localPlayer.id,
+            type: .startNewGame,
+            payload: Data(),
+            timestamp: Date().timeIntervalSince1970
+        )
+        sendAction(action)
     }
     
     func sendAction(_ action: GameAction) {

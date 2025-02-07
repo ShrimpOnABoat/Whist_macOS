@@ -31,6 +31,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var movingCards: [MovingCard] = []
     private var timerCancellable: AnyCancellable?
     var isDeckReady: Bool = false
+    var isDeckReceived: Bool = false
     var pendingActions: [GameAction] = []
     var activeAnimations = 0
     var onBatchAnimationsCompleted: [(() -> Void)?] = []
@@ -48,6 +49,8 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
     var isAIPlaying: Bool = false
+    
+    var lastGameWinner: PlayerId?
     
     init() {
     }
@@ -206,6 +209,12 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         logWithTimestamp("Current phase: \(gameState.currentPhase)")
         checkAndAdvanceStateIfNeeded()
         
+    }
+    
+    // MARK: startNewGame
+    func startNewGameAction() {
+        sendStartNewGameAction()
+        startNewGame()
     }
     
     // MARK: - Game Logic Functions
@@ -494,6 +503,9 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         let ggPlayer = gameState.getPlayer(by: .gg)
         let ddPlayer = gameState.getPlayer(by: .dd)
         let totoPlayer = gameState.getPlayer(by: .toto)
+        
+        // Update the game's winner
+        lastGameWinner = gameState.players.first { $0.place == 1 }?.id
         
         // Get the latest score for each player (defaulting to 0 if not available).
         let ggScore = ggPlayer.scores.last ?? 0

@@ -28,7 +28,7 @@ class GameState: ObservableObject, Codable {
     } // When the trump card is defined, the first card of the deck or twos is returned and trumpSuit is defined
     @Published var playOrder: [PlayerId] = [] // should be reset after each trick grab
     @Published var dealer: PlayerId? = nil
-    @Published var currentPhase: GamePhase = .waitingToStart
+    @Published var currentPhase: GamePhase = .waitingForPlayers
     var tricksGrabbed: [Bool] = []
     var currentTrick: Int = 0
 

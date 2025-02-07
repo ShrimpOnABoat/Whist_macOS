@@ -179,6 +179,7 @@ struct GameView: View {
             // If all deck cards are now measured,
             // let the GameManager know we’re ready to deal.
             if !didMeasureDeck && transforms.count == (gameManager.gameState.deck.count + gameManager.gameState.trumpCards.count) {
+                logWithTimestamp("Setting didMeasureDeck to true")
                 didMeasureDeck = true
                 gameManager.onDeckMeasured()
             }

@@ -16,6 +16,7 @@ enum TablePosition: String, Codable {
 
 enum PlayerState: String, Codable {
     case idle
+    case startNewGame
     case choosingTrump
     case bidding
     case discarding
@@ -25,6 +26,7 @@ enum PlayerState: String, Codable {
     var message: String {
         switch self {
         case .idle: return "Idle"
+        case .startNewGame: return "Starting New Game"
         case .choosingTrump: return "Choosing Trump"
         case .bidding: return "Bidding"
         case .discarding: return "Discarding"

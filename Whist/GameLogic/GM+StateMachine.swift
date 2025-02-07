@@ -8,8 +8,9 @@
 import SwiftUI
 
 enum GamePhase: Encodable, Decodable {
-    case waitingToStart         // Before the game starts, waiting for all players to connect
+    case waitingForPlayers      // Before the game starts, waiting for all players to connect
     case setupGame              // Setup the game for the evening!
+    case waitingToStart         // Display a "New game" button and the last game's winner
     case newGame                // Setup a new game
     case setupNewRound          // setup the new round
     case waitingForDeck         // Waiting for the dealer to shuffle the deck
@@ -65,13 +66,16 @@ extension GameManager {
     private func handleStateTransition() {
         processPendingActionsForCurrentPhase(checkState: false)
         switch gameState.currentPhase {
-        case .waitingToStart:
+        case .waitingForPlayers:
             setPlayerState(to: .idle)
             
         case .setupGame:
             setPlayerState(to: .idle)
             setupGame()
-            transition(to: .newGame)
+            transition(to: .waitingToStart)
+            
+        case .waitingToStart:
+            setPlayerState(to: .startNewGame)
             
         case .newGame:
             setPlayerState(to: .idle)
@@ -83,6 +87,7 @@ extension GameManager {
             newGameRound()
             if connectionManager?.localPlayerID == gameState.dealer {
                 if !isDeckReady {
+                    logWithTimestamp("isDeckReady: \(isDeckReady)")
                     transition(to: .renderingDeck)
                 } else {
                     transition(to: .dealingCards)
@@ -94,7 +99,7 @@ extension GameManager {
         case .renderingDeck:
             setPlayerState(to: .idle)
             // Mark that the deck is NOT measured yet
-            isDeckReady = false
+//            isDeckReady = false
             
         case .waitingForDeck:
             setPlayerState(to: .idle)
@@ -313,9 +318,8 @@ extension GameManager {
             // Show final results, store the score, transition to .newGame ...
             persistence.clearSavedGameState()
             // save the game
-            saveScore()
-            // display the winner
-            // show a "New game" button
+            saveScore() //Sets the winner too
+            transition(to: .newGame)
         }
     }
     
@@ -326,21 +330,27 @@ extension GameManager {
     func checkAndAdvanceStateIfNeeded() {
         logWithTimestamp("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
-        case .waitingToStart:
+        case .waitingForPlayers:
             if gameState.players.count == 3 && gameState.players.allSatisfy({ $0.connected }) {
                 transition(to: .setupGame)
             }
             break
             
-        case .renderingDeck, .waitingForDeck:
+        case .renderingDeck:
             if isDeckReady {
                 transition(to: .dealingCards)
+            }
+            
+        case .waitingForDeck:
+            if isDeckReceived {
+                transition(to: .dealingCards)
+            } else {
+                logWithTimestamp("Still waiting for the deck...")
             }
 
         case .dealingCards:
             // This state is handled in handleStateTransition
             logWithTimestamp("Dealing cards")
-            break
 
         case .choosingTrump:
             // If trump chosen, I chose a bid
@@ -418,6 +428,11 @@ extension GameManager {
     }
     
     // MARK: - Utilities
+
+    func startNewGame() {
+        logWithTimestamp("Starting new game")
+        transition(to: .newGame)
+    }
     
     func isLocalPlayerTurnToBet() -> Bool {
         guard let localPlayerID = connectionManager?.localPlayerID else {
