@@ -35,6 +35,23 @@ struct GameScore: Codable, Identifiable {
     }
 }
 
+extension GameScore {
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        // Encode properties in the desired order:
+        try container.encode(date, forKey: .date)
+        try container.encode(ggScore, forKey: .ggScore)
+        try container.encode(ddScore, forKey: .ddScore)
+        try container.encode(totoScore, forKey: .totoScore)
+        try container.encode(ggPosition, forKey: .ggPosition)
+        try container.encode(ddPosition, forKey: .ddPosition)
+        try container.encode(totoPosition, forKey: .totoPosition)
+        try container.encode(ggConsecutiveWins, forKey: .ggConsecutiveWins)
+        try container.encode(ddConsecutiveWins, forKey: .ddConsecutiveWins)
+        try container.encode(totoConsecutiveWins, forKey: .totoConsecutiveWins)
+    }
+}
+
 struct Loser {
     let playerId: String
     let losingMonths: Int
@@ -68,7 +85,18 @@ class ScoresManager {
     func saveScores(_ scores: [GameScore]) {
         #if TEST_MODE
         do {
-            let data = try JSONEncoder().encode(scores)
+            let encoder = JSONEncoder()
+            
+            // Configure the date formatter for the desired ISO 8601 format with timezone offset.
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            
+            // Set the encoder to use the custom formatter and produce human-readable JSON.
+            encoder.dateEncodingStrategy = .formatted(formatter)
+            encoder.outputFormatting = [.prettyPrinted]
+            
+            let data = try encoder.encode(scores)
             try data.write(to: scoresFileURL)
             logWithTimestamp("Scores saved locally in TEST_MODE!")
         } catch {
@@ -77,7 +105,16 @@ class ScoresManager {
         #else
         let record = CKRecord(recordType: "GameScores")
         do {
-            let data = try JSONEncoder().encode(scores)
+            let encoder = JSONEncoder()
+            
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            
+            encoder.dateEncodingStrategy = .formatted(formatter)
+            encoder.outputFormatting = [.prettyPrinted]
+            
+            let data = try encoder.encode(scores)
             record["scores"] = data as CKRecordValue
             CKContainer.default().privateCloudDatabase.save(record) { _, error in
                 if let error = error {
@@ -90,6 +127,13 @@ class ScoresManager {
             logWithTimestamp("Error encoding scores for CloudKit: \(error)")
         }
         #endif
+    }
+    
+    // MARK: Save Score
+    func saveScore(_ score: GameScore) {
+        var scores = loadScores()
+        scores.append(score)
+        saveScores(scores)
     }
     
     // MARK: Load Scores

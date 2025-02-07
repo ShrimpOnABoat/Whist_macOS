@@ -298,18 +298,20 @@ extension GameManager {
             
         case .scoring:
             waitForAnimationsToFinish {
-                // Compute scores
-                self.setPlayerState(to: .idle)
-                self.computeScores()
-                
-                // update positions
-                self.updatePlayersPositions()
-                
-                // if last round, transition to gameOver
-                if self.gameState.round == 12 {
-                    self.transition(to: .gameOver)
-                } else { // proceed to the next round
-                    self.transition(to: .setupNewRound)
+                self.gatherCards {
+                    // Compute scores
+                    self.setPlayerState(to: .idle)
+                    self.computeScores()
+                    
+                    // update positions
+                    self.updatePlayersPositions()
+                    
+                    // if last round, transition to gameOver
+                    if self.gameState.round == 12 {
+                        self.transition(to: .gameOver)
+                    } else { // proceed to the next round
+                        self.transition(to: .setupNewRound)
+                    }
                 }
             }
             
@@ -319,7 +321,7 @@ extension GameManager {
             persistence.clearSavedGameState()
             // save the game
             saveScore() //Sets the winner too
-            transition(to: .newGame)
+            transition(to: .waitingToStart)
         }
     }
     
@@ -549,11 +551,34 @@ extension GameManager {
                 roundScore = -5 * abs(made - announced)
             }
             
+            // Add the bonus for the highest bidder on the last round
+            
+            
             // Add the round score to the player's total score
             let totalScore = (player.scores.last ?? 0) + roundScore
             player.scores.append(totalScore)
             
             logWithTimestamp("Player \(player.username): Announced \(announced), Made \(made), Round Score \(roundScore), Total Score \(totalScore)")
+        }
+        
+        // Add bonus for the highest bidder in the last round (round 12)
+        if gameState.round == 12 {
+            // Calculate each player's total announced tricks (across all rounds)
+            let playersAnnouncedTotals = gameState.players.map { player in
+                (player: player, total: player.announcedTricks.reduce(0, +))
+            }
+            let maxAnnounced = playersAnnouncedTotals.map { $0.total }.max() ?? 0
+            
+            // Identify all players who reached the maximum
+            let topPlayers = playersAnnouncedTotals.filter { $0.total == maxAnnounced }
+            if topPlayers.count == 1 {
+                let bonusWinner = topPlayers.first!.player
+                // Add 15 bonus points to the bonus winner's last score
+                bonusWinner.scores[bonusWinner.scores.count - 1] += 15
+                logWithTimestamp("Bonus added for highest bidder \(bonusWinner.username): +15 points")
+            } else {
+                logWithTimestamp("No bonus added due to tie among highest bidders.")
+            }
         }
     }
     

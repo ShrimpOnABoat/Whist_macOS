@@ -20,14 +20,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var gameState: GameState = GameState()
     @Published var showOptions: Bool = false
     @Published var showTrumps: Bool = false
-    @Published var showLastTrick: Bool = false {
-        didSet {
-            logWithTimestamp("showLastTrick is now \(showLastTrick)")
-            logWithTimestamp("Last trick: \(String(describing: gameState.lastTrick))")
-            logWithTimestamp("States: \(String(describing: gameState.lastTrickCardStates))")
-
-        }
-    }
+    @Published var showLastTrick: Bool = false
     @Published var movingCards: [MovingCard] = []
     private var timerCancellable: AnyCancellable?
     var isDeckReady: Bool = false
@@ -221,6 +214,15 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     func newGame() {
         gameState.round = 0
+        gameState.players.forEach {
+            $0.scores.removeAll()
+            $0.announcedTricks.removeAll()
+            $0.madeTricks.removeAll()
+            $0.place = 0
+            $0.hand.removeAll()
+            $0.trickCards.removeAll()
+            $0.state = .idle
+        }
     }
     
     func newGameRound() {
@@ -526,14 +528,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             totoConsecutiveWins: consecutiveWins(by: .toto)
         )
         
-        // Load existing scores; if none exist, this will be an empty array.
-        var existingScores = ScoresManager.shared.loadScores()
-        
-        // Append the new score.
-        existingScores.append(newScore)
+//        // Load existing scores; if none exist, this will be an empty array.
+//        var existingScores = ScoresManager.shared.loadScores()
+//        
+//        // Append the new score.
+//        existingScores.append(newScore)
         
         // Save the updated scores array.
-        ScoresManager.shared.saveScores(existingScores)
+        ScoresManager.shared.saveScore(newScore)
         
         logWithTimestamp("New game score saved: \(newScore)")
     }

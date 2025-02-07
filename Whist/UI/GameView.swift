@@ -29,7 +29,8 @@ struct GameView: View {
     @State private var showConfirmation = false
     @State private var savedGameExists = false
     @State private var playerID: String = ""
-    
+    @State private var showRoundHistory = false
+
         @State private var background: AnyView = AnyView(FeltBackgroundView(
             radialShadingStrength: 0.5,
             wearIntensity: CGFloat.random(in: 0...1),
@@ -64,6 +65,9 @@ struct GameView: View {
                                     HStack {
                                         TrumpView(dynamicSize: dynamicSize)
                                         ScoreBoardView(dynamicSize: dynamicSize)
+                                            .onTapGesture {
+                                                showRoundHistory.toggle()
+                                            }
                                         DeckView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
                                     }
                                 }
@@ -108,6 +112,10 @@ struct GameView: View {
                     }
                 }
                 .coordinateSpace(name: "contentArea")
+                .sheet(isPresented: $showRoundHistory) {
+                    RoundHistoryView(isPresented: $showRoundHistory)
+                        .environmentObject(gameManager)
+                }
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Debug: Players not set up yet.")

@@ -154,9 +154,9 @@ struct SummaryView: View {
                 Text("\(total.gg)").frame(width: 40, alignment: .center)
                 Text("\(total.dd)").frame(width: 40, alignment: .center)
                 Text("\(total.toto)").frame(width: 40, alignment: .center)
-                Text("\(total.ggTally)").frame(width: 60, alignment: .center)
-                Text("\(total.ddTally)").frame(width: 60, alignment: .center)
-                Text("\(total.totoTally)").frame(width: 60, alignment: .center)
+                Text("\(total.ggTally)").frame(width: 40, alignment: .center)
+                Text("\(total.ddTally)").frame(width: 40, alignment: .center)
+                Text("\(total.totoTally)").frame(width: 40, alignment: .center)
             }
             .font(.headline)
             .padding(.vertical, 4)
