@@ -44,7 +44,8 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     var isAIPlaying: Bool = false
     
     var lastGameWinner: PlayerId?
-    
+    var showConfetti: Bool = false
+
     init() {
     }
     

@@ -24,12 +24,12 @@ struct CardTransformPreferenceKey: PreferenceKey {
 struct GameView: View {
     @EnvironmentObject var gameManager: GameManager
     @State private var cardTransforms: [String: CardState] = [:]
-    @State private var showMatchmaking = true
-    @State private var showAlert = false
-    @State private var showConfirmation = false
-    @State private var savedGameExists = false
+    @State private var showMatchmaking: Bool = true
+    @State private var showAlert: Bool = false
+    @State private var showConfirmation: Bool = false
+    @State private var savedGameExists: Bool = false
     @State private var playerID: String = ""
-    @State private var showRoundHistory = false
+    @State private var showRoundHistory: Bool = false
 
         @State private var background: AnyView = AnyView(FeltBackgroundView(
             radialShadingStrength: 0.5,
@@ -110,6 +110,10 @@ struct GameView: View {
                         PlayerView(player: localPlayer, dynamicSize: dynamicSize, isDealer: dealer == localPlayer.id)
                             .frame(width: dynamicSize.localPlayerWidth, height: dynamicSize.localPlayerHeight)
                     }
+                    
+                    ConfettiCannon(trigger: $gameManager.showConfetti, num: 100, repetitions: 5, repetitionInterval: 1)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
                 }
                 .coordinateSpace(name: "contentArea")
                 .sheet(isPresented: $showRoundHistory) {
@@ -401,7 +405,7 @@ struct GameView_Previews: PreviewProvider {
         let gameManager = GameManager()
         gameManager.setupPreviewGameState()
         gameManager.showTrumps = false
-        gameManager.showLastTrick = true
+        gameManager.showLastTrick = false
         gameManager.gameState.currentPhase = .playingTricks
         
         return GameView()

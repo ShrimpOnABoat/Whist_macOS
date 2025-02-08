@@ -60,7 +60,7 @@ extension GameManager {
 
         let (totalCards, completion) = animationQueue.removeFirst()
         activeAnimations = totalCards
-        logWithTimestamp("processAnimationQueue: setting up \(totalCards) animations")
+//        logWithTimestamp("processAnimationQueue: setting up \(totalCards) animations")
         onBatchAnimationsCompleted.append( {
             completion()
             self.onBatchAnimationsCompleted.removeFirst()
@@ -169,7 +169,7 @@ extension GameManager {
     // Function to finalize card movement after animation
     func finalizeMove(_ movingCard: MovingCard) {
         guard let toState = movingCard.toState else {
-            logWithTimestamp("toState is still nil for \(movingCard.card)")
+//            logWithTimestamp("toState is still nil for \(movingCard.card)")
             return
         }
         
@@ -226,7 +226,7 @@ extension GameManager {
         // Ensure the batch animation is completed before starting another one
         activeAnimations -= 1
         if activeAnimations == 0 {
-            logWithTimestamp("Finished moving \(movingCard.card), no active animations left.")
+//            logWithTimestamp("Finished moving \(movingCard.card), no active animations left.")
             onBatchAnimationsCompleted[0]?()  // calls the closure we set in beginBatchMove
             processAnimationQueue()
         } else {
@@ -236,7 +236,7 @@ extension GameManager {
     
     func waitForAnimationsToFinish(completion: @escaping () -> Void) {
         if activeAnimations > 0 {
-            logWithTimestamp("Waiting for \(activeAnimations) animations to finish before proceeding.")
+//            logWithTimestamp("Waiting for \(activeAnimations) animations to finish before proceeding.")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.waitForAnimationsToFinish(completion: completion)
             }

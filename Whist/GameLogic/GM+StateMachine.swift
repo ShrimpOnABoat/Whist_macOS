@@ -317,6 +317,7 @@ extension GameManager {
             
         case .gameOver:
             setPlayerState(to: .idle)
+            showConfetti.toggle()
             // Show final results, store the score, transition to .newGame ...
             persistence.clearSavedGameState()
             // save the game

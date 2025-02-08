@@ -22,7 +22,7 @@ import SwiftUI
 
 struct GameConstants {
     // Deck
-    static let deckOffset = CGPoint(x: 0.5, y: -0.5)
+    static let deckOffset = CGPoint(x: 0.25, y: -0.25)
     static let deckShuffleOffset: CGFloat = 50
     static let deckShuffleAngle: Double = 15
     static let deckShuffleDuration: TimeInterval = 0.9
