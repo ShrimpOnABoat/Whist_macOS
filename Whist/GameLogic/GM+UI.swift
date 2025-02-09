@@ -17,16 +17,16 @@ struct CardState: Equatable {
 
 // MARK: - CardPlace
 
-enum CardPlace {
-    case localPlayer
-    case leftPlayer
-    case rightPlayer
-    case localPlayerTricks
-    case leftPlayerTricks
-    case rightPlayerTricks
-    case table
-    case deck
-    case trumpDeck
+enum CardPlace: String {
+    case localPlayer = "local"
+    case leftPlayer = "left"
+    case rightPlayer = "right"
+    case localPlayerTricks = "local tricks"
+    case leftPlayerTricks = "left tricks"
+    case rightPlayerTricks = "right tricks"
+    case table = "table"
+    case deck = "deck"
+    case trumpDeck = "trump deck"
 }
 
 extension GameManager {
@@ -173,7 +173,7 @@ extension GameManager {
             return
         }
         
-        logWithTimestamp("✅ Finalizing move for \(movingCard.card) from \(movingCard.from) to \(movingCard.to)")
+//        logWithTimestamp("✅ Finalizing move for \(movingCard.card) from \(movingCard.from) to \(movingCard.to)")
         
         // Add the card to the destination at the correct position
         switch movingCard.to {

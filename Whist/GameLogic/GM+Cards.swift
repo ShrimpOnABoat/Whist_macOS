@@ -82,7 +82,7 @@ extension GameManager {
         // Call simulateShuffle with the new deck order
         if let shuffle = shuffleCallback {
             shuffle(newDeck) {
-                logWithTimestamp("Shuffle complete!")
+                self.logWithTimestamp("Shuffle complete!")
                 completion()
             }
         } else {
@@ -437,7 +437,7 @@ extension GameManager {
         // make sure all cards moved before doing anything else
 //        logWithTimestamp("assignTricks: beginBatchMove(3), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 3) {
-            logWithTimestamp("Assign trick should be completed now!")
+            self.logWithTimestamp("Assign trick should be completed now!")
         }
         // Introduce a delay before clearing the table and assigning the trick
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -456,7 +456,7 @@ extension GameManager {
             }
             
             winner.madeTricks[self.gameState.round - 1] += 1
-            logWithTimestamp("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
+            self.logWithTimestamp("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
             
             // Add a delay after the animation completes if last trick of the round
             DispatchQueue.main.asyncAfter(deadline: .now() + (winner.hand.isEmpty ? 1.5 : 0)) {
@@ -509,7 +509,20 @@ extension GameManager {
         beginBatchMove(totalCards: cardsToDiscard.count) { completion() }
         for card in cardsToDiscard {
             card.isFaceDown = true
-            moveCard(card, from: .localPlayer, to: .deck)
+            // if player is second, round is 12 and last player needs 2 cards, destination == last player instead of deck
+            var destination: CardPlace = .deck
+
+             if gameState.localPlayer?.place == 2 && gameState.round == 12 {
+                 if Double(gameState.lastPlayer?.scores[safe: gameState.round - 2] ?? 0) <= 0.5 * Double(gameState.localPlayer?.scores[safe: gameState.round - 2] ?? 0) || gameState.lastPlayer?.monthlyLosses ?? 0 > 0 {
+                     switch gameState.lastPlayer?.tablePosition {
+                     case .left:
+                         destination = .leftPlayer
+                     default:
+                         destination = .rightPlayer
+                     }
+                 }
+             }
+             moveCard(card, from: .localPlayer, to: destination)
         }
         
         // Send the information to other players
@@ -548,7 +561,7 @@ extension GameManager {
                 
                 // Play the selected card
                 playCard(selectedCard) {
-                    logWithTimestamp("AI played card \(selectedCard)")
+                    self.logWithTimestamp("AI played card \(selectedCard)")
 //                    self.checkAndAdvanceStateIfNeeded()
                     completion()
                 }
@@ -568,12 +581,31 @@ extension GameManager {
     }
     
     func AIdiscard(completion: @escaping () -> Void) {
-        let numberOfCardsToDiscard = (gameState.localPlayer?.hand.count ?? 0) - max(1, gameState.round - 2)
+        var numberOfCardsToDiscard = 0
+        
+        if gameState.round > 3 {
+            if gameState.localPlayer?.place == 2 {
+                if gameState.localPlayer?.monthlyLosses ?? 0 > 1 && gameState.round < 12 {
+                    numberOfCardsToDiscard = 2
+                } else {
+                    numberOfCardsToDiscard = 1
+                }
+            } else if gameState.localPlayer?.place == 3 {
+                numberOfCardsToDiscard = 1
+                let playerScore = gameState.localPlayer?.scores[safe: gameState.round - 2] ?? 0
+                let secondPlayerScore = gameState.players[1].scores[safe: gameState.round - 2] ?? 0
+                
+                if gameState.localPlayer?.monthlyLosses ?? 0 > 0 || Double(playerScore) <= 0.5 * Double(secondPlayerScore) {
+                    numberOfCardsToDiscard = 2
+                }
+            }
+        }
+        
         if let hand = gameState.localPlayer?.hand {
             let cardsToDiscard = Array(hand.shuffled().prefix(numberOfCardsToDiscard))
             
             discard(cardsToDiscard: cardsToDiscard) {
-//                self.checkAndAdvanceStateIfNeeded()
+                //                self.checkAndAdvanceStateIfNeeded()
                 completion()
             }
         }

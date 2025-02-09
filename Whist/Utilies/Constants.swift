@@ -8,18 +8,6 @@
 import Foundation
 import SwiftUI
 
-//#if TEST_MODE
-//struct Constants {
-//    static let TEST_MODE = true
-//}
-//#endif
-//
-//#if !TEST_MODE
-//struct Constants {
-//    static let TEST_MODE = false
-//}
-//#endif
-
 struct GameConstants {
     // Deck
     static let deckOffset = CGPoint(x: 0.25, y: -0.25)
@@ -44,12 +32,6 @@ struct GameConstants {
         Color(red: 139 / 255, green: 69 / 255, blue: 19 / 255), // Chocolate Brown
         Color(red: 220 / 255, green: 20 / 255, blue: 60 / 255)  // Crimson Red
     ]
-    
-    
-    
-    
-    
-
 }
 
 // UI-related constants
@@ -83,8 +65,8 @@ struct DynamicSize {
     var scoreboardHeight: CGFloat { height * 0.25 }
     
     // Cards attributes
-    var cardWidth: CGFloat { proportion * 60 }
-    var cardHeight: CGFloat { proportion * 90 }
+    var cardWidth: CGFloat { proportion * 90 }
+    var cardHeight: CGFloat { proportion * 135 }
     var cardShadowRadius: CGFloat = 2
     var cardHoverOffset: CGFloat = 20
     

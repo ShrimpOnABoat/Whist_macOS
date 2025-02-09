@@ -45,6 +45,8 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
+    
+    var logCounter: Int = 0
 
     init() {
     }
@@ -245,7 +247,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         gameState.currentTrick = 0
         gameState.lastTrick.removeAll()
         gameState.lastTrickCardStates.removeAll()
-        
+        gameState.players.forEach {
+            $0.hasDiscarded = false
+        }
+
         // Move to the next dealer in playOrder
         guard let dealer = gameState.dealer,
               let currentIndex = gameState.playOrder.firstIndex(of: dealer) else {
@@ -301,6 +306,21 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     }
     
     // MARK: - Game Utility Functions
+    
+    func logWithTimestamp(_ message: String) {
+        if logCounter % 30 == 0 {
+            if let message = gameState.localPlayer?.id.rawValue.uppercased() {
+                let message2 = message + " - round \(gameState.round) - phase \(gameState.currentPhase)"
+                let formattedMessage = "** \(message2) **"
+                print(formattedMessage)
+            }
+        }
+        logCounter += 1
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        print("[\(timestamp)] \(message)")
+    }
     
     func updatePlayersPositions() {
         gameState.players.forEach { player in
@@ -450,20 +470,37 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
                 logWithTimestamp("Error: Card \(card) is not in \(playerId)'s hand.")
                 return
             }
-            switch player.tablePosition {
-                case .left:
-                beginBatchMove(totalCards: 1) { completion() }
-                moveCard(card, from: .leftPlayer, to: .deck)
-            case .right:
-                beginBatchMove(totalCards: 1) { completion() }
-                moveCard(card, from: .rightPlayer, to: .deck)
-            default:
-                break
+            
+            player.hasDiscarded = true
+            
+            let origin: CardPlace = player.tablePosition == .left ? .leftPlayer: .rightPlayer
+            var destination: CardPlace = .deck
+            var message: String = "Player \(player) discarded \(card)"
+
+            if player.place == 2 && gameState.round == 12 {
+                if Double(gameState.lastPlayer?.scores[safe: gameState.round - 2] ?? 0) <= 0.5 * Double(player.scores[safe: gameState.round - 2] ?? 0) || gameState.lastPlayer?.monthlyLosses ?? 0 > 0 {
+                    switch gameState.lastPlayer?.tablePosition {
+                    case .left:
+                        destination = .leftPlayer
+                        
+                    case .right:
+                        destination = .rightPlayer
+                        
+                    case .local:
+                        cards.forEach { $0.isFaceDown = false } // show the card if I'm the last player
+                        destination = .localPlayer
+                        
+                    default:
+                        destination = .table // Should crash but shouldn't happen
+                    }
+                    message = "Player \(playerId) gave \(card) to the last, \(destination) player"
+                }
             }
+            logWithTimestamp(message)
+            beginBatchMove(totalCards: 1) { completion() }
+            moveCard(card, from: origin, to: destination)
         }
         persistence.saveGameState(gameState)
-
-//        checkAndAdvanceStateIfNeeded()
     }
     
     func updatePlayerWithState(from playerId: PlayerId, with state: PlayerState) {
@@ -558,9 +595,4 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
 
 }
 
-func logWithTimestamp(_ message: String) {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "HH:mm:ss"
-    let timestamp = formatter.string(from: Date())
-    print("[\(timestamp)] \(message)")
-}
+

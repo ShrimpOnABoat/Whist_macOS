@@ -90,32 +90,32 @@ class ConnectionManager: NSObject, ObservableObject {
         listener?.stateUpdateHandler = { [weak self] newState in
             switch newState {
             case .setup:
-                logWithTimestamp("Listener state: setup")
+                self?.logWithTimestamp("Listener state: setup")
             case .waiting(let error):
-                logWithTimestamp("Listener state: waiting with error: \(error)")
+                self?.logWithTimestamp("Listener state: waiting with error: \(error)")
             case .ready:
                 self?.isServer = true
-                logWithTimestamp("Listener ready on port \(self?.listener?.port?.debugDescription ?? "unknown")")
-                logWithTimestamp("This instance is acting as the server.")
+                self?.logWithTimestamp("Listener ready on port \(self?.listener?.port?.debugDescription ?? "unknown")")
+                self?.logWithTimestamp("This instance is acting as the server.")
             case .failed(let error):
-                logWithTimestamp("Listener failed with error: \(error)")
+                self?.logWithTimestamp("Listener failed with error: \(error)")
                 self?.listener?.cancel()
                 if case .posix(let posixErrorCode) = error, posixErrorCode == .EADDRINUSE {
-                    logWithTimestamp("Port 12345 is already in use. This instance will act as a client.")
+                    self?.logWithTimestamp("Port 12345 is already in use. This instance will act as a client.")
                     self?.isServer = false
                     self?.connectToServer()
                 } else {
-                    logWithTimestamp("Unexpected error: \(error)")
+                    self?.logWithTimestamp("Unexpected error: \(error)")
                 }
             case .cancelled:
-                logWithTimestamp("Listener state: cancelled")
+                self?.logWithTimestamp("Listener state: cancelled")
             default:
                 break
             }
         }
         
         listener?.newConnectionHandler = { [weak self] connection in
-            logWithTimestamp("Received new connection from \(connection.endpoint)")
+            self?.logWithTimestamp("Received new connection from \(connection.endpoint)")
             self?.acceptConnection(connection)
         }
         
@@ -127,13 +127,13 @@ class ConnectionManager: NSObject, ObservableObject {
         connection.stateUpdateHandler = { [weak self] newState in
             switch newState {
             case .ready:
-                logWithTimestamp("Connection ready from \(connection.endpoint)")
+                self?.logWithTimestamp("Connection ready from \(connection.endpoint)")
                 self?.receive(on: connection)
                 self?.addConnection(connection)
                 // Send our presence to the new client
                 self?.sendPlayerConnectedMessage(to: [connection])
             case .failed(let error):
-                logWithTimestamp("Connection failed with error: \(error)")
+                self?.logWithTimestamp("Connection failed with error: \(error)")
                 self?.removeConnection(connection)
                 connection.cancel()
             default:
@@ -148,13 +148,13 @@ class ConnectionManager: NSObject, ObservableObject {
         connection.stateUpdateHandler = { [weak self] newState in
             switch newState {
             case .ready:
-                logWithTimestamp("Connected to server")
+                self?.logWithTimestamp("Connected to server")
                 self?.receive(on: connection)
                 self?.addConnection(connection, isServer: true)
                 // Send our presence to the server
                 self?.sendPlayerConnectedMessage(to: [connection])
             case .failed(let error):
-                logWithTimestamp("Failed to connect to server: \(error)")
+                self?.logWithTimestamp("Failed to connect to server: \(error)")
                 connection.cancel()
             default:
                 break
@@ -199,11 +199,11 @@ class ConnectionManager: NSObject, ObservableObject {
                 self?.handleReceivedData(data, from: connection)
             }
             if isComplete {
-                logWithTimestamp("Connection with \(connection.endpoint) is complete")
+                self?.logWithTimestamp("Connection with \(connection.endpoint) is complete")
                 self?.removeConnection(connection)
                 connection.cancel()
             } else if let error = error {
-                logWithTimestamp("Receive error from \(connection.endpoint): \(error)")
+                self?.logWithTimestamp("Receive error from \(connection.endpoint): \(error)")
                 self?.removeConnection(connection)
                 connection.cancel()
             } else {
@@ -282,7 +282,7 @@ class ConnectionManager: NSObject, ObservableObject {
                 if peer.connection !== excludedConnection {
                     peer.connection.send(content: data, completion: .contentProcessed { error in
                         if let error = error {
-                            logWithTimestamp("Broadcast send error: \(error)")
+                            self.logWithTimestamp("Broadcast send error: \(error)")
                         }
                     })
                 }
@@ -382,7 +382,7 @@ class ConnectionManager: NSObject, ObservableObject {
 //                logWithTimestamp("Sending \(data) to \(peer.connection.endpoint)")
                 peer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                     if let error = error {
-                        logWithTimestamp("Send error: \(error)")
+                        self.logWithTimestamp("Send error: \(error)")
                     }
                 })
             } else {
@@ -396,7 +396,7 @@ class ConnectionManager: NSObject, ObservableObject {
 //                        logWithTimestamp("Broadcasting \(data) to \(peer.playerID?.rawValue ?? "unknown")")
                         peer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                             if let error = error {
-                                logWithTimestamp("Broadcast send error: \(error)")
+                                self.logWithTimestamp("Broadcast send error: \(error)")
                             }
                         })
                     }
@@ -407,7 +407,7 @@ class ConnectionManager: NSObject, ObservableObject {
 //                    logWithTimestamp("Client sending \(data) to server at \(serverPeer.connection.endpoint)")
                     serverPeer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                         if let error = error {
-                            logWithTimestamp("Send error: \(error)")
+                            self.logWithTimestamp("Send error: \(error)")
                         }
                     })
                 } else {
@@ -439,7 +439,7 @@ class ConnectionManager: NSObject, ObservableObject {
                 for connection in connections {
                     connection.send(content: data, completion: .contentProcessed { error in
                         if let error = error {
-                            logWithTimestamp("Send error: \(error)")
+                            self.logWithTimestamp("Send error: \(error)")
                         }
                     })
                 }
@@ -447,7 +447,7 @@ class ConnectionManager: NSObject, ObservableObject {
                 for peer in connectedPeers {
                     peer.connection.send(content: data, completion: .contentProcessed { error in
                         if let error = error {
-                            logWithTimestamp("Send error: \(error)")
+                            self.logWithTimestamp("Send error: \(error)")
                         }
                     })
                 }
@@ -474,6 +474,13 @@ class ConnectionManager: NSObject, ObservableObject {
 #else
         // Existing GameKit implementation...
 #endif
+    }
+    
+    func logWithTimestamp(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        print("[\(timestamp)] \(message)")
     }
 }
 

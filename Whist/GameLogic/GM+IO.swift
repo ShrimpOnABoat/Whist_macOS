@@ -23,7 +23,7 @@ extension GameManager {
             } else {
                 // Store the action for later
                 self.pendingActions.append(action)
-                logWithTimestamp("Stored action \(action.type) from \(action.playerId) for later because currentPhase = \(self.gameState.currentPhase)")
+                self.logWithTimestamp("Stored action \(action.type) from \(action.playerId) for later because currentPhase = \(self.gameState.currentPhase)")
             }
         }
     }

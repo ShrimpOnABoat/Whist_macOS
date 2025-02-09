@@ -149,7 +149,7 @@ struct OptionsView: View {
         .shadow(radius: 10)
         .onAppear() {
             if gameManager.isAIPlaying {
-                handleBetSelection(Int.random(in: 0...max(gameManager.gameState.round - 2, 1)))
+                handleBetSelection(max((gameManager.gameState.round - 2) / 3, 1))
             }
         }
     }

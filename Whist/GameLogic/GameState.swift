@@ -187,10 +187,22 @@ extension GameState {
     var rightPlayer: Player? {
         players.first(where: { $0.tablePosition == .right })
     }
+    
+    var lastPlayer: Player? {
+        players.first(where: { $0.place == 3 })
+    }
 }
 
 extension GameState {
     var allPlayersConnected: Bool {
         players.count == 3 && players.allSatisfy { $0.connected }
     }
+    
+    func logWithTimestamp(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        print("[\(timestamp)] \(message)")
+    }
+
 }

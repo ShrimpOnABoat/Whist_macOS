@@ -35,7 +35,7 @@ struct MatchMakingView: View {
                 .padding()
                 .onChange(of: selectedPlayerID) { _, newID in
                     guard let newID = newID else { return }
-                    logWithTimestamp("Selected player: \(newID)")
+                    gameManager.logWithTimestamp("Selected player: \(newID)")
                     connectionManager.setLocalPlayerID(newID)
                     gameManager.setPersistencePlayerID(with: selectedPlayerID!)
                     isWaitingForPlayers = true
@@ -54,7 +54,7 @@ struct MatchMakingView: View {
         }
         .onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
             if allConnected {
-                logWithTimestamp("All players are connected!")
+                gameManager.logWithTimestamp("All players are connected!")
                 gameManager.checkAndAdvanceStateIfNeeded() // Should start the game
                 isWaitingForPlayers = false
                 navigateToGame = true

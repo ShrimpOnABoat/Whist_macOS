@@ -110,7 +110,7 @@ extension GameManager {
                     self.processPendingActionsForCurrentPhase()
                     
                     // otherwise nothing to do but wait
-                    if !self.isDeckReady { logWithTimestamp("Waiting for deck") }
+                    if !self.isDeckReady { self.logWithTimestamp("Waiting for deck") }
                 }
             }
             
@@ -285,7 +285,7 @@ extension GameManager {
             waitForAnimationsToFinish {
                 self.assignTrick() {
                     self.gameState.currentTrick += 1
-                    logWithTimestamp("Trick assigned, current trick is now \(self.gameState.currentTrick)")
+                    self.logWithTimestamp("Trick assigned, current trick is now \(self.gameState.currentTrick)")
                     // check if last trick
                     if self.isLastTrick() {
                         self.transition(to: .scoring)
@@ -481,10 +481,14 @@ extension GameManager {
     }
     
     func lastPlayerDiscarded() -> Bool {
-        if gameState.round < 4 { return true }
-        let allHandsSameCount = gameState.players.allSatisfy { $0.hand.count == max(1, gameState.round - 2)}
-        logWithTimestamp("All players discarded: \(allHandsSameCount)")
-        return allHandsSameCount
+        if gameState.round < 4 || allScoresEqual() { return true }
+        if let lastPlayer = gameState.lastPlayer {
+            logWithTimestamp("Last player \(lastPlayer.id) hasDiscarded: \(lastPlayer.hasDiscarded)")
+            return lastPlayer.hasDiscarded
+        } else {
+            logWithTimestamp("lastPlayerDiscarded: No last player found.")
+            return false
+        }
     }
     
     func isLocalPlayerTurnToPlay() -> Bool {

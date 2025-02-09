@@ -54,6 +54,7 @@ class Player: Identifiable, ObservableObject, Codable {
     @Published var trickCards: [Card] = []
     @Published var tablePosition: TablePosition = .local
     @Published var state: PlayerState = .idle
+    var hasDiscarded: Bool = false
     
     // Image is not codable; handle separately if needed
     @Published var image: Image?
@@ -78,6 +79,7 @@ class Player: Identifiable, ObservableObject, Codable {
         case state
         case hand
         case trickCards
+        case hasDiscarded
         // Exclude 'image' as it cannot be directly serialized
     }
     
@@ -96,6 +98,7 @@ class Player: Identifiable, ObservableObject, Codable {
         hand = try container.decode([Card].self, forKey: .hand)
         trickCards = try container.decode([Card].self, forKey: .trickCards)
         state = try container.decode(PlayerState.self, forKey: .state)
+        hasDiscarded = try container.decode(Bool.self, forKey: .hasDiscarded)
         
         // 'image' remains nil upon decoding; handle image loading separately if needed
         image = nil
@@ -116,6 +119,7 @@ class Player: Identifiable, ObservableObject, Codable {
         try container.encode(hand, forKey: .hand)
         try container.encode(trickCards, forKey: .trickCards)
         try container.encode(state, forKey: .state)
+        try container.encode(hasDiscarded, forKey: .hasDiscarded)
         
         // 'image' is not encoded
     }

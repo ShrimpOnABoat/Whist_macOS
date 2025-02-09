@@ -59,4 +59,11 @@ class GameKitManager: NSObject, ObservableObject {
         }
     }
     #endif
+    func logWithTimestamp(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        print("[\(timestamp)] \(message)")
+    }
+
 }

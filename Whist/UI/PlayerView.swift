@@ -189,7 +189,7 @@ struct PlayerView: View {
                         gameManager.checkAndAdvanceStateIfNeeded()
                     }
                 }) {
-                    Text("Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" : "")")
+                    Text(discardString(numberOfCardsToDiscard: numberOfCardsToDiscard))
                         .padding(.vertical, 5)
                         .padding(.horizontal, 10)
                         .background(selectedCount == numberOfCardsToDiscard ? Color.green : Color.white.opacity(0.5)) // Active vs Inactive
@@ -199,8 +199,8 @@ struct PlayerView: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: 5)
                                 .stroke(selectedCount == numberOfCardsToDiscard ? Color.green : Color.white, lineWidth: 2)
-                        )
-                }
+                            )
+                    }
                 .buttonStyle(HoverMoveUpButtonStyle(isActive: selectedCount == numberOfCardsToDiscard))
                 .disabled(selectedCount != numberOfCardsToDiscard)
                 .animation(.easeInOut, value: selectedCount) // Smooth animation for state changes
@@ -290,7 +290,7 @@ struct PlayerView: View {
                 }
             }
         }
-    }
+            }
     
     // MARK: - Player Hand
     @ViewBuilder
@@ -419,7 +419,17 @@ struct PlayerView: View {
         return (newXOffset, newYOffset, newRotation)
     }
     
-    
+    func discardString(numberOfCardsToDiscard: Int) -> String {
+        var message: String = ""
+        if gameManager.gameState.localPlayer?.place == 2 && gameManager.gameState.round == 12 {
+            if Double(gameManager.gameState.lastPlayer?.scores[safe: gameManager.gameState.round - 2] ?? 0) <= 0.5 * Double(gameManager.gameState.localPlayer?.scores[safe: gameManager.gameState.round - 2] ?? 0) || gameManager.gameState.lastPlayer?.monthlyLosses ?? 0 > 0 {
+                message = "Donne une carte à \(gameManager.gameState.lastPlayer?.username ?? "l'adversaire")"
+            }
+        } else {
+            message = "Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" : "")"
+        }
+        return message
+    }
 }
 
 // MARK: PlayerImageVIew
