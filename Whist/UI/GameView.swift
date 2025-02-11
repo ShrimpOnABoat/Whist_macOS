@@ -55,12 +55,11 @@ struct GameView: View {
                     background
                     //                    GridOverlay(spacing: 50)
                     
-                    VStack {
-                        HStack {
+                    VStack(spacing: 0) {
+                        HStack(alignment: .center, spacing: 0) {
                             PlayerView(player: leftPlayer, dynamicSize: dynamicSize, isDealer: dealer == leftPlayer.id)
                                 .frame(width: dynamicSize.sidePlayerWidth, height: dynamicSize.sidePlayerHeight)
-                            
-                            VStack {
+                            VStack(spacing: 0) {
                                 Group {
                                     HStack {
                                         TrumpView(dynamicSize: dynamicSize)
@@ -72,7 +71,7 @@ struct GameView: View {
                                     }
                                 }
                                 .frame(width: dynamicSize.scoreboardWidth, height: dynamicSize.scoreboardHeight)
-                                
+
                                 ZStack {
                                     if !(gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks) {
                                         if gameManager.gameState.currentPhase != .choosingTrump {
@@ -87,11 +86,11 @@ struct GameView: View {
                                                 .fill(Color.white.opacity(0.5)) // Background with opacity
                                                 .overlay(
                                                     VStack {
-                                                        Spacer() // Push the title to the bottom
                                                         Text(gameManager.gameState.lastTrick.isEmpty ? "Pas de dernier pli" : "Dernier pli")
                                                             .font(.headline)
                                                             .foregroundColor(.black)
                                                             .padding(.bottom, 8) // Ensure padding at the bottom
+                                                        Spacer()
                                                     }
                                                 )
                                                 .overlay(
@@ -110,11 +109,13 @@ struct GameView: View {
                         PlayerView(player: localPlayer, dynamicSize: dynamicSize, isDealer: dealer == localPlayer.id)
                             .frame(width: dynamicSize.localPlayerWidth, height: dynamicSize.localPlayerHeight)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity) //, alignment: .bottom)
                     
                     ConfettiCannon(trigger: $gameManager.showConfetti, num: 100, repetitions: 5, repetitionInterval: 1)
                         .ignoresSafeArea()
                         .transition(.opacity)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .coordinateSpace(name: "contentArea")
                 .sheet(isPresented: $showRoundHistory) {
                     RoundHistoryView(isPresented: $showRoundHistory)
@@ -179,6 +180,7 @@ struct GameView: View {
                     .environmentObject(gameManager)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onPreferenceChange(CardTransformPreferenceKey.self) { transforms in
             self.cardTransforms = transforms
             
@@ -407,7 +409,11 @@ struct GameView_Previews: PreviewProvider {
         gameManager.showTrumps = false
         gameManager.showLastTrick = false
         gameManager.gameState.currentPhase = .playingTricks
-        
+        gameManager.gameState.dealer = .gg
+//        gameManager.gameState.localPlayer?.hand.removeAll()
+//        gameManager.gameState.leftPlayer?.hand.removeAll()
+//        gameManager.gameState.rightPlayer?.hand.removeAll()
+
         return GameView()
             .environmentObject(gameManager)
             .previewDisplayName("Game View Preview")

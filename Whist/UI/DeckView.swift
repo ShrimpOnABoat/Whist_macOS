@@ -27,7 +27,7 @@ struct DeckView: View {
                 // Empty deck placeholder
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(Color.gray, style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                    .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)
+                    .frame(width: dynamicSize.cardWidth * dynamicSize.deckCardsScale, height: dynamicSize.cardHeight * dynamicSize.deckCardsScale)
                     .overlay(
                         Text("Deck")
                             .font(.caption)
@@ -43,6 +43,7 @@ struct DeckView: View {
                     let shuffleRotation = randomRotations[card.id] ?? 0
                     
                     TransformableCardView(card: card,
+                                          scale: dynamicSize.deckCardsScale,
                                           xOffset: gameManager.isShuffling ? shuffleOffset.width : baseOffset.width,
                                           yOffset: gameManager.isShuffling ? shuffleOffset.height : baseOffset.height,
                                           dynamicSize: dynamicSize)

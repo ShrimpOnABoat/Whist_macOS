@@ -27,13 +27,37 @@ struct TableView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                switch mode {
-                case .tricks:
-                    // Default: Display cards on the table
-                    displayTrickCards(dynamicSize: dynamicSize)
-                case .trumps:
-                    // Display trump cards
-                    displayTrumpCards(dynamicSize: dynamicSize)
+                if gameManager.gameState.currentPhase == .waitingToStart {
+                    if let winner = gameManager.lastGameWinner {
+                        VStack {
+                            Text("🎉🎊 BRAVO \(winner.rawValue.uppercased()) 🎊🎉")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.yellow)
+                                .shadow(radius: 5)
+                                .multilineTextAlignment(.center)
+                                .padding(.bottom, 8)
+                            
+                            Text("Tu as dominé cette partie avec brio! 🏆")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.green.opacity(0.8))
+                                .shadow(radius: 10)
+                        )
+                        .transition(.scale)
+                    }
+                } else {
+                    switch mode {
+                    case .tricks:
+                        // Default: Display cards on the table
+                        displayTrickCards(dynamicSize: dynamicSize)
+                    case .trumps:
+                        // Display trump cards
+                        displayTrumpCards(dynamicSize: dynamicSize)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -44,8 +68,8 @@ struct TableView: View {
     // MARK: - Display Trick Cards
     private func displayTrickCards(dynamicSize: DynamicSize) -> some View {
         ZStack {
-            let offset: CGFloat = 40
-
+            let offset = dynamicSize.tableOffset
+            
             if let localPlayer = gameState.localPlayer,
                let localIndex = gameState.playOrder.firstIndex(of: localPlayer.id),
                localIndex < gameState.table.count {
@@ -99,11 +123,12 @@ struct TableView: View {
 // MARK: - Preview
 
 struct TableView_Previews: PreviewProvider {
-    static var previews: some View {
-        let gameManager = GameManager()
+    // Set up a shared game manager for previews
+    static var gameManager: GameManager = {
+        let manager = GameManager()
         
         // Setup preview game state
-        gameManager.setupPreviewGameState()
+        manager.setupPreviewGameState()
 
         // Define trump cards
         let trumpCards = [
@@ -112,14 +137,20 @@ struct TableView_Previews: PreviewProvider {
             Card(suit: .diamonds, rank: .two),
             Card(suit: .spades, rank: .two)
         ]
-        
-        gameManager.gameState.trumpCards = trumpCards.map { card in
+        manager.gameState.trumpCards = trumpCards.map { card in
             let mutableCard = card
             mutableCard.isFaceDown = false // Flip the trump cards face up
             return mutableCard
         }
         
-        return Group {
+        // Winner display
+        manager.gameState.currentPhase = .waitingToStart
+        manager.lastGameWinner = .dd
+        return manager
+    }()
+
+    static var previews: some View {
+        Group {
             GeometryReader { geometry in
                 let dynamicSize: DynamicSize = DynamicSize(from: geometry)
                 // Trick Cards Preview
@@ -127,10 +158,21 @@ struct TableView_Previews: PreviewProvider {
                     .environmentObject(gameManager)
                     .previewDisplayName("Trick Cards")
                     .previewLayout(.fixed(width: 600, height: 400))
-                
+            }
+
+            GeometryReader { geometry in
+                let dynamicSize: DynamicSize = DynamicSize(from: geometry)
                 // Trump Cards Preview
                 TableView(gameState: {
                     let gameState = gameManager.gameState
+                    
+                    // Define trump cards
+                    let trumpCards = [
+                        Card(suit: .hearts, rank: .two),
+                        Card(suit: .clubs, rank: .two),
+                        Card(suit: .diamonds, rank: .two),
+                        Card(suit: .spades, rank: .two)
+                    ]
                     gameState.table = trumpCards // Use trump cards for this preview
                     return gameState
                 }(), dynamicSize: dynamicSize

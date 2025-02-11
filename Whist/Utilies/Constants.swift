@@ -34,7 +34,7 @@ struct GameConstants {
     ]
 }
 
-// UI-related constants
+// Dynamic UI-related constants
 struct DynamicSize {
     let width: CGFloat
     let height: CGFloat
@@ -58,41 +58,53 @@ struct DynamicSize {
     
     // Table View
     var tableWidth: CGFloat { width * 0.5 } // 50% of total width
-    var tableHeight: CGFloat { height * 0.3 } // 30% of total height
+    var tableHeight: CGFloat { height * 0.35 } // 30% of total height
+    var tableOffset: CGFloat { proportion * 40 }
     
     // Scoreboard
     var scoreboardWidth: CGFloat { width * 0.5 }
     var scoreboardHeight: CGFloat { height * 0.25 }
+    var deckCardsScale: CGFloat { proportion * 2 / 3 }
+    var vstackScoreSpacing: CGFloat { proportion * 10 }
+    var roundSize: CGFloat { proportion * 20 }
+    var nameSize: CGFloat { proportion * 14 }
+    var scoreSize: CGFloat { proportion * 12 }
+    var announceSize: CGFloat { proportion * 20 }
     
     // Cards attributes
     var cardWidth: CGFloat { proportion * 90 }
     var cardHeight: CGFloat { proportion * 135 }
     var cardShadowRadius: CGFloat = 2
     var cardHoverOffset: CGFloat = 20
-    
 
     // Player View
+    var sidePlayerHandWidth: CGFloat { sidePlayerWidth * 0.5 }
+    var sidePlayerHandHeight: CGFloat { sidePlayerHeight * 0.8 }
+    var sidePlayerInfoWidth: CGFloat { sidePlayerWidth }
     let fanRadius: CGFloat = 300
     let minCardAngle: CGFloat = 5
     var playerViewHorizontalSpacing: CGFloat { widthProportion * 30 }
-    var localPlayerHandWidth: CGFloat { width * 1 }
-    var localPlayerHandHeight: CGFloat { height * 0.5 }
-    var localPlayerStateWidth: CGFloat { width * 0.25 }
-    var localPlayerStateHeight: CGFloat { height * 0.25 }
-    var localPlayerInfoWidth: CGFloat { width * 0.25 }
-    var localPlayerInfoHeight: CGFloat { height * 0.25 }
-    var localPlayerTrickWidth: CGFloat { width * 0.25 }
-    var localPlayerTrickHeight: CGFloat { height * 0.25 }
+    var localPlayerHandWidth: CGFloat { localPlayerWidth * 1 }
+    var localPlayerHandHeight: CGFloat { localPlayerHeight * 0.5 }
+    var localPlayerStateWidth: CGFloat { localPlayerWidth * 0.25 }
+    var localPlayerStateHeight: CGFloat { localPlayerHeight * 0.25 }
+    var localPlayerInfoWidth: CGFloat { localPlayerWidth * 1 }
+    var localPlayerInfoHeight: CGFloat { localPlayerHeight * 0.25 }
+    var localPlayerTrickWidth: CGFloat { localPlayerWidth * 0.25 }
+    var localPlayerTrickHeight: CGFloat { localPlayerHeight * 0.25 }
+    var sidePlayerCardScale: CGFloat { proportion * 2 / 3 }
     var playerImageWidth: CGFloat { widthProportion * 50 }
     var playerImageHeight: CGFloat { heightProportion * 50 }
-    var otherTrickSpacing: CGFloat { heightProportion * 0 }
+    var otherTrickSpacing: CGFloat { heightProportion * 5 }
     var localTrickSpacing: CGFloat { widthProportion * 5 }
     var trickScale: CGFloat { proportion / 3 }
+    var stateTextSize: CGFloat { proportion * 12 }
     
     // Dealer button
-    var dealerButtonSize: CGFloat { 30 * proportion }
-    var dealerButtonLocalOffset: CGSize { CGSize(width: width * -40, height: height * -30) }
-    var dealerButtonSideOffset: CGPoint { CGPoint(x: width * 50, y: height * 20) }
+    var dealerButtonSize: CGFloat { 50 * proportion }
+    var dealerButtonLocalOffset: CGSize { CGSize(width: 0, height: proportion * 50) }
+    var dealerButtonLeftOffset: CGSize { CGSize(width: proportion * -50, height: 0) }
+    var dealerButtonRightOffset: CGSize { CGSize(width: proportion * 50, height: 0) }
     
     // Betting options
     var optionsVerticalSpacing : CGFloat { 20 * proportion }

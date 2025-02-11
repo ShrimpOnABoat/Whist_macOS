@@ -23,23 +23,66 @@ struct PlayerView: View {
         GeometryReader { geometry in
             VStack {
                 if player.tablePosition != .local {
-                    HStack(spacing: dynamicSize.playerViewHorizontalSpacing) {
+                    VStack {
                         if player.tablePosition == .left {
-                            PlayerHand(dynamicSize: dynamicSize)
-                        }
-                        VStack {
-                            StateDisplay()
-                            PlayerInfo(dynamicSize: dynamicSize)
-                            if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
-                                TrickDisplay(dynamicSize: dynamicSize)
-                                    .onTapGesture {
-                                        gameManager.showLastTrick.toggle()
-                                    }
+                            HStack {
+                                PlayerInfo(dynamicSize: dynamicSize)
+                                StateDisplay()
+                                    .offset(y: -20)
                             }
-                        }
-                        .frame(maxHeight: .infinity, alignment: .top)
-                        if player.tablePosition == .right {
-                            PlayerHand(dynamicSize: dynamicSize)
+                            .frame(width: dynamicSize.sidePlayerInfoWidth)
+                            HStack {
+                                PlayerHand(dynamicSize: dynamicSize)
+                                    .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                                ZStack {
+                                    // Dealer button overlay
+                                    VStack {
+                                        if isDealer {
+                                            DealerButton(size: dynamicSize.dealerButtonSize)
+                                                .offset(dynamicSize.dealerButtonLeftOffset)
+                                                .animation(.easeInOut, value: isDealer)
+                                        }
+                                    }
+                                    .frame(maxHeight: .infinity, alignment: .top)
+                                    if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
+                                        TrickDisplay(dynamicSize: dynamicSize)
+                                            .onTapGesture {
+                                                gameManager.showLastTrick.toggle()
+                                            }
+                                    }
+                                }
+                                .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                            }
+                            .frame(width: dynamicSize.sidePlayerWidth)
+                        } else {
+                            HStack {
+                                StateDisplay()
+                                    .offset(y: -20)
+                                PlayerInfo(dynamicSize: dynamicSize)
+                            }
+                            .frame(width: dynamicSize.sidePlayerInfoWidth)
+                            HStack {
+                                ZStack {
+                                    // Dealer button overlay
+                                    VStack {
+                                        if isDealer {
+                                            DealerButton(size: dynamicSize.dealerButtonSize)
+                                                .offset(dynamicSize.dealerButtonRightOffset)
+                                                .animation(.easeInOut, value: isDealer)
+                                        }
+                                    }
+                                    .frame(maxHeight: .infinity, alignment: .top)
+                                    if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
+                                        TrickDisplay(dynamicSize: dynamicSize)
+                                            .onTapGesture {
+                                                gameManager.showLastTrick.toggle()
+                                            }
+                                    }
+                                }
+                                .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                                PlayerHand(dynamicSize: dynamicSize)
+                                    .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                            }
                         }
                     }
                 } else {
@@ -56,14 +99,21 @@ struct PlayerView: View {
                             .frame(maxWidth: .infinity, alignment: .center)
                             PlayerInfo(dynamicSize: dynamicSize)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                            if isDealer {
+                                DealerButton(size: dynamicSize.dealerButtonSize)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .offset(dynamicSize.dealerButtonLocalOffset)
+                                    .animation(.easeInOut, value: isDealer)
+                            }
                         }
-                        .frame(maxWidth: geometry.size.width * 0.5, maxHeight: .infinity)
+                        .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
+                        Spacer()
                         PlayerHand(dynamicSize: dynamicSize)
+                            .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .padding()
         }
     }
     
@@ -72,13 +122,6 @@ struct PlayerView: View {
     private func PlayerInfo(dynamicSize: DynamicSize) -> some View {
         ZStack {
             PlayerImageView(player: player, dynamicSize: dynamicSize)
-            
-            // Dealer button overlay
-            if isDealer {
-                DealerButton(size: dynamicSize.dealerButtonSize)
-                    .offset(player.tablePosition == .local ? dynamicSize.dealerButtonLocalOffset : CGSize(width: (player.tablePosition == .left ? dynamicSize.dealerButtonSideOffset.x : -dynamicSize.dealerButtonSideOffset.x), height: -dynamicSize.dealerButtonSideOffset.y))
-                    .animation(.easeInOut, value: isDealer)
-            }
         }
     }
     
@@ -87,72 +130,59 @@ struct PlayerView: View {
     private func TrickDisplay(dynamicSize: DynamicSize) -> some View {
         let roundIndex = gameManager.gameState.round - 1
         if player.announcedTricks.indices.contains(roundIndex) {
-            if player.tablePosition != .local {
-                VStack(spacing: dynamicSize.otherTrickSpacing) {
-                    // Announced Tricks
-                    ForEach(0..<player.announcedTricks[roundIndex], id: \.self) { index in
-                        if index * 3 + 2 < player.trickCards.count {
-                            ZStack {
-                                ForEach(0..<3, id: \.self) { cardIndex in
-                                    TransformableCardView(card: player.trickCards[index * 3 + cardIndex], scale: dynamicSize.trickScale, rotation: 90, dynamicSize: dynamicSize)
-                                }
-                            }
-                        } else {
-                            PlaceholderTrick(dynamicSize: dynamicSize)
+            Group {
+                if player.tablePosition != .local {
+                    VStack(spacing: dynamicSize.otherTrickSpacing) {
+                        ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
+                            TrickStack(
+                                index: index,
+                                isExtra: index >= player.announcedTricks[roundIndex],
+                                isVertical: true,
+                                dynamicSize: dynamicSize
+                            )
                         }
                     }
-                    
-                    // Extra Tricks
-                    let extraTricks = player.madeTricks[roundIndex] - player.announcedTricks[roundIndex]
-                    if extraTricks > 0 {
-                        ForEach(0..<extraTricks, id: \.self) { index in
-                            let extraIndex = (index + player.announcedTricks[roundIndex]) * 3
-                            if extraIndex + 2 < player.trickCards.count {
-                                ZStack {
-                                    ForEach(0..<3, id: \.self) { cardIndex in
-                                        TransformableCardView(card: player.trickCards[extraIndex + cardIndex], scale: dynamicSize.trickScale, rotation: 90, dynamicSize: dynamicSize)
-                                    }
-                                }
-                                .hueRotation(Angle(degrees: 90))
-                            }
-                        }
-                    }
-                }
-            } else { // local player
-                HStack(spacing: dynamicSize.localTrickSpacing) {
-                    // Announced Tricks
-                    ForEach(0..<player.announcedTricks[roundIndex], id: \.self) { index in
-                        if index * 3 + 2 < player.trickCards.count {
-                            ZStack {
-                                ForEach(0..<3, id: \.self) { cardIndex in
-                                    TransformableCardView(card: player.trickCards[index * 3 + cardIndex], scale: dynamicSize.trickScale, dynamicSize: dynamicSize)
-                                }
-                            }
-                        } else {
-                            PlaceholderTrick(dynamicSize: dynamicSize).rotationEffect(.degrees(90))
-                        }
-                    }
-                    
-                    // Extra Tricks
-                    let extraTricks = player.madeTricks[roundIndex] - player.announcedTricks[roundIndex]
-                    if extraTricks > 0 {
-                        ForEach(0..<extraTricks, id: \.self) { index in
-                            let extraIndex = (index + player.announcedTricks[roundIndex]) * 3
-                            if extraIndex + 2 < player.trickCards.count {
-                                ZStack {
-                                    ForEach(0..<3, id: \.self) { cardIndex in
-                                        TransformableCardView(card: player.trickCards[extraIndex + cardIndex], scale: dynamicSize.trickScale, dynamicSize: dynamicSize)
-                                    }
-                                }
-                                .hueRotation(Angle(degrees: 90))
-                            }
+                } else {
+                    HStack(spacing: dynamicSize.localTrickSpacing) {
+                        ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
+                            TrickStack(
+                                index: index,
+                                isExtra: index >= player.announcedTricks[roundIndex],
+                                isVertical: false,
+                                dynamicSize: dynamicSize
+                            )
                         }
                     }
                 }
             }
         }
     }
-    
+
+    @ViewBuilder
+    private func TrickStack(index: Int, isExtra: Bool, isVertical: Bool, dynamicSize: DynamicSize) -> some View {
+        let rotation: Double = isVertical ? 90 : 0
+        
+        ZStack {
+            if index * 3 + 2 < player.trickCards.count {
+                ForEach(0..<3, id: \.self) { cardIndex in
+                    TransformableCardView(
+                        card: player.trickCards[index * 3 + cardIndex],
+                        scale: dynamicSize.trickScale,
+                        rotation: rotation,
+                        dynamicSize: dynamicSize
+                    )
+                }
+                .hueRotation(isExtra ? .degrees(90) : .degrees(0))
+            } else {
+                PlaceholderTrick(dynamicSize: dynamicSize)
+                    .rotationEffect(.degrees(90 - rotation))
+            }
+        }
+        .frame(
+            width: isVertical ? dynamicSize.cardHeight * dynamicSize.trickScale : dynamicSize.cardWidth * dynamicSize.trickScale,
+            height: isVertical ? dynamicSize.cardWidth * dynamicSize.trickScale : dynamicSize.cardHeight * dynamicSize.trickScale
+        )
+    }
     // MARK: State Display
     
     struct HoverMoveUpButtonStyle: ButtonStyle {
@@ -190,6 +220,7 @@ struct PlayerView: View {
                     }
                 }) {
                     Text(discardString(numberOfCardsToDiscard: numberOfCardsToDiscard))
+                        .font(.system(size: dynamicSize.stateTextSize))
                         .padding(.vertical, 5)
                         .padding(.horizontal, 10)
                         .background(selectedCount == numberOfCardsToDiscard ? Color.green : Color.white.opacity(0.5)) // Active vs Inactive
@@ -211,6 +242,7 @@ struct PlayerView: View {
                     gameManager.startNewGameAction()
                 }) {
                     Text("Nouvelle partie")
+                        .font(.system(size: dynamicSize.stateTextSize))
                         .padding(.vertical, 5)
                         .padding(.horizontal, 10)
                         .background(Color.green)
@@ -254,6 +286,7 @@ struct PlayerView: View {
             VStack {
                 if !displayedMessage.isEmpty {
                     Text(displayedMessage)
+                        .font(.system(size: dynamicSize.stateTextSize))
                         .padding(.vertical, 5)
                         .padding(.horizontal, 10)
                         .background(Color.white.opacity(0.5))
@@ -267,6 +300,7 @@ struct PlayerView: View {
                         .animation(.easeInOut(duration: 0.3), value: displayedMessage)
                 } else {
                     Text(displayedMessage)
+                        .font(.system(size: dynamicSize.stateTextSize))
                         .padding(.vertical, 5)
                         .padding(.horizontal, 10)
                         .background(Color.white.opacity(0.5))
@@ -295,12 +329,10 @@ struct PlayerView: View {
     // MARK: - Player Hand
     @ViewBuilder
     private func PlayerHand(dynamicSize: DynamicSize) -> some View {
-        //        let fanRadius: CGFloat = 300
-        //        let minCardAngle: CGFloat = 5
         let handCount = player.hand.count
         
         if handCount == 0 {
-            EmptyView()
+            Spacer()
         } else {
             let angleBetweenCards = min(dynamicSize.minCardAngle, 180 / CGFloat(handCount))
             let totalAngle = angleBetweenCards * CGFloat(handCount - 1)
@@ -332,8 +364,8 @@ struct PlayerView: View {
                 )
                 
                 // Compute bounding box of the rotated card
-                let cardWidth = dynamicSize.cardWidth
-                let cardHeight = dynamicSize.cardHeight
+                let cardWidth = dynamicSize.cardWidth * dynamicSize.deckCardsScale
+                let cardHeight = dynamicSize.cardHeight * dynamicSize.deckCardsScale
                 let rad = rotation * .pi / 180
                 
                 // Width and height of rotated bounding box
@@ -361,6 +393,7 @@ struct PlayerView: View {
                 ForEach(cardPositions, id: \.0.id) { (card, xOffset, yOffset, rotation) in
                     TransformableCardView(
                         card: card,
+                        scale: player.tablePosition == .local ? dynamicSize.proportion : dynamicSize.sidePlayerCardScale,
                         rotation: rotation,
                         xOffset: xOffset,
                         yOffset: yOffset,
@@ -470,6 +503,9 @@ struct PlayerView_Previews: PreviewProvider {
     static var gameManager: GameManager = {
         let manager = GameManager()
         manager.setupPreviewGameState()
+        manager.gameState.localPlayer?.hand.removeAll()
+        manager.gameState.leftPlayer?.hand.removeAll()
+        manager.gameState.rightPlayer?.hand.removeAll()
         return manager
     }()
     

@@ -17,7 +17,7 @@ struct TrumpView: View {
                 // Show marker for empty deck
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(Color.gray, style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                    .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)
+                    .frame(width: dynamicSize.cardWidth * dynamicSize.deckCardsScale, height: dynamicSize.cardHeight * dynamicSize.deckCardsScale)
                     .overlay(
                         Text("Atouts")
                             .font(.caption)
@@ -26,7 +26,7 @@ struct TrumpView: View {
             } else {
                 ForEach(Array(gameManager.gameState.trumpCards.enumerated()), id: \.element.id) { index, card in
                     let offset = CGFloat(CGFloat(index)*GameConstants.deckOffset.y) // Offset for visual separation
-                    TransformableCardView(card: card, xOffset: offset, yOffset: -offset, dynamicSize: dynamicSize)
+                    TransformableCardView(card: card, scale: dynamicSize.deckCardsScale, xOffset: offset, yOffset: -offset, dynamicSize: dynamicSize)
                         .hueRotation(Angle(degrees: -90 * (card.isFaceDown == true ? 1 : 0)))
                 }
             }

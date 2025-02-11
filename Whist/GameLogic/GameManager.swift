@@ -497,7 +497,11 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
                 }
             }
             logWithTimestamp(message)
-            beginBatchMove(totalCards: 1) { completion() }
+            beginBatchMove(totalCards: 1) {
+                if destination == .localPlayer {
+                    self.sortLocalPlayerHand()
+                }
+                completion() }
             moveCard(card, from: origin, to: destination)
         }
         persistence.saveGameState(gameState)
