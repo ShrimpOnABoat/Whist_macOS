@@ -45,10 +45,13 @@ struct PlayerView: View {
                                     }
                                     .frame(maxHeight: .infinity, alignment: .top)
                                     if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
-                                        TrickDisplay(dynamicSize: dynamicSize)
-                                            .onTapGesture {
-                                                gameManager.showLastTrick.toggle()
-                                            }
+                                        Button(action: {
+                                            gameManager.showLastTrick.toggle()
+                                        }) {
+                                            TrickDisplay(dynamicSize: dynamicSize)
+                                        }
+                                        .buttonStyle(PlainButtonStyle()) // Use a plain style if you don't want the default button appearance
+                                        .keyboardShortcut(.space, modifiers: [])
                                     }
                                 }
                                 .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)

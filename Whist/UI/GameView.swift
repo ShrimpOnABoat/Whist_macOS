@@ -63,10 +63,14 @@ struct GameView: View {
                                 Group {
                                     HStack {
                                         TrumpView(dynamicSize: dynamicSize)
-                                        ScoreBoardView(dynamicSize: dynamicSize)
-                                            .onTapGesture {
-                                                showRoundHistory.toggle()
-                                            }
+                                        Button(action: {
+                                            showRoundHistory.toggle()
+                                        }) {
+                                            ScoreBoardView(dynamicSize: dynamicSize)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                        .keyboardShortcut(KeyEquivalent("s"), modifiers: [])
+                                        .disabled(!isScoreBoardReady)
                                         DeckView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
                                     }
                                 }
@@ -171,6 +175,7 @@ struct GameView: View {
                         }
                     }
                 }
+                .frame(width: dynamicSize.tableWidth, height: dynamicSize.tableHeight)
                 .animation(.easeInOut, value: gameManager.showLastTrick)
             }
             
@@ -260,7 +265,15 @@ struct GameView: View {
         showMatchmaking = false
         gameManager.logWithTimestamp("New game started for player: \(playerID)")
     }
-}
+    
+    private var isScoreBoardReady: Bool {
+        let roundIndex = gameManager.gameState.round - 1
+        guard gameManager.gameState.round > 0 else { return false }
+        return gameManager.gameState.players.allSatisfy { player in
+            player.announcedTricks.indices.contains(roundIndex) &&
+            player.madeTricks.indices.contains(roundIndex)
+        }
+    }}
 
 // MARK: - MovingCard Class
 
