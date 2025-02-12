@@ -46,6 +46,12 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
     
+    // Dealer button animation
+//    @Published var dealerFrames: [PlayerId: CGRect] = [:]
+    @Published var dealerPosition: CGPoint = .zero
+//    @Published var animateDealer: Bool = false
+//    @Published var isAnimatingDealer: Bool = false
+    
     var logCounter: Int = 0
 
     init() {
@@ -257,7 +263,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             fatalError("Error: Dealer is not set or not found in play order.")
         }
         let nextIndex = (currentIndex + 1) % gameState.playOrder.count
-        // TODO: Add withAnimation?
         gameState.dealer = gameState.playOrder[nextIndex]
         logWithTimestamp("Dealer is now \(gameState.dealer!.rawValue).")
         
@@ -268,6 +273,17 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         if gameState.round > 1 {
             updatePlayersPositions()
         }
+    }
+    
+    func updateDealerFrame(playerId: PlayerId, frame: CGRect) {
+        dealerPosition = CGPoint(x: frame.midX, y: frame.midY)
+//        dealerFrames[playerId] = frame
+        
+//        if playerId == gameState.localPlayer?.id {
+//            dealerPosition = CGPoint(x: frame.midX + dynamicSize.dealerButtonLocalOffset.width,
+//                                     y: frame.midY + dynamicSize.dealerButtonLocalOffset.height)
+//        } else {
+//        }
     }
     
     func updatePlayerPlayOrder(startingWith condition: StartingCondition) {

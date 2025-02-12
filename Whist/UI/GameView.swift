@@ -115,7 +115,7 @@ struct GameView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity) //, alignment: .bottom)
                     
-                    ConfettiCannon(trigger: $gameManager.showConfetti, num: 100, repetitions: 5, repetitionInterval: 1)
+                    ConfettiCannon(trigger: $gameManager.showConfetti, num: 100)
                         .ignoresSafeArea()
                         .transition(.opacity)
                 }
@@ -151,6 +151,19 @@ struct GameView: View {
                 .zIndex(1) // Ensure it's above everything else
                 .transition(.scale) // Smooth scaling effect
                 .animation(.easeInOut, value: gameManager.showOptions)
+            }
+            
+            // MARK: Dealer button
+            if gameManager.gameState.dealer == gameManager.gameState.localPlayer?.id{
+                DealerButton(size: dynamicSize.dealerButtonSize)
+                    .position(CGPoint(
+                        x: gameManager.dealerPosition.x + dynamicSize.dealerButtonLocalOffset.width,
+                        y: gameManager.dealerPosition.y + dynamicSize.dealerButtonLocalOffset.height))
+                    .animation(.easeOut, value: gameManager.dealerPosition)
+            } else {
+                DealerButton(size: dynamicSize.dealerButtonSize)
+                    .position(gameManager.dealerPosition)
+                    .animation(.easeOut, value: gameManager.dealerPosition)
             }
             
             // MARK: Show last trick
@@ -324,7 +337,7 @@ struct MovingCardView: View {
                 self.rotation = movingCard.fromState.rotation
                 self.scale = movingCard.fromState.scale
             }
-            .onChange(of: movingCard.toState) { oldToState, newToState in
+            .onChange(of: movingCard.toState) { _, newToState in
                 guard let toState = newToState, !hasAnimated else { return }
                 
                 hasAnimated = true

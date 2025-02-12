@@ -15,6 +15,7 @@ struct PlayerView: View {
     let dynamicSize: DynamicSize
     let isDealer: Bool
     
+    @State private var dealerFrame: CGRect = .zero
     @State private var selectedCardIDs: Set<String> = []
     @State private var displayedMessage: String = ""
     
@@ -38,9 +39,16 @@ struct PlayerView: View {
                                     // Dealer button overlay
                                     VStack {
                                         if isDealer {
-                                            DealerButton(size: dynamicSize.dealerButtonSize)
-                                                .offset(dynamicSize.dealerButtonLeftOffset)
-                                                .animation(.easeInOut, value: isDealer)
+                                            Circle()
+                                                .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                                .opacity(0)
+                                                .background(GeometryReader { proxy in
+                                                    Color.clear
+                                                        .onAppear {
+                                                            let frame = proxy.frame(in: .named("contentArea"))
+                                                            gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                                        }
+                                                })
                                         }
                                     }
                                     .frame(maxHeight: .infinity, alignment: .top)
@@ -69,9 +77,16 @@ struct PlayerView: View {
                                     // Dealer button overlay
                                     VStack {
                                         if isDealer {
-                                            DealerButton(size: dynamicSize.dealerButtonSize)
-                                                .offset(dynamicSize.dealerButtonRightOffset)
-                                                .animation(.easeInOut, value: isDealer)
+                                            Circle()
+                                                .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                                .opacity(0)
+                                                .background(GeometryReader { proxy in
+                                                    Color.clear
+                                                        .onAppear {
+                                                            let frame = proxy.frame(in: .named("contentArea"))
+                                                            gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                                        }
+                                                })
                                         }
                                     }
                                     .frame(maxHeight: .infinity, alignment: .top)
@@ -103,10 +118,22 @@ struct PlayerView: View {
                             PlayerInfo(dynamicSize: dynamicSize)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             if isDealer {
-                                DealerButton(size: dynamicSize.dealerButtonSize)
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                                    .offset(dynamicSize.dealerButtonLocalOffset)
-                                    .animation(.easeInOut, value: isDealer)
+                                HStack {
+                                    Spacer()
+                                    Circle()
+                                        .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                        .opacity(0)
+                                        .overlay(
+                                            GeometryReader { proxy in
+                                                Color.clear
+                                                    .onAppear {
+                                                        let frame = proxy.frame(in: .named("contentArea"))
+                                                        print("Captured frame: \(frame)")
+                                                        gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                                    }
+                                            }
+                                        )
+                                }
                             }
                         }
                         .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
