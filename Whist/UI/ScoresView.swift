@@ -25,6 +25,7 @@ struct ScoresView: View {
                 Text(String(selectedYear))
                     .font(.title)
                     .bold()
+                    .foregroundColor(.primary)
 
                 Button(action: { selectedYear += 1 }) {
                     Image(systemName: "chevron.right")
@@ -52,6 +53,7 @@ struct ScoresView: View {
         }
         .padding()
         .frame(minWidth: 700, minHeight: 500)
+        .background(Color(NSColor.windowBackgroundColor))
     }
 }
 
@@ -98,22 +100,22 @@ struct SummaryView: View {
         VStack(alignment: .leading) {
             Text("Scores pour \(String(year))")
                 .font(.headline)
+                .foregroundColor(.primary)
                 .padding(.bottom, 5)
 
             // Table header row
             HStack {
-                Text("Mois").frame(width: 100, alignment: .leading)
+                Text("Mois").frame(width: 100, alignment: .leading).foregroundColor(.secondary)
                 Spacer()
-                Text("GG").frame(width: 40, alignment: .center)
-                Text("DD").frame(width: 40, alignment: .center)
-                Text("Toto").frame(width: 40, alignment: .center)
+                Text("GG").frame(width: 40, alignment: .center).foregroundColor(.secondary)
+                Text("DD").frame(width: 40, alignment: .center).foregroundColor(.secondary)
+                Text("Toto").frame(width: 40, alignment: .center).foregroundColor(.secondary)
                 Rectangle()
                     .frame(width: 1, height: 20)
-                    .foregroundColor(.gray)
-                    .opacity(0.5)
-                Text("GG").frame(width: 40, alignment: .center)
-                Text("DD").frame(width: 40, alignment: .center)
-                Text("Toto").frame(width: 40, alignment: .center)
+                    .foregroundColor(Color(NSColor.separatorColor))
+                Text("GG").frame(width: 40, alignment: .center).foregroundColor(.secondary)
+                Text("DD").frame(width: 40, alignment: .center).foregroundColor(.secondary)
+                Text("Toto").frame(width: 40, alignment: .center).foregroundColor(.secondary)
             }
             .font(.subheadline)
             .padding(.vertical, 4)
@@ -123,24 +125,17 @@ struct SummaryView: View {
             // Data rows
             ForEach(monthlySummaries) { summary in
                 HStack {
-                    Text(summary.month).frame(width: 100, alignment: .leading)
+                    Text(summary.month).frame(width: 100, alignment: .leading).foregroundColor(.primary)
                     Spacer()
-                    Text("\(summary.ggPoints)").frame(width: 40, alignment: .center)
-                    Text("\(summary.ddPoints)").frame(width: 40, alignment: .center)
-                    Text("\(summary.totoPoints)").frame(width: 40, alignment: .center)
+                    Text("\(summary.ggPoints)").frame(width: 40, alignment: .center).foregroundColor(.primary)
+                    Text("\(summary.ddPoints)").frame(width: 40, alignment: .center).foregroundColor(.primary)
+                    Text("\(summary.totoPoints)").frame(width: 40, alignment: .center).foregroundColor(.primary)
                     Rectangle()
                         .frame(width: 1, height: 20)
-                        .foregroundColor(.gray)
-                        .opacity(0.5)
-                    Text("\(summary.ggTally)")
-                        .frame(width: 40, alignment: .center)
-                        .background(Color.yellow.opacity(0.3))
-                    Text("\(summary.ddTally)")
-                        .frame(width: 40, alignment: .center)
-                        .background(Color.yellow.opacity(0.3))
-                    Text("\(summary.totoTally)")
-                        .frame(width: 40, alignment: .center)
-                        .background(Color.yellow.opacity(0.3))
+                        .foregroundColor(Color(NSColor.separatorColor))
+                    Text("\(summary.ggTally)").frame(width: 40, alignment: .center).background(Color.yellow.opacity(0.3))
+                    Text("\(summary.ddTally)").frame(width: 40, alignment: .center).background(Color.yellow.opacity(0.3))
+                    Text("\(summary.totoTally)").frame(width: 40, alignment: .center).background(Color.yellow.opacity(0.3))
                 }
                 .padding(.vertical, 2)
             }
@@ -149,14 +144,14 @@ struct SummaryView: View {
 
             // Total row
             HStack {
-                Text("Total").frame(width: 100, alignment: .leading)
+                Text("Total").frame(width: 100, alignment: .leading).foregroundColor(.primary)
                 Spacer()
-                Text("\(total.gg)").frame(width: 40, alignment: .center)
-                Text("\(total.dd)").frame(width: 40, alignment: .center)
-                Text("\(total.toto)").frame(width: 40, alignment: .center)
-                Text("\(total.ggTally)").frame(width: 40, alignment: .center)
-                Text("\(total.ddTally)").frame(width: 40, alignment: .center)
-                Text("\(total.totoTally)").frame(width: 40, alignment: .center)
+                Text("\(total.gg)").frame(width: 40, alignment: .center).foregroundColor(.primary)
+                Text("\(total.dd)").frame(width: 40, alignment: .center).foregroundColor(.primary)
+                Text("\(total.toto)").frame(width: 40, alignment: .center).foregroundColor(.primary)
+                Text("\(total.ggTally)").frame(width: 40, alignment: .center).foregroundColor(.primary)
+                Text("\(total.ddTally)").frame(width: 40, alignment: .center).foregroundColor(.primary)
+                Text("\(total.totoTally)").frame(width: 40, alignment: .center).foregroundColor(.primary)
             }
             .font(.headline)
             .padding(.vertical, 4)
@@ -165,7 +160,7 @@ struct SummaryView: View {
         .background(RoundedRectangle(cornerRadius: 8)
                         .fill(Color(NSColor.windowBackgroundColor)))
         .overlay(RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.gray, lineWidth: 1))
+                        .stroke(Color(NSColor.separatorColor), lineWidth: 1))
     }
 }
 
@@ -340,15 +335,16 @@ struct DetailedScoresView: View {
         VStack(alignment: .leading) {
             Text("Détails des scores pour \(String(year))")
                 .font(.headline)
+                .foregroundColor(.primary)
                 .padding(.bottom, 5)
 
             // Table header
             HStack {
-                Text("Date").frame(width: 100, alignment: .leading)
+                Text("Date").frame(width: 100, alignment: .leading).foregroundColor(.secondary)
                 Spacer()
-                Text("GG").frame(width: 50, alignment: .center)
-                Text("DD").frame(width: 50, alignment: .center)
-                Text("Toto").frame(width: 50, alignment: .center)
+                Text("GG").frame(width: 50, alignment: .center).foregroundColor(.secondary)
+                Text("DD").frame(width: 50, alignment: .center).foregroundColor(.secondary)
+                Text("Toto").frame(width: 50, alignment: .center).foregroundColor(.secondary)
             }
             .font(.subheadline)
             .padding(.vertical, 4)
@@ -359,6 +355,7 @@ struct DetailedScoresView: View {
                 HStack {
                     Text(dateFormatter.string(from: score.date))
                         .frame(width: 100, alignment: .leading)
+                        .foregroundColor(.primary)
                     Spacer()
                     
                     // Use the helper function to compute the points for the game,
@@ -366,23 +363,27 @@ struct DetailedScoresView: View {
                     let gamePoints = calculateGamePoints(for: score)
                     
                     // Highlighting: blue for a 2-point (winner), green for 1-point, default for 0.
-                    let ggColor: Color = (gamePoints.gg == 2) ? .blue : (gamePoints.gg == 1 ? .green : .primary)
-                    let ddColor: Color = (gamePoints.dd == 2) ? .blue : (gamePoints.dd == 1 ? .green : .primary)
-                    let totoColor: Color = (gamePoints.toto == 2) ? .blue : (gamePoints.toto == 1 ? .green : .primary)
-                    
                     Text("\(score.ggScore)")
                         .frame(width: 50, alignment: .center)
-                        .foregroundColor(ggColor)
+                        .foregroundColor(colorForPoints(gamePoints.gg))
                     Text("\(score.ddScore)")
                         .frame(width: 50, alignment: .center)
-                        .foregroundColor(ddColor)
+                        .foregroundColor(colorForPoints(gamePoints.dd))
                     Text("\(score.totoScore)")
                         .frame(width: 50, alignment: .center)
-                        .foregroundColor(totoColor)
+                        .foregroundColor(colorForPoints(gamePoints.toto))
                 }
             }
         }
         .padding()
+    }
+    
+    func colorForPoints(_ points: Int) -> Color {
+        switch points {
+        case 2: return Color.blue
+        case 1: return Color.green
+        default: return Color.primary
+        }
     }
 }
 

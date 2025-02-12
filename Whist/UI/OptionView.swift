@@ -120,7 +120,7 @@ struct OptionsView: View {
                 let numbers = Array(0...maxBet)
                 let totalItems = numbers.count
                 let minColumns = (totalItems < 7 && totalItems != 4) ? 3 : 4
-                let columns = min(minColumns, totalItems) // Max 3 columns
+                let columns = min(minColumns, totalItems)
                 let rows = Int(ceil(Double(totalItems) / Double(columns))) // Calculate rows dynamically
                 
                 VStack(spacing: dynamicSize.optionsVerticalSpacing) {

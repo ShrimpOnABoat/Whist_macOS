@@ -422,7 +422,6 @@ extension GameManager {
         showLastTrick = false // just in case
         for (index, playerId) in gameState.playOrder.enumerated() {
             if let card = gameState.table[safe: index], let state = cardStates[card.id] {
-                print("Card \(card) at position \(state.position)")
                 let LTCard = Card(suit: card.suit, rank: card.rank, isLastTrick: true)
                 gameState.lastTrick[playerId] = LTCard
                 gameState.lastTrickCardStates[playerId] = CardState(

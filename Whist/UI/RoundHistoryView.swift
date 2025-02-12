@@ -17,7 +17,7 @@ struct RoundHistoryView: View {
                 VStack(spacing: 5) {
                     headerRow()
                     
-                    ForEach(1...min(gameManager.gameState.round, 12), id: \.self) { round in
+                    ForEach(1...min(gameManager.gameState.round - 1, 12), id: \.self) { round in
                         roundRow(round: round)
                     }
                 }
@@ -27,13 +27,11 @@ struct RoundHistoryView: View {
             Button("Fermer") {
                 isPresented = false
             }
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(8)
+            .hidden()
+            .keyboardShortcut("s", modifiers: [])
         }
         .frame(width: 450, height: 500)
-        .background(Color.white)
+        .background(Color(NSColor.windowBackgroundColor))
         .cornerRadius(12)
         .shadow(radius: 10)
     }
@@ -45,13 +43,13 @@ struct RoundHistoryView: View {
                 let order: [PlayerId] = [.gg, .dd, .toto]
                 return order.firstIndex(of: player1.id) ?? Int.max < order.firstIndex(of: player2.id) ?? Int.max
             }
-            Text("Tour").frame(width: 50).bold()
+            Text("Tour").frame(width: 50).bold().foregroundColor(.primary)
             ForEach(players) { player in
-                Text(player.username).frame(width: 100).bold()
+                Text(player.username).frame(width: 100).bold().foregroundColor(.primary)
             }
         }
         .padding(.vertical, 5)
-        .background(Color.gray.opacity(0.2))
+        .background(Color(NSColor.secondaryLabelColor).opacity(0.2))
         .cornerRadius(5)
     }
     
@@ -96,7 +94,6 @@ struct RoundHistoryView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 5)
         .background(backgroundColor)
         .cornerRadius(5)
     }

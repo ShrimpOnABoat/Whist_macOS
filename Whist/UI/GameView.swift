@@ -63,14 +63,17 @@ struct GameView: View {
                                 Group {
                                     HStack {
                                         TrumpView(dynamicSize: dynamicSize)
+                                        
                                         Button(action: {
-                                            showRoundHistory.toggle()
+                                            if gameManager.gameState.round > 1 {
+                                                showRoundHistory.toggle()
+                                            }
                                         }) {
                                             ScoreBoardView(dynamicSize: dynamicSize)
                                         }
                                         .buttonStyle(PlainButtonStyle())
                                         .keyboardShortcut(KeyEquivalent("s"), modifiers: [])
-                                        .disabled(!isScoreBoardReady)
+
                                         DeckView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
                                     }
                                 }
@@ -118,13 +121,26 @@ struct GameView: View {
                     ConfettiCannon(trigger: $gameManager.showConfetti, num: 100)
                         .ignoresSafeArea()
                         .transition(.opacity)
+                    
+//                    if showRoundHistory {
+//                        ZStack {
+//                            // Semi-transparent background that dismisses the view when tapped
+//                            Color.black.opacity(0.4)
+//                                .ignoresSafeArea()
+//                                .onTapGesture {
+//                                    showRoundHistory = false
+//                                }
+//                            
+//                            // The modal view itself
+//                            RoundHistoryView(isPresented: $showRoundHistory)
+//                                .environmentObject(gameManager)
+//                        }
+//                        .transition(.opacity)
+//                        .zIndex(.greatestFiniteMagnitude)
+//                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .coordinateSpace(name: "contentArea")
-                .sheet(isPresented: $showRoundHistory) {
-                    RoundHistoryView(isPresented: $showRoundHistory)
-                        .environmentObject(gameManager)
-                }
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Debug: Players not set up yet.")
@@ -226,6 +242,25 @@ struct GameView: View {
                 }
             }
         }
+        .overlay(
+            Group {
+                if showRoundHistory {
+                    ZStack {
+                        // Tappable background to dismiss the modal
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                showRoundHistory = false
+                            }
+                        
+                        // The modal view
+                        RoundHistoryView(isPresented: $showRoundHistory)
+                            .environmentObject(gameManager)
+                    }
+                    .transition(.opacity)
+                }
+            }
+        )
         .alert("Reprendre ou Commencer une Nouvelle Partie ?", isPresented: $showAlert) {
             Button("Reprendre") {
                 resumeGame()
@@ -278,15 +313,7 @@ struct GameView: View {
         showMatchmaking = false
         gameManager.logWithTimestamp("New game started for player: \(playerID)")
     }
-    
-    private var isScoreBoardReady: Bool {
-        let roundIndex = gameManager.gameState.round - 1
-        guard gameManager.gameState.round > 0 else { return false }
-        return gameManager.gameState.players.allSatisfy { player in
-            player.announcedTricks.indices.contains(roundIndex) &&
-            player.madeTricks.indices.contains(roundIndex)
-        }
-    }}
+}
 
 // MARK: - MovingCard Class
 

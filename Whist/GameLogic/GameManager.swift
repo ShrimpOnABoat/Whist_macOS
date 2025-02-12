@@ -232,6 +232,15 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             $0.trickCards.removeAll()
             $0.state = .idle
         }
+
+        // Move to the next dealer in playOrder so that another player starts the game
+        guard let dealer = gameState.dealer,
+              let currentIndex = gameState.playOrder.firstIndex(of: dealer) else {
+            fatalError("Error: Dealer is not set or not found in play order.")
+        }
+        let nextIndex = (currentIndex + 1) % gameState.playOrder.count
+        gameState.dealer = gameState.playOrder[nextIndex]
+        logWithTimestamp("Dealer is now \(gameState.dealer!.rawValue).")
     }
     
     func newGameRound() {

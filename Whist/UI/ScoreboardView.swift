@@ -69,16 +69,11 @@ struct ScoreBoardView: View {
                         // Announced Tricks
                         if (round < 4 || gameManager.allPlayersBet()) && (player.announcedTricks.count >= round && round > 0) {
                             let announcedTricks = player.announcedTricks[round - 1]
-                            let tricksSum = gameManager.gameState.players.reduce(0) { $0 + ($1.announcedTricks.count >= round ? $1.announcedTricks[round - 1] : 0) }
-                            let targetTricks = max(round - 2, 1)
                             
                             Text("\(announcedTricks)")
                                 .font(.system(size: dynamicSize.announceSize))
                                 .bold(true)
-                                .foregroundColor(
-                                    tricksSum == targetTricks ? .black :
-                                    tricksSum < targetTricks ? .blue : .red
-                                )
+                                .foregroundColor(.primary)
                         } else {
                             Text(" ")
                                 .font(.system(size: dynamicSize.announceSize))
@@ -88,6 +83,8 @@ struct ScoreBoardView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
+            .background(betsColor(for: gameManager))
+            .cornerRadius(5)
         }
         .padding()
         .background(Color.white.opacity(0.5))
@@ -97,6 +94,30 @@ struct ScoreBoardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.white, lineWidth: 2)
         )
+    }
+    
+    func betsColor(for gameManager: GameManager) -> Color {
+        let round = gameManager.gameState.round
+        
+        if round < 4 || !gameManager.allPlayersBet() {
+            return Color.white.opacity(0)
+        }
+        
+        let tricksSum = gameManager.gameState.players.reduce(0) { sum, player in
+            sum + (player.announcedTricks.count >= round ? player.announcedTricks[round - 1] : 0)
+        }
+        let targetTricks = max(round - 2, 1)
+
+        // Dynamic red or blue color based on the difference
+        let difference = CGFloat(abs(tricksSum - targetTricks))
+
+        if tricksSum > targetTricks {
+            // Red for sum greater than target
+            return Color.red.opacity(difference * 0.2)
+        } else {
+            // Blue for sum less than target
+            return Color.blue.opacity(difference * 0.2)
+        }
     }
 }
 
