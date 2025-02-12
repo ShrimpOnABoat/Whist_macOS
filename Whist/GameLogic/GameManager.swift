@@ -570,12 +570,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             totoConsecutiveWins: consecutiveWins(by: .toto)
         )
         
-//        // Load existing scores; if none exist, this will be an empty array.
-//        var existingScores = ScoresManager.shared.loadScores()
-//        
-//        // Append the new score.
-//        existingScores.append(newScore)
-        
         // Save the updated scores array.
         ScoresManager.shared.saveScore(newScore)
         

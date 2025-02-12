@@ -172,7 +172,7 @@ struct SummaryView: View {
 /// Computes the monthly summaries for the given year by loading the scores and grouping them.
 /// Update the monthly summaries function to use the new point calculation.
 func computeMonthlySummaries(for year: Int) -> [MonthlySummary] {
-    let scores = ScoresManager.shared.loadScores(for: year)
+    let scores = ScoresManager.shared.loadScoresSafely(for: year)
     let monthNames = [
         1: "Janvier", 2: "Février", 3: "Mars", 4: "Avril",
         5: "Mai", 6: "Juin", 7: "Juillet", 8: "Août",
@@ -330,7 +330,7 @@ struct DetailedScoresView: View {
 
     // Loads all game scores for the given year.
     var detailedScores: [GameScore] {
-        let allScores = ScoresManager.shared.loadScores(for: year)
+        let allScores = ScoresManager.shared.loadScoresSafely(for: year)
         let calendar = Calendar.current
         return allScores.filter { calendar.component(.year, from: $0.date) == year }
                         .sorted { $0.date < $1.date }

@@ -57,6 +57,15 @@ struct Loser {
     let losingMonths: Int
 }
 
+enum ScoresManagerError: Error {
+    case directoryCreationFailed
+    case encodingFailed
+    case decodingFailed
+    case fileWriteFailed
+    case fileReadFailed
+    case cloudKitError(Error)
+}
+
 class ScoresManager {
     static let shared = ScoresManager()
     
@@ -81,13 +90,25 @@ class ScoresManager {
         Calendar.current.component(.year, from: Date())
     }
     
+    private func ensureDirectoryExists() throws {
+#if TEST_MODE
+        if !fileManager.fileExists(atPath: scoresDirectoryURL.path) {
+            do {
+                try fileManager.createDirectory(at: scoresDirectoryURL, withIntermediateDirectories: true)
+            } catch {
+                throw ScoresManagerError.directoryCreationFailed
+            }
+        }
+#endif
+    }
+    
     // MARK: Save Scores
-    func saveScores(_ scores: [GameScore]) {
+    func saveScores(_ scores: [GameScore]) throws {
         #if TEST_MODE
         do {
-            let encoder = JSONEncoder()
+            try ensureDirectoryExists()
             
-            // Configure the date formatter for the desired ISO 8601 format with timezone offset.
+            let encoder = JSONEncoder()
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
             formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -99,14 +120,17 @@ class ScoresManager {
             let data = try encoder.encode(scores)
             try data.write(to: scoresFileURL)
             print("Scores saved locally in TEST_MODE!")
+        } catch ScoresManagerError.directoryCreationFailed {
+            throw ScoresManagerError.directoryCreationFailed
+        } catch EncodingError.invalidValue(_, _) {
+            throw ScoresManagerError.encodingFailed
         } catch {
-            print("Error saving scores: \(error)")
+            throw ScoresManagerError.fileWriteFailed
         }
-        #else
+#else
         let record = CKRecord(recordType: "GameScores")
         do {
             let encoder = JSONEncoder()
-            
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
             formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -116,30 +140,64 @@ class ScoresManager {
             
             let data = try encoder.encode(scores)
             record["scores"] = data as CKRecordValue
+            
+            let semaphore = DispatchSemaphore(value: 0)
+            var saveError: Error?
+            
             CKContainer.default().privateCloudDatabase.save(record) { _, error in
-                if let error = error {
-                    print("Error saving scores to CloudKit: \(error)")
-                } else {
-                    print("Scores saved to CloudKit!")
-                }
+                saveError = error
+                semaphore.signal()
             }
+            
+            semaphore.wait()
+            
+            // Check if an error occurred during save
+            if let error = saveError {
+                throw ScoresManagerError.cloudKitError(error)
+            }
+            
         } catch {
-            print("Error encoding scores for CloudKit: \(error)")
+            throw ScoresManagerError.encodingFailed
         }
-        #endif
+#endif
     }
     
     // MARK: Save Score
     func saveScore(_ score: GameScore) {
-        var scores = loadScores()
+        var scores = loadScoresSafely()
         scores.append(score)
-        saveScores(scores)
+        do {
+            try saveScores(scores)
+        } catch {
+            logWithTimestamp("Error saving scores: \(error)")
+        }
     }
     
     // MARK: Load Scores
-    func loadScores(for year: Int = Calendar.current.component(.year, from: Date())) -> [GameScore] {
+    // Add a non-throwing convenience method
+    func loadScoresSafely(for year: Int = Calendar.current.component(.year, from: Date())) -> [GameScore] {
+        do {
+            return try loadScores(for: year)
+        } catch {
+            logWithTimestamp("Error loading scores: \(error)")
+            return []
+        }
+    }
+    
+    // Helper function for logging
+    private func logWithTimestamp(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        print("[\(timestamp)] \(message)")
+    }
+    
+    func loadScores(for year: Int = Calendar.current.component(.year, from: Date())) throws -> [GameScore] {
         #if TEST_MODE
         do {
+            try ensureDirectoryExists()
+            
+            let data = try Data(contentsOf: scoresDirectoryURL.appendingPathComponent("scores_\(year).json"))
             let decoder = JSONDecoder()
             
             // Custom date decoding strategy to handle different formats
@@ -157,28 +215,39 @@ class ScoresManager {
                     return date
                 } else if let date = alternateFormatter.date(from: dateString) {
                     return date
-                } else {
-                    throw DecodingError.dataCorruptedError(
-                        in: container,
-                        debugDescription: "Date string does not match expected formats"
-                    )
                 }
+                throw DecodingError.dataCorruptedError(
+                    in: container,
+                    debugDescription: "Date string does not match expected formats"
+                )
             }
-
-            let data = try Data(contentsOf: scoresDirectoryURL.appendingPathComponent("scores_\(year).json"))
+            
             return try decoder.decode([GameScore].self, from: data)
         } catch {
-            print("Error loading scores: \(error)")
-            return []
+            if !FileManager.default.fileExists(atPath: scoresFileURL.path) {
+                return []
+            }
+            throw ScoresManagerError.decodingFailed
         }
         #else
         var scores: [GameScore] = []
         let query = CKQuery(recordType: "GameScores", predicate: NSPredicate(value: true))
         let semaphore = DispatchSemaphore(value: 0)
-        CKContainer.default().privateCloudDatabase.perform(query, inZoneWith: nil) { records, error in
-            if let error = error {
-                print("Error loading scores from CloudKit: \(error)")
-            } else if let records = records {
+        var loadError: Error?
+        
+        CKContainer.default().privateCloudDatabase.fetch(
+            withQuery: query,
+            inZoneWith: nil,
+            desiredKeys: nil,
+            resultsLimit: CKQueryOperation.maximumResults
+        ) { result in
+            switch result {
+            case .failure(let error):
+                loadError = error
+            case .success(let fetchResult):
+                // Each matchResult is a tuple: (CKRecord.ID, Result<CKRecord, Error>)
+                // We need to extract the CKRecord from the Result.
+                let records = fetchResult.matchResults.compactMap { try? $0.1.get() }
                 for record in records {
                     if let data = record["scores"] as? Data {
                         do {
@@ -208,7 +277,7 @@ class ScoresManager {
                             let decodedScores = try decoder.decode([GameScore].self, from: data)
                             scores.append(contentsOf: decodedScores)
                         } catch {
-                            print("Error decoding scores: \(error)")
+                            loadError = ScoresManagerError.decodingFailed
                         }
                     }
                 }
@@ -216,13 +285,17 @@ class ScoresManager {
             semaphore.signal()
         }
         semaphore.wait()
+        
+        if let error = loadError {
+            throw ScoresManagerError.cloudKitError(error)
+        }
         return scores
         #endif
     }
     
     // MARK: Find Loser
     func findLoser() -> Loser? {
-        let scores = loadScores(for: currentYear)
+        let scores = loadScoresSafely(for: currentYear)
         guard !scores.isEmpty else { return nil }
         
         let currentMonth = Calendar.current.component(.month, from: Date())
@@ -291,3 +364,4 @@ class ScoresManager {
         return Loser(playerId: loser, losingMonths: losingMonths)
     }
 }
+

@@ -14,6 +14,8 @@ class MatchmakingViewModel: NSObject, ObservableObject {
     @Published var match: GKMatch?
     
     private var matchRequest: GKMatchRequest
+    weak var gameKitManager: GameKitManager?
+    weak var connectionManager: ConnectionManager?
     
     override init() {
         // Configure the match request
@@ -23,6 +25,11 @@ class MatchmakingViewModel: NSObject, ObservableObject {
         // Optionally set player attributes or groups
         
         super.init()
+    }
+    
+    func configure(gameKitManager: GameKitManager, connectionManager: ConnectionManager) {
+        self.gameKitManager = gameKitManager
+        self.connectionManager = connectionManager
     }
     
     func startMatchmaking() {
@@ -60,9 +67,16 @@ extension MatchmakingViewModel: GKMatchmakerViewControllerDelegate, GKMatchDeleg
         viewController.dismiss(nil)
         self.match = match
         match.delegate = self
-        GameKitManager.shared.match = match
+        gameKitManager?.match = match
+        connectionManager?.configureMatch(match)
         logWithTimestamp("Match found with players: \(match.players)")
-        // Proceed to the game
+    }
+    
+    private func logWithTimestamp(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timestamp = formatter.string(from: Date())
+        print("[\(timestamp)] \(message)")
     }
 }
 #endif

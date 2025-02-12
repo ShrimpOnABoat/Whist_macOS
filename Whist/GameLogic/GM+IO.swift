@@ -230,6 +230,7 @@ extension GameManager {
         }
     }
     
+    #if TEST_MODE
     func syncPlayersFromConnections(_ connectedPeers: [PeerConnection]) {
         var connectedPlayerIDs = connectedPeers.compactMap { $0.playerID }
         logWithTimestamp("--> Connected players: \(connectedPlayerIDs)")
@@ -258,4 +259,5 @@ extension GameManager {
         
 //        checkAndAdvanceStateIfNeeded()
     }
+    #endif
 }

@@ -14,9 +14,14 @@ import GameKit
 struct MatchMakingView: View {
     @State private var navigateToGame = false
     @EnvironmentObject var gameManager: GameManager
+    @EnvironmentObject var gameKitManager: GameKitManager
     @EnvironmentObject var connectionManager: ConnectionManager
     @State private var selectedPlayerID: PlayerId? = nil
     @State private var isWaitingForPlayers: Bool = false
+    
+    #if !TEST_MODE
+    @StateObject private var viewModel = MatchmakingViewModel()
+    #endif
     
     var body: some View {
         NavigationStack {
@@ -60,6 +65,14 @@ struct MatchMakingView: View {
                 navigateToGame = true
             }
         }
+        #if !TEST_MODE
+        .onAppear {
+            viewModel.configure(
+                gameKitManager: gameKitManager,
+                connectionManager: connectionManager
+            )
+        }
+        #endif
     }
 }
 

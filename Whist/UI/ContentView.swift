@@ -8,39 +8,38 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var gameManager: GameManager
-    @EnvironmentObject var gameKitManager: GameKitManager
+    @EnvironmentObject private var gameManager: GameManager
+    @EnvironmentObject private var gameKitManager: GameKitManager
+    @EnvironmentObject private var connectionManager: ConnectionManager
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-#if TEST_MODE
+        ZStack {
+            #if TEST_MODE
+            MatchMakingView()
+            #else
+            if gameKitManager.isAuthenticated {
                 MatchMakingView()
-#else
-                if gameKitManager.isAuthenticated {
-                    // Show the game or matchmaking view
-                    MatchmakingView()
-                } else {
-                    // Show a loading or sign-in prompt
-                    VStack {
-                        Text("Authenticating with Game Center...")
-                        if let errorMessage = gameManager.authenticationErrorMessage {
-                            Text("Error: \(errorMessage)")
-                                .foregroundColor(.red)
-                        }
+            } else {
+                VStack(spacing: 20) {
+                    Text("Authenticating with Game Center...")
+                        .font(.headline)
+                    if let errorMessage = gameKitManager.authenticationErrorMessage {
+                        Text("Error: \(errorMessage)")
+                            .foregroundColor(.red)
+                    } else {
+                        EmptyView()
                     }
                 }
-#endif
             }
+            #endif
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-            .environmentObject(GameManager())
-            .environmentObject(GameKitManager())
-            .environmentObject(ConnectionManager())
-    }
+#Preview {
+    ContentView()
+        .environmentObject(GameManager())
+        .environmentObject(GameKitManager())
+        .environmentObject(ConnectionManager())
 }

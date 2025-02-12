@@ -23,22 +23,23 @@ struct TestModeMessage: Codable {
     let playerID: PlayerId
 }
 
+#if TEST_MODE
 struct PeerConnection {
     let connection: NWConnection
     var playerID: PlayerId?
     var isServer: Bool = false
     var incomingData: Data = Data() // New buffer for accumulating data
 }
+#endif
 
 class ConnectionManager: NSObject, ObservableObject {
     weak var gameManager: GameManager?
+    @Published private(set) var localPlayerID: PlayerId?
     
 #if !TEST_MODE
     @Published var match: GKMatch?
-#endif
-    
-#if TEST_MODE
-    @Published var localPlayerID: PlayerId = .dd
+#else
+//    @Published var localPlayerID: PlayerId = .dd
     private var connectedPeers: [PeerConnection] = []
     private var listener: NWListener?
     private var isServer: Bool = false
@@ -48,7 +49,10 @@ class ConnectionManager: NSObject, ObservableObject {
         super.init()
         
 #if TEST_MODE
-        NotificationCenter.default.addObserver(self, selector: #selector(applicationWillTerminateNotification), name: NSApplication.willTerminateNotification, object: nil)
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(applicationWillTerminateNotification),
+                                               name: NSApplication.willTerminateNotification,
+                                               object: nil)
 #endif
     }
     
@@ -59,11 +63,11 @@ class ConnectionManager: NSObject, ObservableObject {
 #endif
     
     // MARK: - Test Mode Networking (Sockets)
-    
-#if TEST_MODE
+
     func setLocalPlayerID(_ playerID: PlayerId) {
         self.localPlayerID = playerID
 
+#if TEST_MODE
         let message = playerID.rawValue.uppercased()
         let padding = 3 // Padding around the message inside the box
         let lineLength = message.count + padding * 2
@@ -76,8 +80,13 @@ class ConnectionManager: NSObject, ObservableObject {
 
         startListening()
         logWithTimestamp("setLocalPlayerID called. isServer: \(isServer)")
+        #else
+        logWithTimestamp("Local player ID set to: \(playerID.rawValue)")
+#endif
     }
     
+
+#if TEST_MODE
     private func startListening() {
         do {
             let parameters = NWParameters.tcp
@@ -354,32 +363,34 @@ class ConnectionManager: NSObject, ObservableObject {
     }
         
     func applicationWillTerminate() {
-        let message = TestModeMessage(type: .playerDisconnected, playerID: self.localPlayerID)
-        if let data = try? JSONEncoder().encode(message) {
-            if isServer {
-                // Broadcast to all connected clients
-                broadcastMessage(message)
-            } else {
-                // Send to server
-                sendData(data)
+        if let localPlayerID = self.localPlayerID {
+            let message = TestModeMessage(type: .playerDisconnected, playerID: localPlayerID)
+            if let data = try? JSONEncoder().encode(message) {
+                if isServer {
+                    // Broadcast to all connected clients
+                    broadcastMessage(message)
+                } else {
+                    // Send to server
+                    sendData(data)
+                }
             }
+        } else {
+            logWithTimestamp( "applicationWillTerminate: Local player ID not found.")
         }
     }
 #endif
     
     // MARK: - Data Transmission
     
+#if TEST_MODE
     func sendData(_ data: Data, to connection: NWConnection? = nil) {
-    #if TEST_MODE
         var dataWithDelimiter = data
         dataWithDelimiter.append("\n".data(using: .utf8)!)
-//        logWithTimestamp("sendData: \(connectedPeers.count) connected")
-
+        
         // Check if a specific connection is provided
         if let connection = connection {
             // Send data to the specific player
             if let peer = connectedPeers.first(where: { $0.connection.endpoint == connection.endpoint }) {
-//                logWithTimestamp("Sending \(data) to \(peer.connection.endpoint)")
                 peer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                     if let error = error {
                         self.logWithTimestamp("Send error: \(error)")
@@ -393,7 +404,6 @@ class ConnectionManager: NSObject, ObservableObject {
             if isServer {
                 for peer in connectedPeers {
                     if peer.playerID != localPlayerID {
-//                        logWithTimestamp("Broadcasting \(data) to \(peer.playerID?.rawValue ?? "unknown")")
                         peer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                             if let error = error {
                                 self.logWithTimestamp("Broadcast send error: \(error)")
@@ -404,7 +414,6 @@ class ConnectionManager: NSObject, ObservableObject {
             } else {
                 // A client sends only to the server
                 if let serverPeer = connectedPeers.first(where: { $0.isServer }) {
-//                    logWithTimestamp("Client sending \(data) to server at \(serverPeer.connection.endpoint)")
                     serverPeer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                         if let error = error {
                             self.logWithTimestamp("Send error: \(error)")
@@ -415,11 +424,33 @@ class ConnectionManager: NSObject, ObservableObject {
                 }
             }
         }
-    #else
-        // Existing GameKit code...
-    #endif
     }
+    #else
+    func sendData(_ data: Data) {
+        // GameKit implementation: send data to all players reliably.
+        guard let match = self.match else {
+            logWithTimestamp("No active GameKit match to send data.")
+            return
+        }
+        do {
+            try match.sendData(toAllPlayers: data, with: .reliable)
+            logWithTimestamp("Data sent via GameKit.")
+        } catch {
+            logWithTimestamp("Error sending data via GameKit: \(error)")
+        }
+    }
+#endif
     
+    // MARK: - GameKit Match Configuration (Non‑TEST_MODE)
+#if !TEST_MODE
+    /// Call this method from your GameKitManager once a match is found.
+    func configureMatch(_ match: GKMatch) {
+        self.match = match
+        self.match?.delegate = self
+        logWithTimestamp("GameKit match configured with players: \(match.players.map { $0.displayName })")
+    }
+#endif
+
 #if TEST_MODE
     private func broadcastPlayerList() {
         // For each connected player, send a playerConnected message
@@ -432,26 +463,30 @@ class ConnectionManager: NSObject, ObservableObject {
     }
     
     private func sendPlayerConnectedMessage(to connections: [NWConnection]? = nil) {
-        let message = TestModeMessage(type: .playerConnected, playerID: self.localPlayerID)
-        if var data = try? JSONEncoder().encode(message) {
-            data.append("\n".data(using: .utf8)!) // Append newline delimiter
-            if let connections = connections {
-                for connection in connections {
-                    connection.send(content: data, completion: .contentProcessed { error in
-                        if let error = error {
-                            self.logWithTimestamp("Send error: \(error)")
-                        }
-                    })
-                }
-            } else {
-                for peer in connectedPeers {
-                    peer.connection.send(content: data, completion: .contentProcessed { error in
-                        if let error = error {
-                            self.logWithTimestamp("Send error: \(error)")
-                        }
-                    })
+        if let localPlayerID = self.localPlayerID {
+            let message = TestModeMessage(type: .playerConnected, playerID: localPlayerID)
+            if var data = try? JSONEncoder().encode(message) {
+                data.append("\n".data(using: .utf8)!) // Append newline delimiter
+                if let connections = connections {
+                    for connection in connections {
+                        connection.send(content: data, completion: .contentProcessed { error in
+                            if let error = error {
+                                self.logWithTimestamp("Send error: \(error)")
+                            }
+                        })
+                    }
+                } else {
+                    for peer in connectedPeers {
+                        peer.connection.send(content: data, completion: .contentProcessed { error in
+                            if let error = error {
+                                self.logWithTimestamp("Send error: \(error)")
+                            }
+                        })
+                    }
                 }
             }
+        } else {
+            logWithTimestamp("sendPlayerConnectedMessage called, but localPlayerID is nil")
         }
     }
 #endif
@@ -462,20 +497,20 @@ class ConnectionManager: NSObject, ObservableObject {
     // Existing GameKit methods...
 #endif
     
-    func connectionStatus(for player: Player) -> String {
-#if TEST_MODE
-        if player.id == self.localPlayerID {
-            return "Connected (You)"
-        } else if connectedPeers.contains(where: { $0.playerID == player.id }) {
-            return "Connected"
-        } else {
-            return "Disconnected"
-        }
-#else
-        // Existing GameKit implementation...
-#endif
-    }
-    
+//    func connectionStatus(for player: Player) -> String {
+//#if TEST_MODE
+//        if player.id == self.localPlayerID {
+//            return "Connected (You)"
+//        } else if connectedPeers.contains(where: { $0.playerID == player.id }) {
+//            return "Connected"
+//        } else {
+//            return "Disconnected"
+//        }
+//#else
+//        // Existing GameKit implementation...
+//#endif
+//    }
+//    
     func logWithTimestamp(_ message: String) {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -487,3 +522,31 @@ class ConnectionManager: NSObject, ObservableObject {
 protocol ConnectionManagerDelegate: AnyObject {
     func handleReceivedAction(_ action: GameAction)
 }
+
+#if !TEST_MODE
+// MARK: - GKMatchDelegate Implementation
+
+extension ConnectionManager: GKMatchDelegate {
+    func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
+        logWithTimestamp("Received data from \(player.displayName)")
+        // Attempt to decode a GameAction (or other message) from the received data.
+        do {
+            let action = try JSONDecoder().decode(GameAction.self, from: data)
+            DispatchQueue.main.async {
+                self.gameManager?.handleReceivedAction(action)
+            }
+        } catch {
+            logWithTimestamp("Failed to decode GameAction from GameKit data: \(error)")
+        }
+    }
+    
+    func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
+        logWithTimestamp("Player \(player.displayName) changed state to \(state.rawValue)")
+        // Update your game state or notify the GameManager if needed.
+    }
+    
+    func match(_ match: GKMatch, didFailWithError error: Error?) {
+        logWithTimestamp("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
+    }
+}
+#endif
