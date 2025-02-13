@@ -18,132 +18,158 @@ struct PlayerView: View {
     @State private var dealerFrame: CGRect = .zero
     @State private var selectedCardIDs: Set<String> = []
     @State private var displayedMessage: String = ""
-    
+    @State private var scoreChange: Int? = nil
     
     var body: some View {
         GeometryReader { geometry in
-            VStack {
-                if player.tablePosition != .local {
-                    VStack {
-                        if player.tablePosition == .left {
-                            HStack {
-                                PlayerInfo(dynamicSize: dynamicSize)
-                                StateDisplay()
-                                    .offset(y: -20)
-                            }
-                            .frame(width: dynamicSize.sidePlayerInfoWidth)
-                            HStack {
-                                PlayerHand(dynamicSize: dynamicSize)
-                                    .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
-                                ZStack {
-                                    // Dealer button overlay
-                                    VStack {
-                                        if isDealer {
-                                            Circle()
-                                                .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
-                                                .opacity(0)
-                                                .background(GeometryReader { proxy in
-                                                    Color.clear
-                                                        .onAppear {
-                                                            let frame = proxy.frame(in: .named("contentArea"))
-                                                            gameManager.updateDealerFrame(playerId: player.id, frame: frame)
-                                                        }
-                                                })
-                                        }
-                                    }
-                                    .frame(maxHeight: .infinity, alignment: .top)
-                                    if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
-                                        Button(action: {
-                                            gameManager.showLastTrick.toggle()
-                                        }) {
-                                            TrickDisplay(dynamicSize: dynamicSize)
-                                        }
-                                        .buttonStyle(PlainButtonStyle()) // Use a plain style if you don't want the default button appearance
-                                        .keyboardShortcut(.space, modifiers: [])
-                                    }
+            ZStack {
+                // Main view content
+                VStack {
+                    if player.tablePosition != .local {
+                        // Non-local player layout
+                        VStack {
+                            if player.tablePosition == .left {
+                                HStack {
+                                    PlayerInfo(dynamicSize: dynamicSize)
+                                    StateDisplay()
+                                        .offset(y: dynamicSize.sidePlayerStateYOffset)
                                 }
-                                .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
-                            }
-                            .frame(width: dynamicSize.sidePlayerWidth)
-                        } else {
-                            HStack {
-                                StateDisplay()
-                                    .offset(y: -20)
-                                PlayerInfo(dynamicSize: dynamicSize)
-                            }
-                            .frame(width: dynamicSize.sidePlayerInfoWidth)
-                            HStack {
-                                ZStack {
-                                    // Dealer button overlay
-                                    VStack {
-                                        if isDealer {
-                                            Circle()
-                                                .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
-                                                .opacity(0)
-                                                .background(GeometryReader { proxy in
-                                                    Color.clear
-                                                        .onAppear {
-                                                            let frame = proxy.frame(in: .named("contentArea"))
-                                                            gameManager.updateDealerFrame(playerId: player.id, frame: frame)
-                                                        }
-                                                })
-                                        }
-                                    }
-                                    .frame(maxHeight: .infinity, alignment: .top)
-                                    if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
-                                        TrickDisplay(dynamicSize: dynamicSize)
-                                            .onTapGesture {
-                                                gameManager.showLastTrick.toggle()
+                                .frame(width: dynamicSize.sidePlayerInfoWidth)
+                                HStack {
+                                    PlayerHand(dynamicSize: dynamicSize)
+                                        .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                                    ZStack {
+                                        // Dealer button overlay
+                                        VStack {
+                                            if isDealer {
+                                                Circle()
+                                                    .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                                    .opacity(0)
+                                                    .background(GeometryReader { proxy in
+                                                        Color.clear
+                                                            .onAppear {
+                                                                let frame = proxy.frame(in: .named("contentArea"))
+                                                                gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                                            }
+                                                    })
                                             }
+                                        }
+                                        .frame(maxHeight: .infinity, alignment: .top)
+                                        if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
+                                            Button(action: {
+                                                gameManager.showLastTrick.toggle()
+                                            }) {
+                                                TrickDisplay(dynamicSize: dynamicSize)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                            .keyboardShortcut(.space, modifiers: [])
+                                        }
+                                    }
+                                    .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                                }
+                                .frame(width: dynamicSize.sidePlayerWidth)
+                            } else {
+                                HStack {
+                                    StateDisplay()
+                                        .offset(y: dynamicSize.sidePlayerStateYOffset)
+                                    PlayerInfo(dynamicSize: dynamicSize)
+                                }
+                                .frame(width: dynamicSize.sidePlayerInfoWidth)
+                                HStack {
+                                    ZStack {
+                                        // Dealer button overlay
+                                        VStack {
+                                            if isDealer {
+                                                Circle()
+                                                    .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                                    .opacity(0)
+                                                    .background(GeometryReader { proxy in
+                                                        Color.clear
+                                                            .onAppear {
+                                                                let frame = proxy.frame(in: .named("contentArea"))
+                                                                gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                                            }
+                                                    })
+                                            }
+                                        }
+                                        .frame(maxHeight: .infinity, alignment: .top)
+                                        if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
+                                            TrickDisplay(dynamicSize: dynamicSize)
+                                                .onTapGesture {
+                                                    gameManager.showLastTrick.toggle()
+                                                }
+                                        }
+                                    }
+                                    .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                                    PlayerHand(dynamicSize: dynamicSize)
+                                        .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                                }
+                            }
+                        }
+                    } else {
+                        // Local player layout
+                        VStack {
+                            ZStack {
+                                VStack {
+                                    StateDisplay()
+                                    TrickDisplay(dynamicSize: dynamicSize)
+                                        .onTapGesture {
+                                            gameManager.showLastTrick.toggle()
+                                        }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                PlayerInfo(dynamicSize: dynamicSize)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                if isDealer {
+                                    HStack {
+                                        Spacer()
+                                        Circle()
+                                            .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                            .opacity(0)
+                                            .overlay(
+                                                GeometryReader { proxy in
+                                                    Color.clear
+                                                        .onAppear {
+                                                            let frame = proxy.frame(in: .named("contentArea"))
+                                                            print("Captured frame: \(frame)")
+                                                            gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                                        }
+                                                }
+                                            )
                                     }
                                 }
-                                .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
-                                PlayerHand(dynamicSize: dynamicSize)
-                                    .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
                             }
+                            .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
+                            Spacer()
+                            PlayerHand(dynamicSize: dynamicSize)
+                                .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
                         }
                     }
-                } else {
-                    // Display player info and hand (horizontal layout for the local player)
-                    VStack {
-                        ZStack {
-                            VStack {
-                                StateDisplay()
-                                TrickDisplay(dynamicSize: dynamicSize)
-                                    .onTapGesture {
-                                        gameManager.showLastTrick.toggle()
-                                    }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            PlayerInfo(dynamicSize: dynamicSize)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            if isDealer {
-                                HStack {
-                                    Spacer()
-                                    Circle()
-                                        .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
-                                        .opacity(0)
-                                        .overlay(
-                                            GeometryReader { proxy in
-                                                Color.clear
-                                                    .onAppear {
-                                                        let frame = proxy.frame(in: .named("contentArea"))
-                                                        print("Captured frame: \(frame)")
-                                                        gameManager.updateDealerFrame(playerId: player.id, frame: frame)
-                                                    }
-                                            }
-                                        )
-                                }
-                            }
-                        }
-                        .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
-                        Spacer()
-                        PlayerHand(dynamicSize: dynamicSize)
-                            .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+            // Listen for score updates at the top level of PlayerView.
+            .onChange(of: gameManager.playersScoresUpdated) { _, _ in
+                print("Scores are updated")
+                let currentScore = player.scores.last ?? 0
+                let previousScore = player.scores.dropLast().last ?? 0
+                let change = currentScore - previousScore
+                if change != 0 {
+                    scoreChange = change
+                    // Clear the score change after the animation completes.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        scoreChange = nil
                     }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            // Overlay the score change animation.
+            .overlay(
+                Group {
+                    if let change = scoreChange {
+                        ScoreChangeView(scoreChange: change, delay: 0)
+                    }
+                }
+            )
         }
     }
     
@@ -162,32 +188,36 @@ struct PlayerView: View {
         if player.announcedTricks.indices.contains(roundIndex) {
             Group {
                 if player.tablePosition != .local {
-                    VStack(spacing: dynamicSize.otherTrickSpacing) {
-                        ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
-                            TrickStack(
-                                index: index,
-                                isExtra: index >= player.announcedTricks[roundIndex],
-                                isVertical: true,
-                                dynamicSize: dynamicSize
-                            )
+                    ZStack {
+                        VStack(spacing: dynamicSize.otherTrickSpacing) {
+                            ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
+                                TrickStack(
+                                    index: index,
+                                    isExtra: index >= player.announcedTricks[roundIndex],
+                                    isVertical: true,
+                                    dynamicSize: dynamicSize
+                                )
+                            }
                         }
                     }
                 } else {
-                    HStack(spacing: dynamicSize.localTrickSpacing) {
-                        ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
-                            TrickStack(
-                                index: index,
-                                isExtra: index >= player.announcedTricks[roundIndex],
-                                isVertical: false,
-                                dynamicSize: dynamicSize
-                            )
+                    ZStack {
+                        HStack(spacing: dynamicSize.localTrickSpacing) {
+                            ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
+                                TrickStack(
+                                    index: index,
+                                    isExtra: index >= player.announcedTricks[roundIndex],
+                                    isVertical: false,
+                                    dynamicSize: dynamicSize
+                                )
+                            }
                         }
                     }
                 }
             }
         }
     }
-
+    
     @ViewBuilder
     private func TrickStack(index: Int, isExtra: Bool, isVertical: Bool, dynamicSize: DynamicSize) -> some View {
         let rotation: Double = isVertical ? 90 : 0
@@ -213,6 +243,7 @@ struct PlayerView: View {
             height: isVertical ? dynamicSize.cardWidth * dynamicSize.trickScale : dynamicSize.cardHeight * dynamicSize.trickScale
         )
     }
+    
     // MARK: State Display
     
     struct HoverMoveUpButtonStyle: ButtonStyle {
@@ -221,8 +252,8 @@ struct PlayerView: View {
         
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
-                .scaleEffect(configuration.isPressed ? 0.95 : 1.0) // Add a slight scale effect when pressed
-                .offset(y: configuration.isPressed ? -2 : (isActive ? yOffset : 0)) // Use state for hover effect
+                .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+                .offset(y: configuration.isPressed ? -2 : (isActive ? yOffset : 0))
                 .animation(.easeInOut(duration: 0.05), value: configuration.isPressed)
                 .animation(.easeInOut(duration: 0.05), value: yOffset)
                 .onHover { isHovering in
@@ -253,18 +284,18 @@ struct PlayerView: View {
                         .font(.system(size: dynamicSize.stateTextSize))
                         .padding(.vertical, 5)
                         .padding(.horizontal, 10)
-                        .background(selectedCount == numberOfCardsToDiscard ? Color.green : Color.white.opacity(0.5)) // Active vs Inactive
+                        .background(selectedCount == numberOfCardsToDiscard ? Color.green : Color.white.opacity(0.5))
                         .foregroundColor(selectedCount == numberOfCardsToDiscard ? Color.white : Color.black)
                         .cornerRadius(5)
                         .shadow(radius: 5)
                         .overlay(
                             RoundedRectangle(cornerRadius: 5)
                                 .stroke(selectedCount == numberOfCardsToDiscard ? Color.green : Color.white, lineWidth: 2)
-                            )
-                    }
+                        )
+                }
                 .buttonStyle(HoverMoveUpButtonStyle(isActive: selectedCount == numberOfCardsToDiscard))
                 .disabled(selectedCount != numberOfCardsToDiscard)
-                .animation(.easeInOut, value: selectedCount) // Smooth animation for state changes
+                .animation(.easeInOut, value: selectedCount)
             }
         } else if gameManager.gameState.currentPhase == .waitingToStart && player.tablePosition == .local {
             VStack {
@@ -287,7 +318,6 @@ struct PlayerView: View {
                 .buttonStyle(HoverMoveUpButtonStyle(isActive: true))
             }
         } else {
-            // Define the message based on the player's state
             let newMessage: String = {
                 if player.tablePosition != .local {
                     switch player.state {
@@ -312,7 +342,6 @@ struct PlayerView: View {
                 }
             }()
             
-            // Update the message with animation when it changes
             VStack {
                 if !displayedMessage.isEmpty {
                     Text(displayedMessage)
@@ -354,7 +383,7 @@ struct PlayerView: View {
                 }
             }
         }
-            }
+    }
     
     // MARK: - Player Hand
     @ViewBuilder
@@ -430,7 +459,6 @@ struct PlayerView: View {
                         isSelected: selectedCardIDs.contains(card.id),
                         canSelect: canSelectMore,
                         onTap: {
-                            // Toggle card selection
                             if selectedCardIDs.contains(card.id) {
                                 selectedCardIDs.remove(card.id)
                             } else {
@@ -495,7 +523,7 @@ struct PlayerView: View {
     }
 }
 
-// MARK: PlayerImageVIew
+// MARK: PlayerImageView
 
 struct PlayerImageView: View {
     @EnvironmentObject var gameManager: GameManager
@@ -514,7 +542,7 @@ struct PlayerImageView: View {
             } else {
                 Image(systemName: "person.crop.circle.badge.xmark")
                     .resizable()
-                    .frame(width: 50, height: 50)
+                    .frame(width: dynamicSize.playerImageWidth, height: dynamicSize.playerImageHeight)
                     .foregroundColor(.red)
                     .clipShape(Circle())
             }
@@ -524,6 +552,32 @@ struct PlayerImageView: View {
                 .font(.headline)
                 .foregroundColor(.white)
         }
+    }
+}
+
+// MARK: ScoreChangeView
+
+struct ScoreChangeView: View {
+    let scoreChange: Int
+    let delay: Double
+    @State private var offset: CGFloat = 0
+    @State private var opacity: Double = 1
+    @State private var scale: CGFloat = 1.5
+    
+    var body: some View {
+        Text(scoreChange > 0 ? "+\(scoreChange)" : "\(scoreChange)")
+            .font(.system(size: 30, weight: .bold))
+            .foregroundColor(scoreChange > 0 ? .green : .red)
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .offset(y: offset)
+            .onAppear {
+                withAnimation(.easeOut(duration: 2.5).delay(delay)) {
+                    offset = -100
+                    opacity = 0
+                    scale = 1.0
+                }
+            }
     }
 }
 

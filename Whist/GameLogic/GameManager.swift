@@ -46,11 +46,8 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
     
-    // Dealer button animation
-//    @Published var dealerFrames: [PlayerId: CGRect] = [:]
     @Published var dealerPosition: CGPoint = .zero
-//    @Published var animateDealer: Bool = false
-//    @Published var isAnimatingDealer: Bool = false
+    @Published var playersScoresUpdated: Bool = false
     
     var logCounter: Int = 0
 

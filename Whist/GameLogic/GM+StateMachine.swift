@@ -556,12 +556,11 @@ extension GameManager {
                 roundScore = -5 * abs(made - announced)
             }
             
-            // Add the bonus for the highest bidder on the last round
-            
-            
             // Add the round score to the player's total score
             let totalScore = (player.scores.last ?? 0) + roundScore
             player.scores.append(totalScore)
+            
+            
             
             logWithTimestamp("Player \(player.username): Announced \(announced), Made \(made), Round Score \(roundScore), Total Score \(totalScore)")
         }
@@ -585,6 +584,7 @@ extension GameManager {
                 logWithTimestamp("No bonus added due to tie among highest bidders.")
             }
         }
+        self.playersScoresUpdated.toggle()
     }
     
     func isActionValidInCurrentPhase(_ actionType: GameAction.ActionType) -> Bool {
