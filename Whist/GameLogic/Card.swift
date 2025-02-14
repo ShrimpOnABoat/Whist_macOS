@@ -51,9 +51,11 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
     @Published var scale: CGFloat = 1.0
     @Published var isPlaceholder: Bool = false
     @Published var isLastTrick: Bool = false
-    // New properties for random values
+
     var randomOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
     var randomAngle: CGFloat = CGFloat.random(in: -10...10) + CGFloat([-180, 0, 180].randomElement() ?? 0)
+    
+    var playAnimationType: cardAnimationType = .normal
     
     // Initializer
     init(suit: Suit, rank: Rank, isPlaceholder: Bool = false, isLastTrick: Bool = false) {

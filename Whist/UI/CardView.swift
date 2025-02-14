@@ -22,6 +22,7 @@ struct CardView: View {
 
     var body: some View {
         ZStack {
+            // The card image:
             if card.isFaceDown && !card.isLastTrick {
                 Image("Card_back")
                     .resizable()
@@ -36,22 +37,42 @@ struct CardView: View {
         }
         .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)
         .shadow(radius: dynamicSize.cardShadowRadius)
-        .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.gameState.currentPhase == .discard) ? -dynamicSize.cardHoverOffset : 0)   // Move card up on hover
+        .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.gameState.currentPhase == .discard) ? -dynamicSize.cardHoverOffset : 0)
         .opacity(card.isPlaceholder ? 0.0 : 1.0)
         .contentShape(Rectangle())
         .onHover { hovering in
+            // Only allow hover effects when we are in discard phase (if selection is allowed)
+            // or when the card is playable.
             guard gameManager.gameState.currentPhase == .discard
-                  ? canSelect || isSelected // allow hover if we can still select OR we’re already selected
-                  : card.isPlayable
-            else {
-                return
-            }
+                    ? canSelect || isSelected
+                    : card.isPlayable
+            else { return }
+            
             withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
                 hovered = hovering
             }
         }
         .onTapGesture {
-            handleCardTap()
+//            let event = NSEvent.modifierFlags
+//            // TODO: make sure discard and others are not impacted
+//            if event.contains(.shift) {
+//                // Trigger the impact animation
+//                card.playAnimationType = .impact
+//                gameManager.playCard(card) {
+//                    card.playAnimationType = .normal
+//                    gameManager.checkAndAdvanceStateIfNeeded()
+//                }
+//            } else if event.contains(.control) {
+//                // Trigger the failure animation
+//                card.playAnimationType = .failure
+//                gameManager.playCard(card) {
+//                    card.playAnimationType = .normal
+//                    gameManager.checkAndAdvanceStateIfNeeded()
+//                }
+//            } else {
+                // Default tap behavior
+                handleCardTap()
+//            }
         }
     }
     
@@ -69,7 +90,10 @@ struct CardView: View {
         if !card.isFaceDown && card.isPlayable {
             card.isPlayable = false
             if card.rank != .two {
+                let event = NSEvent.modifierFlags
+                card.playAnimationType = event.contains(.shift) ? .impact : event.contains(.control) ? .failure : .normal
                 gameManager.playCard(card) {
+                    card.playAnimationType = .normal
                     gameManager.checkAndAdvanceStateIfNeeded()
                 }
             } else {

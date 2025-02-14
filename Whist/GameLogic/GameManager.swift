@@ -612,7 +612,4 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         return count
     }
-
 }
-
-

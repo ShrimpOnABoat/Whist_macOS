@@ -121,23 +121,6 @@ struct GameView: View {
                     ConfettiCannon(trigger: $gameManager.showConfetti, num: 100)
                         .ignoresSafeArea()
                         .transition(.opacity)
-                    
-//                    if showRoundHistory {
-//                        ZStack {
-//                            // Semi-transparent background that dismisses the view when tapped
-//                            Color.black.opacity(0.4)
-//                                .ignoresSafeArea()
-//                                .onTapGesture {
-//                                    showRoundHistory = false
-//                                }
-//                            
-//                            // The modal view itself
-//                            RoundHistoryView(isPresented: $showRoundHistory)
-//                                .environmentObject(gameManager)
-//                        }
-//                        .transition(.opacity)
-//                        .zIndex(.greatestFiniteMagnitude)
-//                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .coordinateSpace(name: "contentArea")
@@ -312,85 +295,6 @@ struct GameView: View {
     private func startNewGame() {
         showMatchmaking = false
         gameManager.logWithTimestamp("New game started for player: \(playerID)")
-    }
-}
-
-// MARK: - MovingCard Class
-
-class MovingCard: Identifiable, ObservableObject {
-    let id: UUID = UUID()
-    let card: Card
-    let from: CardPlace
-    let to: CardPlace
-    let placeholderCard: Card
-    let fromState: CardState
-    @Published var toState: CardState? = nil
-    
-    // Initializer
-    init(card: Card,from: CardPlace, to: CardPlace, placeholderCard: Card, fromState: CardState) {
-        self.card = card
-        self.from = from
-        self.to = to
-        self.placeholderCard = placeholderCard
-        self.fromState = fromState
-    }
-}
-extension MovingCard: CustomStringConvertible {
-    var description: String {
-        return "\(card)"
-    }
-}
-// MARK: - MovingCardView
-
-struct MovingCardView: View {
-    @EnvironmentObject var gameManager: GameManager
-    @ObservedObject var movingCard: MovingCard
-    var dynamicSize: DynamicSize
-    
-    @State private var position: CGPoint = .zero
-    @State private var rotation: Double = 0
-    @State private var scale: CGFloat = 1.0
-    @State private var hasAnimated: Bool = false // To ensure animation occurs only once
-    
-    var body: some View {
-        CardView(card: movingCard.card, isSelected: false, canSelect: false, onTap: {}, dynamicSize: dynamicSize)
-            .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)
-            .rotationEffect(.degrees(rotation))
-            .scaleEffect(scale)
-            .position(position)
-            .onAppear {
-                // Initialize with source transformations
-                self.position = movingCard.fromState.position
-                self.rotation = movingCard.fromState.rotation
-                self.scale = movingCard.fromState.scale
-            }
-            .onChange(of: movingCard.toState) { _, newToState in
-                guard let toState = newToState, !hasAnimated else { return }
-                
-                hasAnimated = true
-                let animationDuration: TimeInterval = 0.4
-                
-                // Generate a random direction for a full spin (360° clockwise or counterclockwise)
-                let randomSpin: Double
-                if [.localPlayer, .leftPlayer, .rightPlayer].contains(movingCard.from) {
-                    randomSpin = Double([-360, 0, 360].randomElement() ?? 0)
-                } else {
-                    randomSpin = 0 // No spin for cards originating from non-hand areas
-                }
-                
-                gameManager.playSound(named: "play card")
-                
-                withAnimation(.easeOut(duration: animationDuration)) {
-                    self.rotation = toState.rotation + randomSpin
-                    self.scale = toState.scale
-                    self.position = toState.position
-                }
-                
-                // Finalize move after animation completes
-                DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration) {
-                    gameManager.finalizeMove(movingCard)
-                }
-            }
     }
 }
 
