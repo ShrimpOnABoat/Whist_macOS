@@ -14,10 +14,10 @@
             filePath = "Whist/GameLogic/GameManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "614"
-            endingLineNumber = "614"
-            landmarkName = "consecutiveWins(by:)"
-            landmarkType = "7">
+            startingLineNumber = "617"
+            endingLineNumber = "617"
+            landmarkName = "GameManager"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

@@ -51,6 +51,7 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
     @Published var scale: CGFloat = 1.0
     @Published var isPlaceholder: Bool = false
     @Published var isLastTrick: Bool = false
+    @Published var elevation: CGFloat = 0
 
     var randomOffset: CGPoint = CGPoint(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: -10...10))
     var randomAngle: CGFloat = CGFloat.random(in: -10...10) + CGFloat([-180, 0, 180].randomElement() ?? 0)
@@ -68,7 +69,7 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
 
     // Codable conformance
     enum CodingKeys: String, CodingKey {
-        case id, suit, rank
+        case id, suit, rank, cardAnimationType
     }
 
     required init(from decoder: Decoder) throws {
@@ -76,6 +77,7 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
         id = try container.decode(String.self, forKey: .id)
         suit = try container.decode(Suit.self, forKey: .suit)
         rank = try container.decode(Rank.self, forKey: .rank)
+        playAnimationType = try container.decode(cardAnimationType.self, forKey: .cardAnimationType)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -83,6 +85,7 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
         try container.encode(id, forKey: .id)
         try container.encode(suit, forKey: .suit)
         try container.encode(rank, forKey: .rank)
+        try container.encode(playAnimationType, forKey: .cardAnimationType)
     }
 
     // Equatable conformance

@@ -278,7 +278,7 @@ extension GameManager {
         }
 
         // Play the card
-//        logWithTimestamp("playCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
+        logWithTimestamp("playCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 1) {
             completion()
         }
@@ -294,7 +294,7 @@ extension GameManager {
         
         persistence.saveGameState(gameState)
 
-//        logWithTimestamp("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
+        logWithTimestamp("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
         
     }
     
@@ -320,7 +320,6 @@ extension GameManager {
         
         if player.hand.firstIndex(where: { $0 == card }) != nil {
             let source: CardPlace = player.tablePosition == .left ? .leftPlayer : .rightPlayer
-            card.isFaceDown = false
 //            logWithTimestamp("updateGameStateWithPlayedCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
             beginBatchMove(totalCards: 1) { completion() }
             moveCard(card, from: source, to: .table)

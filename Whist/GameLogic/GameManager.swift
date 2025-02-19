@@ -45,7 +45,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
-    
+    @Published var showExplosion: Bool = false
+    @Published var showWindSwirl: Bool = false
+    @Published var effectPosition: CGPoint = .zero // Add this line
+
     @Published var dealerPosition: CGPoint = .zero
     @Published var playersScoresUpdated: Bool = false
     

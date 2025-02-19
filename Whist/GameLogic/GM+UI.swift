@@ -215,6 +215,10 @@ extension GameManager {
             }
         }
         
+        // Reset animation type and elevation
+        movingCard.card.playAnimationType = .normal
+        movingCard.card.elevation = 0
+        
         // Update the card's state to destination state
         cardStates[movingCard.card.id] = toState
         

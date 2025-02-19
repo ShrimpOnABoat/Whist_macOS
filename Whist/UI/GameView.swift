@@ -31,13 +31,13 @@ struct GameView: View {
     @State private var playerID: String = ""
     @State private var showRoundHistory: Bool = false
 
-        @State private var background: AnyView = AnyView(FeltBackgroundView(
-            radialShadingStrength: 0.5,
-            wearIntensity: CGFloat.random(in: 0...1),
-            motifVisibility: CGFloat.random(in: 0...0.5),
-            motifScale: CGFloat.random(in: 0...1),
-            showScratches: Bool.random()
-        ))
+    @State private var background: AnyView = AnyView(FeltBackgroundView(
+        radialShadingStrength: 0.5,
+        wearIntensity: CGFloat.random(in: 0...1),
+        motifVisibility: CGFloat.random(in: 0...0.5),
+        motifScale: CGFloat.random(in: 0...1),
+        showScratches: Bool.random()
+    ))
     @State private var didMeasureDeck: Bool = false
     
     
@@ -55,6 +55,31 @@ struct GameView: View {
                     background
                     //                    GridOverlay(spacing: 50)
                     
+                    // Effects layer (always under the cards but above the background)
+                    ZStack {
+                        if gameManager.showExplosion {
+//                            ExplosionView()
+//                                .frame(width: 100, height: 100)
+//                                .position(gameManager.effectPosition)
+                            ProceduralExplosionView()
+                                .frame(width: 100, height: 100)
+                                .position(gameManager.effectPosition)
+                            ProceduralCracksView()
+                                .blur(radius: 1)
+                                .blendMode(.multiply)
+                                .frame(width: 250, height: 250)
+                                .position(gameManager.effectPosition)
+                        }
+                        if gameManager.showWindSwirl {
+                            WindSwirlView()
+                                .frame(width: 100, height: 100)
+                                .position(gameManager.effectPosition)
+                        }
+                    }
+                }
+                .zIndex(0)
+                
+                ZStack {
                     VStack(spacing: 0) {
                         HStack(alignment: .center, spacing: 0) {
                             PlayerView(player: leftPlayer, dynamicSize: dynamicSize, isDealer: dealer == leftPlayer.id)

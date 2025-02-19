@@ -36,7 +36,7 @@ struct CardView: View {
             }
         }
         .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)
-        .shadow(radius: dynamicSize.cardShadowRadius)
+//        .shadow(radius: dynamicSize.cardShadowRadius)
         .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.gameState.currentPhase == .discard) ? -dynamicSize.cardHoverOffset : 0)
         .opacity(card.isPlaceholder ? 0.0 : 1.0)
         .contentShape(Rectangle())
@@ -53,26 +53,7 @@ struct CardView: View {
             }
         }
         .onTapGesture {
-//            let event = NSEvent.modifierFlags
-//            // TODO: make sure discard and others are not impacted
-//            if event.contains(.shift) {
-//                // Trigger the impact animation
-//                card.playAnimationType = .impact
-//                gameManager.playCard(card) {
-//                    card.playAnimationType = .normal
-//                    gameManager.checkAndAdvanceStateIfNeeded()
-//                }
-//            } else if event.contains(.control) {
-//                // Trigger the failure animation
-//                card.playAnimationType = .failure
-//                gameManager.playCard(card) {
-//                    card.playAnimationType = .normal
-//                    gameManager.checkAndAdvanceStateIfNeeded()
-//                }
-//            } else {
-                // Default tap behavior
                 handleCardTap()
-//            }
         }
     }
     

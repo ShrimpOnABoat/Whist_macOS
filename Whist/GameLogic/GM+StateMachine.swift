@@ -64,7 +64,8 @@ extension GameManager {
     // MARK: handleStateTransition
 
     private func handleStateTransition() {
-        processPendingActionsForCurrentPhase(checkState: false)
+        if processPendingActionsForCurrentPhase() { return }
+        
         switch gameState.currentPhase {
         case .waitingForPlayers:
             setPlayerState(to: .idle)
@@ -107,7 +108,7 @@ extension GameManager {
             waitForAnimationsToFinish {
                 self.gatherCards() {
                     // in case the deck was sent earlier
-                    self.processPendingActionsForCurrentPhase()
+//                    self.processPendingActionsForCurrentPhase()
                     
                     // otherwise nothing to do but wait
                     if !self.isDeckReady { self.logWithTimestamp("Waiting for deck") }
@@ -253,7 +254,7 @@ extension GameManager {
             }
             
             // In case someone already played a card
-            processPendingActionsForCurrentPhase()
+//            processPendingActionsForCurrentPhase()
 
 
             if isLocalPlayerTurnToPlay() {
@@ -591,10 +592,11 @@ extension GameManager {
         return (actionType.associatedPhases.contains(gameState.currentPhase) || actionType.associatedPhases == [])
     }
     
-    func processPendingActionsForCurrentPhase(checkState: Bool = true) {
-        guard pendingActions.isEmpty == false else { return }
+    func processPendingActionsForCurrentPhase(checkState: Bool = true) -> Bool {
+        guard pendingActions.isEmpty == false else { return false }
         
         logWithTimestamp("Pending actions count: \(pendingActions.count)")
+        logWithTimestamp("checkState: \(checkState)")
         var atLeastOneActionProcessed = false
         
         let remainingActions = pendingActions
@@ -606,16 +608,19 @@ extension GameManager {
                 processAction(action)
                 atLeastOneActionProcessed = true
             } else {
-                logWithTimestamp("Action \(action.type) is NOT valid in current phase, skipping it")
+                logWithTimestamp("Action \(action.type) is NOT valid in current phase (\(gameState.currentPhase)), skipping it")
                 pendingActions.append(action)  // Re-add invalid actions
             }
         }
 
         if atLeastOneActionProcessed && checkState {
+            logWithTimestamp("processPendingActionsForCurrentPhase: Checking state after processing actions...")
             checkAndAdvanceStateIfNeeded()
         }
         
         // Remove processed actions from pendingActions
         logWithTimestamp("Pending actions left: \(pendingActions.count)")
+        
+        return atLeastOneActionProcessed
     }
 }
