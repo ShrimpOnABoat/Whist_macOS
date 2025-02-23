@@ -8,6 +8,7 @@
 import SwiftUI
 
 #if !TEST_MODE
+import AppKit
 import GameKit
 #endif
 
@@ -16,14 +17,18 @@ struct MatchMakingView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var gameKitManager: GameKitManager
     @EnvironmentObject var connectionManager: ConnectionManager
+    
+    #if TEST_MODE
     @State private var selectedPlayerID: PlayerId? = nil
     @State private var isWaitingForPlayers: Bool = false
-    
-    #if !TEST_MODE
+    #else
     @StateObject private var viewModel = MatchmakingViewModel()
+    @State private var localPlayerDisplayName = ""
+    @State private var localPlayerPhoto: NSImage?
     #endif
     
     var body: some View {
+#if TEST_MODE
         NavigationStack {
             VStack {
                 // Player Selection UI
@@ -65,14 +70,61 @@ struct MatchMakingView: View {
                 navigateToGame = true
             }
         }
-        #if !TEST_MODE
-        .onAppear {
-            viewModel.configure(
-                gameKitManager: gameKitManager,
-                connectionManager: connectionManager
-            )
+        
+#else  // === !TEST_MODE: Show Game Center info rather than pickers ===
+
+NavigationStack {
+    VStack {
+        if GKLocalPlayer.local.isAuthenticated {
+            // Player’s profile image
+            if let photo = localPlayerPhoto {
+                Image(nsImage: photo)
+                    .resizable()
+                    .frame(width: 60, height: 60)
+                    .clipShape(Circle())
+                    .padding(.bottom, 8)
+            }
+            
+            // Player’s display name
+            Text(localPlayerDisplayName)
+                .font(.headline)
+                .padding(.bottom, 20)
+            
+            // Invite Friends button
+            Button("Invite les losers") {
+                viewModel.inviteFriends()
+            }
+        } else {
+            // Fallback if the local player is not authenticated
+            Text("Please sign in to Game Center.")
         }
-        #endif
+    }
+    .navigationDestination(isPresented: $navigateToGame) {
+        GameView()
+            .environmentObject(connectionManager)
+            .environmentObject(gameManager)
+    }
+}
+.onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
+    if allConnected {
+        gameManager.logWithTimestamp("All players are connected!")
+        gameManager.checkAndAdvanceStateIfNeeded()
+        navigateToGame = true
+    }
+}
+.onAppear {
+    // Configure your view model, load the local player’s name/photo
+    viewModel.configure(
+        gameKitManager: gameKitManager,
+        connectionManager: connectionManager
+    )
+    viewModel.loadLocalPlayerInfo { name, image in
+        self.localPlayerDisplayName = name
+        self.localPlayerPhoto = image
+    }
+}
+
+#endif
     }
 }
 

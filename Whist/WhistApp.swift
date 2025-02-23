@@ -9,6 +9,8 @@ import SwiftUI
 
 @main
 struct WhistApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate // to quickly catch an invitation if the app wasn't launched already
+
     @StateObject private var gameManager = GameManager()
     @StateObject private var gameKitManager = GameKitManager()
     @StateObject private var connectionManager = ConnectionManager()

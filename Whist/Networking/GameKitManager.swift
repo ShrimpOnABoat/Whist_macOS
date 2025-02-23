@@ -12,7 +12,20 @@ import GameKit
 import AppKit // Import AppKit for macOS
 #endif
 
-class GameKitManager: NSObject, ObservableObject {
+class GameKitManager: NSObject, ObservableObject, GKLocalPlayerListener, GKMatchmakerViewControllerDelegate, GKMatchDelegate {
+    func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController) {
+        // The user cancelled matchmaking—dismiss the view controller.
+        viewController.dismiss(nil)
+        logWithTimestamp("Matchmaking was cancelled by the user.")
+    }
+
+    func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFailWithError error: any Error) {
+        // An error occurred during matchmaking—dismiss the view controller and log the error.
+        viewController.dismiss(nil)
+        logWithTimestamp("Matchmaking failed with error: \(error.localizedDescription)")
+        // Optionally, update UI or notify your connectionManager of the failure.
+    }
+    
     @Published var isAuthenticated = false
     @Published var authenticationErrorMessage: String? = nil  // <-- Added property
 
@@ -31,29 +44,37 @@ class GameKitManager: NSObject, ObservableObject {
 
     func authenticateLocalPlayer() {
         #if !TEST_MODE
-        GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    self?.authenticationErrorMessage = error.localizedDescription  // Set error message
-                    self?.logWithTimestamp("Authentication error: \(error.localizedDescription)")
-                    return
-                }
-
-                if let vc = viewController {
-                    self?.presentAuthenticationViewController(vc)
-                } else if GKLocalPlayer.local.isAuthenticated {
-                    self?.isAuthenticated = true
-                    self?.authenticationErrorMessage = nil  // Clear any previous error
-                    self?.logWithTimestamp("Game Center authentication successful.")
-                    
-                    // Assign a PlayerId based on the authenticated player's name
-                    if let playerId = self?.determinePlayerId(for: GKLocalPlayer.local) {
-                        self?.connectionManager?.setLocalPlayerID(playerId)
+        DispatchQueue.main.async {
+            GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
+                DispatchQueue.main.async {
+                    guard let strongSelf = self else {
+                        return
                     }
-                } else {
-                    self?.isAuthenticated = false
-                    self?.authenticationErrorMessage = "Game Center authentication failed."
-                    self?.logWithTimestamp("Game Center authentication failed.")
+                    
+                    if let error = error {
+                        strongSelf.authenticationErrorMessage = error.localizedDescription  // Set error message
+                        strongSelf.logWithTimestamp("Authentication error: \(error.localizedDescription)")
+                        return
+                    }
+
+                    if let vc = viewController {
+                        strongSelf.presentAuthenticationViewController(vc)
+                    } else if GKLocalPlayer.local.isAuthenticated {
+                        strongSelf.isAuthenticated = true
+                        strongSelf.authenticationErrorMessage = nil  // Clear any previous error
+                        strongSelf.logWithTimestamp("Game Center authentication successful.")
+                        
+                        GKLocalPlayer.local.register(strongSelf)
+                        
+                        // Assign a PlayerId based on the authenticated player's name
+                        if let playerId = strongSelf.determinePlayerId(for: GKLocalPlayer.local) {
+                            strongSelf.connectionManager?.setLocalPlayerID(playerId)
+                        }
+                    } else {
+                        strongSelf.isAuthenticated = false
+                        strongSelf.authenticationErrorMessage = "Game Center authentication failed."
+                        strongSelf.logWithTimestamp("Game Center authentication failed.")
+                    }
                 }
             }
         }
@@ -66,6 +87,7 @@ class GameKitManager: NSObject, ObservableObject {
     }
 
     #if !TEST_MODE
+    // MARK: Release functions
     private func determinePlayerId(for player: GKPlayer) -> PlayerId? {
         // TODO: Implement correct mapping when I know more about our IDs
         let name = player.displayName.lowercased()
@@ -93,6 +115,20 @@ class GameKitManager: NSObject, ObservableObject {
             window.contentViewController?.presentAsModalWindow(viewController)
         } else {
             logWithTimestamp("No window available to present the authentication view controller.")
+        }
+    }
+    
+    func player(_ player: GKPlayer, didAccept invite: GKInvite) {
+        // This is called when the user on macOS taps "Accept" in the Game Center invitation
+        // Next, you must create a GKMatchmakerViewController or call GKMatchmaker.shared().match(for:).
+        logWithTimestamp("Function player called")
+        guard let matchmakerVC = GKMatchmakerViewController(invite: invite) else {
+            return
+        }
+        matchmakerVC.matchmakerDelegate = self
+        // On macOS, present the matchmaker as a modal window, sheet, or popover:
+        if let window = NSApplication.shared.windows.first {
+            window.contentViewController?.presentAsSheet(matchmakerVC)
         }
     }
     #endif
