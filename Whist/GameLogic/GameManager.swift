@@ -23,6 +23,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var showLastTrick: Bool = false
     @Published var movingCards: [MovingCard] = []
     private var timerCancellable: AnyCancellable?
+    var randomSeed: UInt64 = UInt64.random(in: 0...UInt64.max)
     var isDeckReady: Bool = false
     var isDeckReceived: Bool = false
     var pendingActions: [GameAction] = []
@@ -59,10 +60,33 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     // MARK: - Game State Initialization
     
+    func updatePlayer(_ playerId: PlayerId, isLocal: Bool = false, name: String, image: NSImage?) {
+        let players = gameState.players
+        guard let index = players.firstIndex(where: { $0.id == playerId }) else {
+            logWithTimestamp("Player with id \(playerId.rawValue) not found.")
+            return
+        }
+        players[index].username = name
+        
+        if let unwrappedImage = image {
+            players[index].image = Image(nsImage: unwrappedImage)
+        } else {
+            players[index].image = Image(systemName: "person.crop.circle.fill")
+        }
+        if isLocal {
+            players[index].tablePosition = .local
+        }
+        players[index].isConnected = true // Set for GK
+        logWithTimestamp("Player \(playerId.rawValue) updated successfully with name: \(name)")
+        logWithTimestamp("Players connected: \(players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
+        displayPlayers()
+        gameState.updateAllPlayersConnected()
+    }
+
     func setupGame() {
         logWithTimestamp("--> SetupGame()")
         let totalPlayers = gameState.players.count
-        let connectedPlayers = gameState.players.filter { $0.connected }.count
+        let connectedPlayers = gameState.players.filter { $0.isConnected }.count
         logWithTimestamp("Total players created: \(totalPlayers), Players connected: \(connectedPlayers)")
         
         // Check if the game is already set up
@@ -71,24 +95,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             return
         }
         
-        // 1. Collect and sort player IDs
-        let playerIDs = gameState.players.map { $0.id }.sorted(by: { $0.rawValue < $1.rawValue })
-        
-        // 2. Create a combined string
-        let combinedString = playerIDs.map { $0.rawValue }.joined(separator: ",")
-        
-        // 3. Generate a seed from the combined string
-        let seed = generateSeed(from: combinedString)
-        
-        // 4. Initialize the random number generator
-        var generator = SeededGenerator(seed: seed)
-        
-        // 5. Shuffle the player order
-        var shuffledPlayerIDs = playerIDs
-        shuffledPlayerIDs.shuffle(using: &generator)
-        
-        // 6. Update the game state
-        gameState.playOrder = shuffledPlayerIDs
+        // Update the game state
+        var generator = SeededGenerator(seed: randomSeed)
+        gameState.playOrder = [.gg, .dd, .toto]
+        gameState.playOrder.shuffle(using: &generator)
         gameState.dealer = gameState.playOrder.first
         logWithTimestamp("Dealer is \(String(describing: gameState.dealer))")
         
@@ -131,14 +141,9 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         }
     }
     
-    func generateSeed(from string: String) -> UInt64 {
-        let data = Data(string.utf8)
-        let hash = SHA256.hash(data: data)
-        // Extract the first 8 bytes to create a UInt64 seed
-        let seed = Data(hash.prefix(8)).withUnsafeBytes { (ptr: UnsafeRawBufferPointer) in
-            return ptr.load(as: UInt64.self)
-        }
-        return seed
+    func generateAndSendSeed() { // Only if local player is toto
+        logWithTimestamp("Sending seed to other players!")
+        sendSeedToPlayers(randomSeed)
     }
     
     struct SeededGenerator: RandomNumberGenerator {
@@ -614,5 +619,18 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         }
         
         return count
+    }
+    
+    func displayPlayers() {
+        logWithTimestamp("🔍 Displaying all players:")
+
+        for player in gameState.players {
+            let username = player.username
+            let playerId = player.id.rawValue
+            let tablePosition = player.tablePosition?.rawValue ?? "unknown"
+            let isConnected = player.isConnected
+
+            logWithTimestamp("🔹 Player: \(username), PlayerId: \(playerId), TablePosition: \(tablePosition), Connected: \(isConnected)")
+        }
     }
 }

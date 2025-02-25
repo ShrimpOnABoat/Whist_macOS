@@ -48,11 +48,11 @@ class Player: Identifiable, ObservableObject, Codable {
     @Published var madeTricks: [Int] = []
     @Published var monthlyLosses: Int = 0
     @Published var bonusCards: Int = 0
-    @Published var connected: Bool = false
+    @Published var isConnected: Bool = false
     @Published var place: Int = -1
     @Published var hand: [Card] = []
     @Published var trickCards: [Card] = []
-    @Published var tablePosition: TablePosition = .local
+    @Published var tablePosition: TablePosition? //= .local
     @Published var state: PlayerState = .idle
     var hasDiscarded: Bool = false
     
@@ -94,7 +94,7 @@ class Player: Identifiable, ObservableObject, Codable {
         madeTricks = try container.decode([Int].self, forKey: .madeTricks)
         monthlyLosses = try container.decode(Int.self, forKey: .monthlyLosses)
         bonusCards = try container.decode(Int.self, forKey: .bonusCards)
-        connected = try container.decode(Bool.self, forKey: .connected)
+        isConnected = try container.decode(Bool.self, forKey: .connected)
         hand = try container.decode([Card].self, forKey: .hand)
         trickCards = try container.decode([Card].self, forKey: .trickCards)
         state = try container.decode(PlayerState.self, forKey: .state)
@@ -115,7 +115,7 @@ class Player: Identifiable, ObservableObject, Codable {
         try container.encode(madeTricks, forKey: .madeTricks)
         try container.encode(monthlyLosses, forKey: .monthlyLosses)
         try container.encode(bonusCards, forKey: .bonusCards)
-        try container.encode(connected, forKey: .connected)
+        try container.encode(isConnected, forKey: .connected)
         try container.encode(hand, forKey: .hand)
         try container.encode(trickCards, forKey: .trickCards)
         try container.encode(state, forKey: .state)

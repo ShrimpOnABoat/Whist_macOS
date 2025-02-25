@@ -31,6 +31,13 @@ extension GameManager {
     func processAction(_ action: GameAction) {
         logWithTimestamp("Processing action \(action.type) from player \(action.playerId)...")
         switch action.type {
+        case .seed:
+            guard let seed = try? JSONDecoder().decode(UInt64.self, from: action.payload) else {
+                logWithTimestamp("Failed to decode random seed.")
+                return
+            }
+            randomSeed = seed
+
         case .playCard:
             guard let card = try? JSONDecoder().decode(Card.self, from: action.payload) else {
                 logWithTimestamp("Failed to decode played card.")
@@ -83,6 +90,23 @@ extension GameManager {
     }
     
     // MARK: - Send data
+    
+    func sendSeedToPlayers(_ seed: UInt64) {
+        guard let localPlayerID = gameState.localPlayer?.id, localPlayerID == .toto else { return }
+
+        if let seedData = try? JSONEncoder().encode(randomSeed) {
+            let action = GameAction(
+                playerId: localPlayerID,
+                type: .sendDeck,
+                payload: seedData,
+                timestamp: Date().timeIntervalSince1970
+            )
+            sendAction(action)
+        } else {
+            logWithTimestamp("Error: Failed to encode the random seed")
+        }
+    }
+
     
     func sendDeckToPlayers() {
         logWithTimestamp("Sending deck to players")
@@ -242,15 +266,15 @@ extension GameManager {
         logWithTimestamp("--> Connected players: \(connectedPlayerIDs)")
 
         for (index, player) in gameState.players.enumerated() {
-            let wasConnected = player.connected
+            let wasConnected = player.isConnected
             let isConnected = connectedPlayerIDs.contains(player.id)
             
             // Update the player connected status by replacing it in the array (if Player is a class this might not be needed, but it's safer)
             if wasConnected != isConnected {
-                gameState.players[index].connected = isConnected
-                logWithTimestamp("Player \(gameState.players[index].id) is updated to \(gameState.players[index].connected ? "connected" : "disconnected")")
+                gameState.players[index].isConnected = isConnected
+                logWithTimestamp("Player \(gameState.players[index].id) is updated to \(gameState.players[index].isConnected ? "connected" : "disconnected")")
             } else {
-                logWithTimestamp("Player \(gameState.players[index].id) stays \(gameState.players[index].connected ? "connected" : "disconnected")")
+                logWithTimestamp("Player \(gameState.players[index].id) stays \(gameState.players[index].isConnected ? "connected" : "disconnected")")
             }
         }
 

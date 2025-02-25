@@ -18,14 +18,14 @@ struct MatchMakingView: View {
     @EnvironmentObject var gameKitManager: GameKitManager
     @EnvironmentObject var connectionManager: ConnectionManager
     
-    #if TEST_MODE
+#if TEST_MODE
     @State private var selectedPlayerID: PlayerId? = nil
     @State private var isWaitingForPlayers: Bool = false
-    #else
-    @StateObject private var viewModel = MatchmakingViewModel()
+#else
+//    @StateObject private var viewModel = MatchmakingViewModel()
     @State private var localPlayerDisplayName = ""
     @State private var localPlayerPhoto: NSImage?
-    #endif
+#endif
     
     var body: some View {
 #if TEST_MODE
@@ -72,58 +72,110 @@ struct MatchMakingView: View {
         }
         
 #else  // === !TEST_MODE: Show Game Center info rather than pickers ===
+        
+        // In MatchMakingView.swift, replace the !TEST_MODE body: with this updated version
 
-NavigationStack {
-    VStack {
-        if GKLocalPlayer.local.isAuthenticated {
-            // Player’s profile image
-            if let photo = localPlayerPhoto {
-                Image(nsImage: photo)
-                    .resizable()
-                    .frame(width: 60, height: 60)
-                    .clipShape(Circle())
-                    .padding(.bottom, 8)
+        NavigationStack {
+            VStack {
+                if GKLocalPlayer.local.isAuthenticated {
+                    // Player's profile image
+                    if let photo = localPlayerPhoto {
+                        Image(nsImage: photo)
+                            .resizable()
+                            .frame(width: 60, height: 60)
+                            .clipShape(Circle())
+                            .padding(.bottom, 8)
+                    }
+                    
+                    // Player's display name
+                    Text(localPlayerDisplayName)
+                        .font(.headline)
+                        .padding(.bottom, 20)
+                    
+                    // Status text to show connection state
+                    if gameManager.gameState.allPlayersConnected {
+                        Text("All players connected! Starting game...")
+                            .foregroundColor(.green)
+                            .padding(.bottom, 10)
+                    }
+                    
+                    // Invite Friends button
+                    Button("Invite les losers") {
+                        gameKitManager.inviteFriends()
+                    }
+                    
+                    // Add a direct navigation button for testing/backup
+                    if gameManager.gameState.allPlayersConnected {
+                        Button("Start Game Now") {
+                            gameManager.logWithTimestamp("Manual game start triggered")
+                            gameKitManager.dismissInviteUI()
+                            navigateToGame = true
+                        }
+                        .padding(.top, 20)
+                    }
+                } else {
+                    // Fallback if the local player is not authenticated
+                    Text("Please sign in to Game Center.")
+                }
             }
-            
-            // Player’s display name
-            Text(localPlayerDisplayName)
-                .font(.headline)
-                .padding(.bottom, 20)
-            
-            // Invite Friends button
-            Button("Invite les losers") {
-                viewModel.inviteFriends()
+            .navigationDestination(isPresented: $navigateToGame) {
+                GameView()
+                    .environmentObject(connectionManager)
+                    .environmentObject(gameManager)
             }
-        } else {
-            // Fallback if the local player is not authenticated
-            Text("Please sign in to Game Center.")
         }
-    }
-    .navigationDestination(isPresented: $navigateToGame) {
-        GameView()
-            .environmentObject(connectionManager)
-            .environmentObject(gameManager)
-    }
-}
-.onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
-    if allConnected {
-        gameManager.logWithTimestamp("All players are connected!")
-        gameManager.checkAndAdvanceStateIfNeeded()
-        navigateToGame = true
-    }
-}
-.onAppear {
-    // Configure your view model, load the local player’s name/photo
-    viewModel.configure(
-        gameKitManager: gameKitManager,
-        connectionManager: connectionManager
-    )
-    viewModel.loadLocalPlayerInfo { name, image in
-        self.localPlayerDisplayName = name
-        self.localPlayerPhoto = image
-    }
-}
-
+        .onAppear {
+            // Configure your view model, load the local player's name/photo
+//            gameKitManager.configure(
+//                gameKitManager: gameKitManager,
+//                connectionManager: connectionManager
+//            )
+            
+            // IMPORTANT: Set the view model as a strong reference in the GameKitManager
+            // This ensures the delegate callbacks reach your MatchmakingViewModel
+//            gameKitManager.matchmakingViewModel = viewModel
+            
+            gameKitManager.loadLocalPlayerInfo { name, image in
+                self.localPlayerDisplayName = name
+                self.localPlayerPhoto = image
+                
+                guard let localPlayerID = GCPlayerIdAssociation[name] else {
+                    gameManager.logWithTimestamp("No matching PlayerId for \(name)")
+                    return
+                }
+                gameManager.logWithTimestamp("Local player username: \(name)")
+                gameManager.logWithTimestamp("Local player ID: \(localPlayerID)")
+                connectionManager.setLocalPlayerID(localPlayerID)
+                
+                // Update the player info in the game state
+                gameManager.updatePlayer(localPlayerID, isLocal: true, name: name, image: self.localPlayerPhoto)
+                gameManager.setPersistencePlayerID(with: localPlayerID)
+            }
+        }
+        // Add this observer to handle the transition after all players are connected
+        .onReceive(gameManager.$gameState.map { $0.allPlayersConnected }) { allConnected in
+            gameManager.logWithTimestamp("♦\u{fe0f} onReceive observed allPlayersConnected: \(allConnected)")
+            if allConnected {
+                gameManager.logWithTimestamp("All players are connected! Initiating transition to game view...")
+                
+                // Dismiss the invite modal before navigating
+                gameKitManager.dismissInviteUI()
+                
+                // Ensure we're on the main thread when updating UI, with a slight delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    gameManager.checkAndAdvanceStateIfNeeded()
+                    
+                    // This is critical - make sure we're on the main thread
+                    DispatchQueue.main.async {
+                        gameManager.logWithTimestamp("Setting navigateToGame = true")
+                        navigateToGame = true
+                        
+                        // Add debug print to confirm navigation is triggered
+                        print("💥 Navigation should occur now! navigateToGame = \(navigateToGame)")
+                    }
+                }
+            }
+        }
 #endif
     }
 }
@@ -133,5 +185,6 @@ struct MatchMakingView_Previews: PreviewProvider {
         MatchMakingView()
             .environmentObject(GameManager())
             .environmentObject(ConnectionManager())
+            .environmentObject(GameKitManager())
     }
 }

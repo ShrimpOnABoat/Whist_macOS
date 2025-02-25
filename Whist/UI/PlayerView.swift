@@ -533,7 +533,7 @@ struct PlayerImageView: View {
     var body: some View {
         VStack {
             // Player Picture
-            if player.connected {
+            if player.isConnected {
                 (player.image ?? Image(systemName: "person.crop.circle"))
                     .resizable()
                     .frame(width: dynamicSize.playerImageWidth, height: dynamicSize.playerImageHeight)

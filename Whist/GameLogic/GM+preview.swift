@@ -32,7 +32,7 @@ extension GameManager {
         
         isGameSetup = true
         
-        gameState.players[0].connected = false
+        gameState.players[0].isConnected = false
         
         // Initialize positions based on standard preview dimensions
         initializeCards()
@@ -129,9 +129,9 @@ extension GameManager {
         gameState.players[2].madeTricks = [0, 1, 0, 2, 3, 0, 0]
 
         // Connected status
-        gameState.players[0].connected = true
-        gameState.players[1].connected = true
-        gameState.players[2].connected = true
+        gameState.players[0].isConnected = true
+        gameState.players[1].isConnected = true
+        gameState.players[2].isConnected = true
 
         // State
         gameState.players[0].state = .bidding

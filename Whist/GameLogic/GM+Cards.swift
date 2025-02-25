@@ -203,6 +203,8 @@ extension GameManager {
                 case .right:
                     destination = .rightPlayer
                     card.isFaceDown = gameState.round < 4 ? false : true
+                default:
+                    fatalError("Invalid table position")
                 }
  
                 // Wait for card movement to complete before dealing next card
@@ -450,6 +452,8 @@ extension GameManager {
                     self.moveCard(card, from: .table, to: .leftPlayerTricks)
                 case .right:
                     self.moveCard(card, from: .table, to: .rightPlayerTricks)
+                default:
+                    fatalError("Unknown winner table position)")
                 }
             }
             

@@ -9,6 +9,7 @@ import SwiftUI
 
 enum GamePhase: Encodable, Decodable {
     case waitingForPlayers      // Before the game starts, waiting for all players to connect
+    case exchangingSeed         // Ensuring seed is distributed before setup
     case setupGame              // Setup the game for the evening!
     case waitingToStart         // Display a "New game" button and the last game's winner
     case newGame                // Setup a new game
@@ -69,6 +70,13 @@ extension GameManager {
         switch gameState.currentPhase {
         case .waitingForPlayers:
             setPlayerState(to: .idle)
+            
+        case .exchangingSeed:
+            if gameState.localPlayer?.id == .toto {
+                generateAndSendSeed()
+            } else {
+                logWithTimestamp("Waiting for seed from Toto...")
+            }
             
         case .setupGame:
             setPlayerState(to: .idle)
@@ -335,10 +343,18 @@ extension GameManager {
         logWithTimestamp("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
-            if gameState.players.count == 3 && gameState.players.allSatisfy({ $0.connected }) {
+            if gameState.allPlayersConnected {
+                logWithTimestamp("All players connected! Moving to .exchangingSeed")
+                transition(to: .exchangingSeed)
+            }
+            
+        case .exchangingSeed:
+            if gameState.playOrder.isEmpty {
+                logWithTimestamp("Seed not received yet. Waiting in .exchangingSeed...")
+            } else {
+                logWithTimestamp("Seed received by all players! Moving to .setupGame")
                 transition(to: .setupGame)
             }
-            break
             
         case .renderingDeck:
             if isDeckReady {

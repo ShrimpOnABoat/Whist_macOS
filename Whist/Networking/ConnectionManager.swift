@@ -444,9 +444,90 @@ class ConnectionManager: NSObject, ObservableObject {
     // MARK: - GameKit Match Configuration (Non‑TEST_MODE)
 #if !TEST_MODE
     /// Call this method from your GameKitManager once a match is found.
+    // In ConnectionManager.swift
+
     func configureMatch(_ match: GKMatch) {
         self.match = match
         self.match?.delegate = self
+        
+        // Track how many players we've processed
+        var playersProcessed = 0
+        let totalPlayers = match.players.count
+        
+        logWithTimestamp("Configuring match with \(totalPlayers) remote players")
+        
+        // If there are no remote players, mark the connection as complete
+        if totalPlayers == 0 {
+            logWithTimestamp("No remote players to configure, match is complete")
+            // Force update the game state to reflect connected players
+            DispatchQueue.main.async {
+                self.gameManager?.gameState.updateAllPlayersConnected()
+            }
+            return
+        }
+        
+        // Process the local player first to ensure it's marked as connected
+        if let localPlayerID = self.localPlayerID, let gameManager = self.gameManager {
+            let localPlayerName = GKLocalPlayer.local.displayName
+            logWithTimestamp("Marking local player \(localPlayerName) as connected")
+            
+            GKLocalPlayer.local.loadPhoto(for: .normal) { image, error in
+                DispatchQueue.main.async {
+                    gameManager.updatePlayer(localPlayerID, isLocal: true, name: localPlayerName, image: image)
+                    gameManager.logWithTimestamp("Updated local player connection state")
+                }
+            }
+        }
+
+        // Loop over remote players and assign playerIDs using the association dictionary.
+        for player in match.players {
+            if let assignedId = GCPlayerIdAssociation[player.displayName] {
+                let username = player.displayName
+                logWithTimestamp("Processing player: \(username) as \(assignedId.rawValue)")
+                
+                // Load the player's photo asynchronously
+                player.loadPhoto(for: .normal) { [weak self] image, error in
+                    guard let self = self else { return }
+                    
+                    // Update player regardless of whether photo loaded or not
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            self.logWithTimestamp("Error loading photo for \(username): \(error)")
+                        }
+                        
+                        // Update the player with whatever image we got (nil is fine)
+                        self.gameManager?.updatePlayer(assignedId, name: username, image: image)
+                        
+                        // Track processed players
+                        playersProcessed += 1
+                        self.logWithTimestamp("Processed \(playersProcessed)/\(totalPlayers) players")
+                        
+                        // If all players are processed, force update connected state
+                        if playersProcessed >= totalPlayers {
+                            self.logWithTimestamp("All players processed, updating game state")
+                            self.gameManager?.gameState.updateAllPlayersConnected()
+                        }
+                    }
+                }
+            } else {
+                self.logWithTimestamp("⚠️ No PlayerId mapping found for player \(player.displayName)")
+            }
+        }
+        
+        // Add a timeout in case photo loading takes too long
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            if playersProcessed < totalPlayers {
+                self.logWithTimestamp("Photo loading timeout reached, forcing player connection")
+                // Update any remaining players that haven't been processed yet
+                for remainingPlayer in match.players {
+                    if let id = GCPlayerIdAssociation[remainingPlayer.displayName] {
+                        self.gameManager?.updatePlayer(id, name: remainingPlayer.displayName, image: nil)
+                    }
+                }
+                self.gameManager?.gameState.updateAllPlayersConnected()
+            }
+        }
+
         logWithTimestamp("GameKit match configured with players: \(match.players.map { $0.displayName })")
     }
 #endif
