@@ -26,6 +26,7 @@ struct WhistApp: App {
                     // Establish the delegation relationship
                     gameManager.connectionManager = connectionManager
                     connectionManager.gameManager = gameManager
+                    gameKitManager.connectionManager = connectionManager
                     gameKitManager.authenticateLocalPlayer()
                 }
         }

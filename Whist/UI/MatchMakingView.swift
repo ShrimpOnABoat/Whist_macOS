@@ -103,10 +103,11 @@ struct MatchMakingView: View {
                     Button("Invite les losers") {
                         gameKitManager.inviteFriends()
                     }
+                    .buttonStyle(.bordered)
                     
                     // Add a direct navigation button for testing/backup
                     if gameManager.gameState.allPlayersConnected {
-                        Button("Start Game Now") {
+                        Button("DEBUG -- Start Game Now") {
                             gameManager.logWithTimestamp("Manual game start triggered")
                             gameKitManager.dismissInviteUI()
                             navigateToGame = true
@@ -125,16 +126,6 @@ struct MatchMakingView: View {
             }
         }
         .onAppear {
-            // Configure your view model, load the local player's name/photo
-//            gameKitManager.configure(
-//                gameKitManager: gameKitManager,
-//                connectionManager: connectionManager
-//            )
-            
-            // IMPORTANT: Set the view model as a strong reference in the GameKitManager
-            // This ensures the delegate callbacks reach your MatchmakingViewModel
-//            gameKitManager.matchmakingViewModel = viewModel
-            
             gameKitManager.loadLocalPlayerInfo { name, image in
                 self.localPlayerDisplayName = name
                 self.localPlayerPhoto = image
@@ -152,30 +143,46 @@ struct MatchMakingView: View {
                 gameManager.setPersistencePlayerID(with: localPlayerID)
             }
         }
-        // Add this observer to handle the transition after all players are connected
-        .onReceive(gameManager.$gameState.map { $0.allPlayersConnected }) { allConnected in
-            gameManager.logWithTimestamp("♦\u{fe0f} onReceive observed allPlayersConnected: \(allConnected)")
-            if allConnected {
+        .onChange(of: gameManager.gameState.currentPhase) { _, currentOhase in
+            if ![.waitingForPlayers, .exchangingSeed, .setupGame].contains(currentOhase) {
                 gameManager.logWithTimestamp("All players are connected! Initiating transition to game view...")
-                
-                // Dismiss the invite modal before navigating
-                gameKitManager.dismissInviteUI()
-                
-                // Ensure we're on the main thread when updating UI, with a slight delay
+
+                // Ensure we dismiss the Game Center invite modal before navigating
+                DispatchQueue.main.async {
+                    gameKitManager.dismissInviteUI()
+                }
+
+                // Ensure navigation is updated on the main thread with a slight delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     gameManager.checkAndAdvanceStateIfNeeded()
-                    
-                    // This is critical - make sure we're on the main thread
+
                     DispatchQueue.main.async {
                         gameManager.logWithTimestamp("Setting navigateToGame = true")
                         navigateToGame = true
-                        
-                        // Add debug print to confirm navigation is triggered
-                        print("💥 Navigation should occur now! navigateToGame = \(navigateToGame)")
                     }
                 }
             }
         }
+//        .onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
+//            if allConnected {
+//                gameManager.logWithTimestamp("All players are connected! Initiating transition to game view...")
+//
+//                // Ensure we dismiss the Game Center invite modal before navigating
+//                DispatchQueue.main.async {
+//                    gameKitManager.dismissInviteUI()
+//                }
+//
+//                // Ensure navigation is updated on the main thread with a slight delay
+//                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+//                    gameManager.checkAndAdvanceStateIfNeeded()
+//
+//                    DispatchQueue.main.async {
+//                        gameManager.logWithTimestamp("Setting navigateToGame = true")
+//                        navigateToGame = true
+//                    }
+//                }
+//            }
+//        }
 #endif
     }
 }

@@ -448,7 +448,6 @@ class ConnectionManager: NSObject, ObservableObject {
 
     func configureMatch(_ match: GKMatch) {
         self.match = match
-        self.match?.delegate = self
         
         // Track how many players we've processed
         var playersProcessed = 0
@@ -459,24 +458,7 @@ class ConnectionManager: NSObject, ObservableObject {
         // If there are no remote players, mark the connection as complete
         if totalPlayers == 0 {
             logWithTimestamp("No remote players to configure, match is complete")
-            // Force update the game state to reflect connected players
-            DispatchQueue.main.async {
-                self.gameManager?.gameState.updateAllPlayersConnected()
-            }
             return
-        }
-        
-        // Process the local player first to ensure it's marked as connected
-        if let localPlayerID = self.localPlayerID, let gameManager = self.gameManager {
-            let localPlayerName = GKLocalPlayer.local.displayName
-            logWithTimestamp("Marking local player \(localPlayerName) as connected")
-            
-            GKLocalPlayer.local.loadPhoto(for: .normal) { image, error in
-                DispatchQueue.main.async {
-                    gameManager.updatePlayer(localPlayerID, isLocal: true, name: localPlayerName, image: image)
-                    gameManager.logWithTimestamp("Updated local player connection state")
-                }
-            }
         }
 
         // Loop over remote players and assign playerIDs using the association dictionary.
@@ -501,11 +483,11 @@ class ConnectionManager: NSObject, ObservableObject {
                         // Track processed players
                         playersProcessed += 1
                         self.logWithTimestamp("Processed \(playersProcessed)/\(totalPlayers) players")
-                        
-                        // If all players are processed, force update connected state
-                        if playersProcessed >= totalPlayers {
-                            self.logWithTimestamp("All players processed, updating game state")
-                            self.gameManager?.gameState.updateAllPlayersConnected()
+
+                        // When all players are processed, check and advance game state
+                        if playersProcessed == totalPlayers {
+                            self.logWithTimestamp("All players processed, advancing game state")
+                            self.gameManager?.checkAndAdvanceStateIfNeeded()
                         }
                     }
                 }
@@ -513,23 +495,35 @@ class ConnectionManager: NSObject, ObservableObject {
                 self.logWithTimestamp("⚠️ No PlayerId mapping found for player \(player.displayName)")
             }
         }
-        
-        // Add a timeout in case photo loading takes too long
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            if playersProcessed < totalPlayers {
-                self.logWithTimestamp("Photo loading timeout reached, forcing player connection")
-                // Update any remaining players that haven't been processed yet
-                for remainingPlayer in match.players {
-                    if let id = GCPlayerIdAssociation[remainingPlayer.displayName] {
-                        self.gameManager?.updatePlayer(id, name: remainingPlayer.displayName, image: nil)
-                    }
-                }
-                self.gameManager?.gameState.updateAllPlayersConnected()
-            }
-        }
 
         logWithTimestamp("GameKit match configured with players: \(match.players.map { $0.displayName })")
     }
+    
+    func handleReceivedGameKitData(_ data: Data, from player: GKPlayer) {
+        // Attempt to decode a GameAction (or other message) from the received data
+        do {
+            let action = try JSONDecoder().decode(GameAction.self, from: data)
+            DispatchQueue.main.async {
+                self.gameManager?.handleReceivedAction(action)
+            }
+        } catch {
+            logWithTimestamp("Failed to decode GameAction from GameKit data: \(error)")
+        }
+    }
+
+    func handleMatchFailure(error: Error?) {
+        logWithTimestamp("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
+        
+        // Handle any cleanup or UI updates needed
+        self.match = nil
+    }
+
+    func updatePlayerConnectionStatus(playerID: PlayerId, isConnected: Bool) {
+        logWithTimestamp("Player \(playerID.rawValue) disconnected")
+        // Update player connection status in game manager
+        gameManager?.updatePlayerConnectionStatus(playerID: playerID, isConnected: isConnected)
+    }
+
 #endif
 
 #if TEST_MODE
@@ -573,25 +567,7 @@ class ConnectionManager: NSObject, ObservableObject {
 #endif
     
     // MARK: - GameKit Networking
-    
-#if !TEST_MODE
-    // Existing GameKit methods...
-#endif
-    
-//    func connectionStatus(for player: Player) -> String {
-//#if TEST_MODE
-//        if player.id == self.localPlayerID {
-//            return "Connected (You)"
-//        } else if connectedPeers.contains(where: { $0.playerID == player.id }) {
-//            return "Connected"
-//        } else {
-//            return "Disconnected"
-//        }
-//#else
-//        // Existing GameKit implementation...
-//#endif
-//    }
-//    
+      
     func logWithTimestamp(_ message: String) {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -603,31 +579,3 @@ class ConnectionManager: NSObject, ObservableObject {
 protocol ConnectionManagerDelegate: AnyObject {
     func handleReceivedAction(_ action: GameAction)
 }
-
-#if !TEST_MODE
-// MARK: - GKMatchDelegate Implementation
-
-extension ConnectionManager: GKMatchDelegate {
-    func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
-        logWithTimestamp("Received data from \(player.displayName)")
-        // Attempt to decode a GameAction (or other message) from the received data.
-        do {
-            let action = try JSONDecoder().decode(GameAction.self, from: data)
-            DispatchQueue.main.async {
-                self.gameManager?.handleReceivedAction(action)
-            }
-        } catch {
-            logWithTimestamp("Failed to decode GameAction from GameKit data: \(error)")
-        }
-    }
-    
-    func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
-        logWithTimestamp("Player \(player.displayName) changed state to \(state.rawValue)")
-        // Update your game state or notify the GameManager if needed.
-    }
-    
-    func match(_ match: GKMatch, didFailWithError error: Error?) {
-        logWithTimestamp("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
-    }
-}
-#endif

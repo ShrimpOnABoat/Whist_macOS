@@ -61,6 +61,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     // MARK: - Game State Initialization
     
     func updatePlayer(_ playerId: PlayerId, isLocal: Bool = false, name: String, image: NSImage?) {
+        logWithTimestamp("updatePlayer: processing \(playerId)")
         let players = gameState.players
         guard let index = players.firstIndex(where: { $0.id == playerId }) else {
             logWithTimestamp("Player with id \(playerId.rawValue) not found.")
@@ -80,7 +81,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         logWithTimestamp("Player \(playerId.rawValue) updated successfully with name: \(name)")
         logWithTimestamp("Players connected: \(players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
         displayPlayers()
-        gameState.updateAllPlayersConnected()
     }
 
     func setupGame() {
@@ -161,6 +161,25 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         }
     }
     
+    // MARK: Connection/Deconnection
+
+    func updatePlayerConnectionStatus(playerID: PlayerId, isConnected: Bool) {
+        // Find the player by ID
+        guard let index = gameState.players.firstIndex(where: { $0.id == playerID }) else {
+            logWithTimestamp("Could not find player with ID \(playerID.rawValue) to update connection status")
+            return
+        }
+        
+        // Update connection status
+        gameState.players[index].isConnected = isConnected
+        logWithTimestamp("Updated player \(playerID.rawValue) connection status to \(isConnected)")
+        
+        checkAndAdvanceStateIfNeeded() // Might pause the game while the player reconnects
+        
+        // Display current players for debugging
+        displayPlayers()
+    }
+
     // MARK: resumeGameState
     
     func resumeGameState() {

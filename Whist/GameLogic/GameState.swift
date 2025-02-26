@@ -21,7 +21,6 @@ class GameState: ObservableObject, Codable {
     }
     @Published var lastTrickCardStates: [PlayerId: CardState] = [:]
     @Published var players: [Player] = []
-    @Published var allPlayersConnected: Bool = false
     @Published var trumpSuit: Suit? = nil {
         didSet {
             logWithTimestamp("Trump suit changed to: \(String(describing: trumpSuit))")
@@ -192,29 +191,13 @@ extension GameState {
     var lastPlayer: Player? {
         players.first(where: { $0.place == 3 })
     }
+    
+    var allPlayersConnected: Bool {
+        players.allSatisfy(\.isConnected)
+    }
 }
 
 extension GameState {
-    func updateAllPlayersConnected() {
-        let connectedCount = players.filter { $0.isConnected }.count
-        let requiredCount = 3 // This should match your game's requirement
-        
-        let wasPreviouslyConnected = allPlayersConnected
-        allPlayersConnected = (connectedCount >= requiredCount)
-        
-        // Log the change
-        print("Updated allPlayersConnected: \(allPlayersConnected) (was: \(wasPreviouslyConnected), connected: \(connectedCount)/\(requiredCount))")
-        
-        // Force an update notification if needed
-        if !wasPreviouslyConnected && allPlayersConnected {
-            // This is important - we need to create a state change that observers will detect
-            // Create a temporary delayed state change to ensure observers pick it up
-            DispatchQueue.main.async {
-                self.objectWillChange.send()
-            }
-        }
-    }
-    
     func logWithTimestamp(_ message: String) {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"

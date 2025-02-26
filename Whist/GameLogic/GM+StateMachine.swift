@@ -340,6 +340,8 @@ extension GameManager {
     // Call this after actions come in or after dealing
     // to see if conditions are met to move to next phase
     func checkAndAdvanceStateIfNeeded() {
+        // TODO: Add a .pause phase for when a player disconnects?
+        
         logWithTimestamp("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
