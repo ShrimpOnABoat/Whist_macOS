@@ -23,7 +23,7 @@ class SoundManager {
         for soundFile in soundFiles {
             let components = soundFile.split(separator: ".")
             guard components.count == 2 else {
-                logWithTimestamp("Invalid sound file name: \(soundFile)")
+                logger.log("Invalid sound file name: \(soundFile)")
                 continue
             }
             let name = String(components[0])
@@ -35,7 +35,7 @@ class SoundManager {
     /// Preload a sound to reduce latency during playback
     func preloadSound(named fileName: String, withExtension fileExtension: String) {
         guard let url = Bundle.main.url(forResource: fileName, withExtension: fileExtension) else {
-            logWithTimestamp("Sound file \(fileName).\(fileExtension) not found.")
+            logger.log("Sound file \(fileName).\(fileExtension) not found.")
             return
         }
 
@@ -47,10 +47,10 @@ class SoundManager {
     /// Play a preloaded sound
     func playSound(named fileName: String) {
         guard let soundID = soundIDs[fileName] else {
-            logWithTimestamp("Sound \(fileName) not preloaded. Call preloadSound() first.")
+            logger.log("Sound \(fileName) not preloaded. Call preloadSound() first.")
             return
         }
-//        logWithTimestamp("Playing sound \(fileName).")
+//        logger.log("Playing sound \(fileName).")
         AudioServicesPlaySystemSound(soundID)
     }
 
@@ -69,12 +69,12 @@ class SoundManager {
         soundIDs.removeAll()
     }
     
-    func logWithTimestamp(_ message: String) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        let timestamp = formatter.string(from: Date())
-        print("[\(timestamp)] \(message)")
-    }
+//    func logger.log(_ message: String) {
+//        let formatter = DateFormatter()
+//        formatter.dateFormat = "HH:mm:ss"
+//        let timestamp = formatter.string(from: Date())
+//        print("[\(timestamp)] \(message)")
+//    }
 }
 
 extension GameManager {

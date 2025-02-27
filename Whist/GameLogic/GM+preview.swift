@@ -70,7 +70,7 @@ extension GameManager {
                 }
             }
         }
-        logWithTimestamp("Hands assigned: Deck has \(gameState.deck.count) cards left.")
+        logger.log("Hands assigned: Deck has \(gameState.deck.count) cards left.")
     }
 
     func setupTrickCardsForPreview() {
@@ -80,7 +80,7 @@ extension GameManager {
             gameState.table.append(card)
             card.isFaceDown = false
         }
-        logWithTimestamp("Trick cards set up: Table has \(gameState.table.count) entries.")
+        logger.log("Trick cards set up: Table has \(gameState.table.count) entries.")
     }
     
     func setupPlayerTricksForPreview() {

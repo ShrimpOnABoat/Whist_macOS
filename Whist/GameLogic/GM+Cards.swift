@@ -32,7 +32,7 @@ extension GameManager {
     
     func gatherCards(completion: @escaping () -> Void) {
         let totalCardsToMove = gameState.players.reduce(0) { $0 + $1.trickCards.count }
-//        logWithTimestamp("gatherCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
+//        logger.log("gatherCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
         if totalCardsToMove > 0 {
             beginBatchMove(totalCards: totalCardsToMove) {
                 completion()
@@ -82,11 +82,11 @@ extension GameManager {
         // Call simulateShuffle with the new deck order
         if let shuffle = shuffleCallback {
             shuffle(newDeck) {
-                self.logWithTimestamp("Shuffle complete!")
+                logger.log("Shuffle complete!")
                 completion()
             }
         } else {
-            logWithTimestamp("Shuffle callback is not set.")
+            logger.log("Shuffle callback is not set.")
             // we still shuffle the cards
             self.gameState.deck.shuffle()
             completion()
@@ -101,9 +101,9 @@ extension GameManager {
             gameState.newDeck = newDeck
             self.isDeckReady = true
             self.isDeckReceived = true
-            logWithTimestamp("Updated deck from dealer, isDeckReady now true")
+            logger.log("Updated deck from dealer, isDeckReady now true")
         } else {
-            logWithTimestamp("Failed to decode deck data.")
+            logger.log("Failed to decode deck data.")
         }
     }
     
@@ -166,7 +166,7 @@ extension GameManager {
         
         // Set the batch animation
         let totalCardsToMove = cardsPerPlayer.reduce(0) { $0 + $1.value }
-//        logWithTimestamp("dealCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
+//        logger.log("dealCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: totalCardsToMove) {
             completion()
         }
@@ -226,7 +226,7 @@ extension GameManager {
                                 withAnimation(.smooth(duration: 0.5)) {
                                     trumpCard.isFaceDown = false
                                 }
-//                                logWithTimestamp("The trump card is \(trumpCard)")
+//                                logger.log("The trump card is \(trumpCard)")
                             }
                         }
                         self.sortLocalPlayerHand()
@@ -263,7 +263,7 @@ extension GameManager {
             }
         }
 
-//        logWithTimestamp("Local player's hand has been sorted.")
+//        logger.log("Local player's hand has been sorted.")
     }
     
     // MARK: playCard
@@ -280,7 +280,7 @@ extension GameManager {
         }
 
         // Play the card
-        logWithTimestamp("playCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
+        logger.log("playCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 1) {
             completion()
         }
@@ -296,7 +296,7 @@ extension GameManager {
         
         persistence.saveGameState(gameState)
 
-        logWithTimestamp("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
+        logger.log("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
         
     }
     
@@ -306,8 +306,8 @@ extension GameManager {
         // Move the card from the player's hand to the table
         let player = gameState.getPlayer(by: playerId)
         
-        logWithTimestamp("Received played card from \(playerId.rawValue) with card \(card).")
-//        logWithTimestamp("\(player)'s current hand: \(player.hand)")
+        logger.log("Received played card from \(playerId.rawValue) with card \(card).")
+//        logger.log("\(player)'s current hand: \(player.hand)")
         
         // Check if the player already played
         guard let playerIndex = gameState.playOrder.firstIndex(of: playerId) else {
@@ -315,22 +315,22 @@ extension GameManager {
         }
         
         if gameState.table.indices.contains(playerIndex) {
-            logWithTimestamp("Error: Player \(playerId.rawValue) has already played a card this round.")
+            logger.log("Error: Player \(playerId.rawValue) has already played a card this round.")
             return
         }
         
         
         if player.hand.firstIndex(where: { $0 == card }) != nil {
             let source: CardPlace = player.tablePosition == .left ? .leftPlayer : .rightPlayer
-//            logWithTimestamp("updateGameStateWithPlayedCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
+//            logger.log("updateGameStateWithPlayedCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
             beginBatchMove(totalCards: 1) { completion() }
             moveCard(card, from: source, to: .table)
         } else {
-            logWithTimestamp("Error: Card not found in player's hand.")
+            logger.log("Error: Card not found in player's hand.")
             return
         }
         persistence.saveGameState(gameState)
-        logWithTimestamp("Card \(card) played by \(playerId.rawValue). Updated gameState.table: \(gameState.table)")
+        logger.log("Card \(card) played by \(playerId.rawValue). Updated gameState.table: \(gameState.table)")
     }
     
     // MARK: setPlayableCards
@@ -344,7 +344,7 @@ extension GameManager {
         // Determine the leading suit if available
         let leadingSuit = gameState.table.first?.suit
         
-//        logWithTimestamp("setPlayableCards with leadingSuit \(leadingSuit?.rawValue ?? "Undefined")")
+//        logger.log("setPlayableCards with leadingSuit \(leadingSuit?.rawValue ?? "Undefined")")
 
         // Check if the player has cards matching the leading suit
         let hasLeadingSuit = localPlayer.hand.contains { $0.suit == leadingSuit }
@@ -415,7 +415,7 @@ extension GameManager {
         }
         
         let winner = gameState.getPlayer(by: winningPlayerID)
-        logWithTimestamp("Player \(winner.id.rawValue) won the trick with \(winningCard).")
+        logger.log("Player \(winner.id.rawValue) won the trick with \(winningCard).")
         
         // Update the last trick with all played cards and their players
         gameState.lastTrick.removeAll()
@@ -435,15 +435,15 @@ extension GameManager {
         }
         
         // make sure all cards moved before doing anything else
-//        logWithTimestamp("assignTricks: beginBatchMove(3), activeAnimations: \(activeAnimations)")
+//        logger.log("assignTricks: beginBatchMove(3), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 3) {
-            self.logWithTimestamp("Assign trick should be completed now!")
+            logger.log("Assign trick should be completed now!")
         }
         // Introduce a delay before clearing the table and assigning the trick
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             // Set isFaceDown to true for the cards on the table
             self.gameState.table.forEach { card in
-//                logWithTimestamp("Grabing card \(card) with active animations = \(self.activeAnimations)")
+//                logger.log("Grabing card \(card) with active animations = \(self.activeAnimations)")
                 card.isFaceDown = true
                 switch winner.tablePosition {
                 case .local:
@@ -458,7 +458,7 @@ extension GameManager {
             }
             
             winner.madeTricks[self.gameState.round - 1] += 1
-            self.logWithTimestamp("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
+            logger.log("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
             
             // Add a delay after the animation completes if last trick of the round
             DispatchQueue.main.asyncAfter(deadline: .now() + (winner.hand.isEmpty ? 1.5 : 0)) {
@@ -473,7 +473,7 @@ extension GameManager {
     // MARK: ChooseTrump
     
     func chooseTrump(completion: @escaping () -> Void) {
-//        logWithTimestamp("chooseTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
+//        logger.log("chooseTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 4) { completion() }
         // Move the trump cards to the table face up
         for card in gameState.trumpCards {
@@ -488,7 +488,7 @@ extension GameManager {
         gameState.trumpSuit = trumpCard.suit
         
         // Move the cards back in the deck, the selected one last
-//        logWithTimestamp("selectTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
+//        logger.log("selectTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 4) { completion() }
         for card in gameState.table {
             if card != trumpCard {
@@ -531,7 +531,7 @@ extension GameManager {
         sendDiscardedCards(cardsToDiscard)
         persistence.saveGameState(gameState)
         
-        logWithTimestamp("Discarded cards: \(cardsToDiscard)")
+        logger.log("Discarded cards: \(cardsToDiscard)")
 
         completion()
     }
@@ -559,11 +559,11 @@ extension GameManager {
 
             // Select a random playable card
             if let selectedCard = playableCards.randomElement() {
-                logWithTimestamp("AI is playing card: \(selectedCard)")
+                logger.log("AI is playing card: \(selectedCard)")
                 
                 // Play the selected card
                 playCard(selectedCard) {
-                    self.logWithTimestamp("AI played card \(selectedCard)")
+                    logger.log("AI played card \(selectedCard)")
 //                    self.checkAndAdvanceStateIfNeeded()
                     completion()
                 }
@@ -578,7 +578,7 @@ extension GameManager {
                 completion()
             }
         } else {
-            logWithTimestamp("the trump suit was already chosen by AI or the table is empty")
+            logger.log("the trump suit was already chosen by AI or the table is empty")
         }
     }
     

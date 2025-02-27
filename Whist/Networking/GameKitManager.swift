@@ -49,7 +49,7 @@ class GameKitManager: NSObject, ObservableObject {
 
                     if let error = error {
                         strongSelf.authenticationErrorMessage = error.localizedDescription
-                        strongSelf.logWithTimestamp("Authentication error: \(error.localizedDescription)")
+                        logger.log("Authentication error: \(error.localizedDescription)")
                         completion("", defaultPlayerImage) // Return default image
                         return
                     }
@@ -59,7 +59,7 @@ class GameKitManager: NSObject, ObservableObject {
                     } else if GKLocalPlayer.local.isAuthenticated {
                         strongSelf.isAuthenticated = true
                         strongSelf.authenticationErrorMessage = nil
-                        strongSelf.logWithTimestamp("Game Center authentication successful.")
+                        logger.log("Game Center authentication successful.")
 
                         GKLocalPlayer.local.register(strongSelf)
 
@@ -68,7 +68,7 @@ class GameKitManager: NSObject, ObservableObject {
                         // Attempt to load the player's photo
                         GKLocalPlayer.local.loadPhoto(for: .normal) { image, error in
                             if let error = error {
-                                strongSelf.logWithTimestamp("Error loading player photo: \(error.localizedDescription)")
+                                logger.log("Error loading player photo: \(error.localizedDescription)")
                             }
 
                             let playerImage = image ?? defaultPlayerImage
@@ -78,7 +78,7 @@ class GameKitManager: NSObject, ObservableObject {
                     } else {
                         strongSelf.isAuthenticated = false
                         strongSelf.authenticationErrorMessage = "Game Center authentication failed."
-                        strongSelf.logWithTimestamp("Game Center authentication failed.")
+                        logger.log("Game Center authentication failed.")
                         completion("", defaultPlayerImage) // Return default image
                     }
                 }
@@ -93,7 +93,7 @@ class GameKitManager: NSObject, ObservableObject {
         if let window = NSApplication.shared.windows.first {
             window.contentViewController?.presentAsModalWindow(viewController)
         } else {
-            logWithTimestamp("No window available to present the view controller.")
+            logger.log("No window available to present the view controller.")
         }
     }
     
@@ -119,7 +119,7 @@ class GameKitManager: NSObject, ObservableObject {
     
     func inviteFriends() {
         guard isAuthenticated else {
-            logWithTimestamp("Local player not authenticated, cannot invite.")
+            logger.log("Local player not authenticated, cannot invite.")
             return
         }
 
@@ -130,7 +130,7 @@ class GameKitManager: NSObject, ObservableObject {
         request.playerAttributes = 1 // should set the request to inviteOnly
 
         if let vc = GKMatchmakerViewController(matchRequest: request) {
-            logWithTimestamp("Setting up matchmaker delegate")
+            logger.log("Setting up matchmaker delegate")
             vc.matchmakerDelegate = self  // Set self as the delegate
             
             let delegateClass = type(of: self)
@@ -138,33 +138,33 @@ class GameKitManager: NSObject, ObservableObject {
             let didFail = delegateClass.instancesRespond(to: #selector(GKMatchmakerViewControllerDelegate.matchmakerViewController(_:didFailWithError:)))
             let didFind = delegateClass.instancesRespond(to: #selector(GKMatchmakerViewControllerDelegate.matchmakerViewController(_:didFind:)))
             
-            logWithTimestamp("Delegate methods implemented: wasCancelled=\(wasCancelled), didFail=\(didFail), didFind=\(didFind)")
+            logger.log("Delegate methods implemented: wasCancelled=\(wasCancelled), didFail=\(didFail), didFind=\(didFind)")
             
             if let mainWindow = NSApplication.shared.mainWindow,
                let contentViewController = mainWindow.contentViewController {
                 contentViewController.presentAsSheet(vc)
                 inviteViewController = vc
-                logWithTimestamp("Presenting invite friends UI.")
+                logger.log("Presenting invite friends UI.")
             }
         } else {
-            logWithTimestamp("Failed to create GKMatchmakerViewController.")
+            logger.log("Failed to create GKMatchmakerViewController.")
         }
     }
 
-    func logWithTimestamp(_ message: String) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        let timestamp = formatter.string(from: Date())
-        print("[\(timestamp)] \(message)")
-    }
+//    func logger.log(_ message: String) {
+//        let formatter = DateFormatter()
+//        formatter.dateFormat = "HH:mm:ss"
+//        let timestamp = formatter.string(from: Date())
+//        print("[\(timestamp)] \(message)")
+//    }
 }
 
 // MARK: - GKLocalPlayerListener Implementation
 extension GameKitManager: GKLocalPlayerListener {
     func player(_ player: GKPlayer, didAccept invite: GKInvite) {
-        logWithTimestamp("Player \(player.displayName) accepted invite")
+        logger.log("Player \(player.displayName) accepted invite")
         guard let matchmakerVC = GKMatchmakerViewController(invite: invite) else {
-            logWithTimestamp("Failed to create matchmaker VC from invite")
+            logger.log("Failed to create matchmaker VC from invite")
             return
         }
 
@@ -179,27 +179,27 @@ extension GameKitManager: GKLocalPlayerListener {
             window.contentViewController?.presentAsSheet(matchmakerVC)
         }
         
-        logWithTimestamp("Invite acceptance workflow started - presented GKMatchmakerViewController")
+        logger.log("Invite acceptance workflow started - presented GKMatchmakerViewController")
     }
 }
 
 // MARK: - GKMatchmakerViewControllerDelegate Implementation
 extension GameKitManager: GKMatchmakerViewControllerDelegate {
     func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController) {
-        logWithTimestamp("GameKitManager: matchmakerViewControllerWasCancelled called")
+        logger.log("GameKitManager: matchmakerViewControllerWasCancelled called")
         viewController.dismiss(nil)
         inviteViewController = nil
     }
     
     func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFailWithError error: Error) {
-        logWithTimestamp("GameKitManager: matchmakerViewController:didFailWithError: \(error.localizedDescription)")
+        logger.log("GameKitManager: matchmakerViewController:didFailWithError: \(error.localizedDescription)")
         viewController.dismiss(nil)
         inviteViewController = nil
     }
     
     func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFind match: GKMatch) {
         /// This function is invoked at the same time in all 3 apps, once the last player joins the match
-        logWithTimestamp("🫑 GameKitManager: matchmakerViewController:didFind: called with players: \(match.players.map { $0.displayName })")
+        logger.log("🫑 GameKitManager: matchmakerViewController:didFind: called with players: \(match.players.map { $0.displayName })")
         
         // Store the match and update state
         self.match = match
@@ -217,7 +217,7 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
 // MARK: - GKMatchDelegate Implementation
 extension GameKitManager: GKMatchDelegate {
     func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
-        logWithTimestamp("Received data from \(player.displayName)")
+        logger.log("Received data from \(player.displayName)")
         
         // Forward the received data to ConnectionManager
         connectionManager?.handleReceivedGameKitData(data, from: player)
@@ -225,17 +225,17 @@ extension GameKitManager: GKMatchDelegate {
     
     func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
         /// This function is invoked on all remaining apps when a player connects or disconnects, but only after matchmakerViewController(_:didFind:) has been invoked
-        logWithTimestamp("🫑 Player \(player.displayName) connection state changed to: \(state.rawValue)")
+        logger.log("🫑 Player \(player.displayName) connection state changed to: \(state.rawValue)")
         
         if let playerId = determinePlayerId(for: player) {
             connectionManager?.updatePlayerConnectionStatus(playerID: playerId, isConnected: state == .connected ? true: false)
         } else {
-            logWithTimestamp("Warning: Could not determine PlayerId for \(player.displayName)")
+            logger.log("Warning: Could not determine PlayerId for \(player.displayName)")
         }
     }
     
     func match(_ match: GKMatch, didFailWithError error: Error?) {
-        logWithTimestamp("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
+        logger.log("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
         
         connectionManager?.handleMatchFailure(error: error)
     }
@@ -244,7 +244,7 @@ extension GameKitManager: GKMatchDelegate {
         let name = player.displayName
         guard let localPlayerID = GCPlayerIdAssociation[name] else {
             // Provide a fallback or handle the error
-            logWithTimestamp("No matching PlayerId for \(name)")
+            logger.log("No matching PlayerId for \(name)")
             return nil
         }
         return localPlayerID

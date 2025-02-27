@@ -49,10 +49,10 @@ extension GameManager {
         if gameState.currentPhase == .setupGame && newPhase == .waitingToStart {
             DispatchQueue.main.async {
                 self.objectWillChange.send()
-                self.logWithTimestamp("Transitionning to waitingToStart with UI refresh")
+                logger.log("Transitionning to waitingToStart with UI refresh")
             }
         }
-        logWithTimestamp("Transitioning from \(gameState.currentPhase) to \(newPhase)")
+        logger.log("Transitioning from \(gameState.currentPhase) to \(newPhase)")
         gameState.currentPhase = newPhase
         handleStateTransition()
     }
@@ -80,7 +80,7 @@ extension GameManager {
             if gameState.localPlayer?.id == .toto {
                 generateAndSendSeed()
             } else {
-                logWithTimestamp("Waiting for seed from Toto...")
+                logger.log("Waiting for seed from Toto...")
             }
             
         case .setupGame:
@@ -101,7 +101,7 @@ extension GameManager {
             newGameRound()
             if connectionManager?.localPlayerID == gameState.dealer {
                 if !isDeckReady {
-                    logWithTimestamp("isDeckReady: \(isDeckReady)")
+                    logger.log("isDeckReady: \(isDeckReady)")
                     transition(to: .renderingDeck)
                 } else {
                     transition(to: .dealingCards)
@@ -124,7 +124,7 @@ extension GameManager {
 //                    self.processPendingActionsForCurrentPhase()
                     
                     // otherwise nothing to do but wait
-                    if !self.isDeckReady { self.logWithTimestamp("Waiting for deck") }
+                    if !self.isDeckReady { logger.log("Waiting for deck") }
                 }
             }
             
@@ -140,7 +140,7 @@ extension GameManager {
                     transition(to: .bidding)
                 } else {
                     if let localPlayer = gameState.localPlayer {
-                        logWithTimestamp("My place is \(localPlayer.place)")
+                        logger.log("My place is \(localPlayer.place)")
                         switch localPlayer.place {
                         case 1: transition(to: .bidding)
                         case 2: transition(to: .waitingForTrump)
@@ -221,7 +221,7 @@ extension GameManager {
         case .bidding:
             if gameState.round < 4 {
                 if isLocalPlayerTurnToBet() {
-                    logWithTimestamp("local player must bet < 4")
+                    logger.log("local player must bet < 4")
                     setPlayerState(to: .bidding)
                     showOptions = true
                 } else if allPlayersBet() {
@@ -231,7 +231,7 @@ extension GameManager {
                 }
             } else { // round > 3
                 if allPlayersBet() {
-                    logWithTimestamp("All players have bet")
+                    logger.log("All players have bet")
                     if lastPlayerDiscarded() {
                         transition(to: .playingTricks)
                     } else {
@@ -242,10 +242,10 @@ extension GameManager {
                         }
                     }
                 } else {
-                    logWithTimestamp("Some players have not bet")
+                    logger.log("Some players have not bet")
                     showOptions = true
                     setPlayerState(to: .bidding)
-                    logWithTimestamp("local player must bet > 3")
+                    logger.log("local player must bet > 3")
                 }
             }
             
@@ -294,12 +294,12 @@ extension GameManager {
             // Wait a few seconds and grab trick automatically
             // and set the last trick
             // and refresh playOrder
-            logWithTimestamp("Assigning trick")
+            logger.log("Assigning trick")
             setPlayerState(to: .idle)
             waitForAnimationsToFinish {
                 self.assignTrick() {
                     self.gameState.currentTrick += 1
-                    self.logWithTimestamp("Trick assigned, current trick is now \(self.gameState.currentTrick)")
+                    logger.log("Trick assigned, current trick is now \(self.gameState.currentTrick)")
                     // check if last trick
                     if self.isLastTrick() {
                         self.transition(to: .scoring)
@@ -347,19 +347,19 @@ extension GameManager {
     func checkAndAdvanceStateIfNeeded() {
         // TODO: Add a .pause phase for when a player disconnects?
         
-        logWithTimestamp("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
+        logger.log("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
             if gameState.allPlayersConnected {
-                logWithTimestamp("All players connected! Moving to .exchangingSeed")
+                logger.log("All players connected! Moving to .exchangingSeed")
                 transition(to: .exchangingSeed)
             }
             
         case .exchangingSeed:
             if randomSeed == 0 {
-                logWithTimestamp("Seed not set yet. Waiting in .exchangingSeed...")
+                logger.log("Seed not set yet. Waiting in .exchangingSeed...")
             } else {
-                logWithTimestamp("Seed received by all players! Moving to .setupGame")
+                logger.log("Seed received by all players! Moving to .setupGame")
                 transition(to: .setupGame)
             }
             
@@ -372,12 +372,12 @@ extension GameManager {
             if isDeckReceived {
                 transition(to: .dealingCards)
             } else {
-                logWithTimestamp("Still waiting for the deck...")
+                logger.log("Still waiting for the deck...")
             }
 
         case .dealingCards:
             // This state is handled in handleStateTransition
-            logWithTimestamp("Dealing cards")
+            logger.log("Dealing cards")
 
         case .choosingTrump:
             // If trump chosen, I chose a bid
@@ -457,19 +457,19 @@ extension GameManager {
     // MARK: - Utilities
 
     func startNewGame() {
-        logWithTimestamp("Starting new game")
+        logger.log("Starting new game")
         transition(to: .newGame)
     }
     
     func isLocalPlayerTurnToBet() -> Bool {
         guard let localPlayerID = connectionManager?.localPlayerID else {
-            logWithTimestamp("Error: Local player ID not found.")
+            logger.log("Error: Local player ID not found.")
             return false
         }
 
         if gameState.round < 4 {
             guard let playerIndex = gameState.playOrder.firstIndex(of: localPlayerID) else {
-                logWithTimestamp("Error: Local player not found in play order.")
+                logger.log("Error: Local player not found in play order.")
                 return false
             }
             
@@ -477,7 +477,7 @@ extension GameManager {
             for index in 0..<playerIndex {
                 let previousPlayerID = gameState.playOrder[index]
                 guard let previousPlayer = gameState.players.first(where: { $0.id == previousPlayerID }) else {
-                    logWithTimestamp("Error: Player \(previousPlayerID) not found.")
+                    logger.log("Error: Player \(previousPlayerID) not found.")
                     return false
                 }
                 
@@ -507,10 +507,10 @@ extension GameManager {
     func lastPlayerDiscarded() -> Bool {
         if gameState.round < 4 || allScoresEqual() { return true }
         if let lastPlayer = gameState.lastPlayer {
-            logWithTimestamp("Last player \(lastPlayer.id) hasDiscarded: \(lastPlayer.hasDiscarded)")
+            logger.log("Last player \(lastPlayer.id) hasDiscarded: \(lastPlayer.hasDiscarded)")
             return lastPlayer.hasDiscarded
         } else {
-            logWithTimestamp("lastPlayerDiscarded: No last player found.")
+            logger.log("lastPlayerDiscarded: No last player found.")
             return false
         }
     }
@@ -526,10 +526,10 @@ extension GameManager {
 
         // Check if it's the local player's turn to play
         if gameState.table.count == playerIndex {
-            logWithTimestamp("It's my turn to play")
+            logger.log("It's my turn to play")
             return true
         } else {
-            logWithTimestamp("Not my turn to play yet")
+            logger.log("Not my turn to play yet")
             return false
         }
     }
@@ -558,7 +558,7 @@ extension GameManager {
             // Ensure the player has announced and made tricks for this round
             guard player.announcedTricks.indices.contains(roundIndex),
                   player.madeTricks.indices.contains(roundIndex) else {
-                logWithTimestamp("Error: Missing announced or made tricks for player \(player.username)")
+                logger.log("Error: Missing announced or made tricks for player \(player.username)")
                 continue
             }
             
@@ -586,7 +586,7 @@ extension GameManager {
             
             
             
-            logWithTimestamp("Player \(player.username): Announced \(announced), Made \(made), Round Score \(roundScore), Total Score \(totalScore)")
+            logger.log("Player \(player.username): Announced \(announced), Made \(made), Round Score \(roundScore), Total Score \(totalScore)")
         }
         
         // Add bonus for the highest bidder in the last round (round 12)
@@ -603,9 +603,9 @@ extension GameManager {
                 let bonusWinner = topPlayers.first!.player
                 // Add 15 bonus points to the bonus winner's last score
                 bonusWinner.scores[bonusWinner.scores.count - 1] += 15
-                logWithTimestamp("Bonus added for highest bidder \(bonusWinner.username): +15 points")
+                logger.log("Bonus added for highest bidder \(bonusWinner.username): +15 points")
             } else {
-                logWithTimestamp("No bonus added due to tie among highest bidders.")
+                logger.log("No bonus added due to tie among highest bidders.")
             }
         }
         self.playersScoresUpdated.toggle()
@@ -618,8 +618,8 @@ extension GameManager {
     func processPendingActionsForCurrentPhase(checkState: Bool = true) -> Bool {
         guard pendingActions.isEmpty == false else { return false }
         
-        logWithTimestamp("Pending actions count: \(pendingActions.count)")
-        logWithTimestamp("checkState: \(checkState)")
+        logger.log("Pending actions count: \(pendingActions.count)")
+        logger.log("checkState: \(checkState)")
         var atLeastOneActionProcessed = false
         
         let remainingActions = pendingActions
@@ -627,22 +627,22 @@ extension GameManager {
 
         for action in remainingActions {
             if isActionValidInCurrentPhase(action.type) {
-                logWithTimestamp("Action \(action.type) is valid in current phase, processing it")
+                logger.log("Action \(action.type) is valid in current phase, processing it")
                 processAction(action)
                 atLeastOneActionProcessed = true
             } else {
-                logWithTimestamp("Action \(action.type) is NOT valid in current phase (\(gameState.currentPhase)), skipping it")
+                logger.log("Action \(action.type) is NOT valid in current phase (\(gameState.currentPhase)), skipping it")
                 pendingActions.append(action)  // Re-add invalid actions
             }
         }
 
         if atLeastOneActionProcessed && checkState {
-            logWithTimestamp("processPendingActionsForCurrentPhase: Checking state after processing actions...")
+            logger.log("processPendingActionsForCurrentPhase: Checking state after processing actions...")
             checkAndAdvanceStateIfNeeded()
         }
         
         // Remove processed actions from pendingActions
-        logWithTimestamp("Pending actions left: \(pendingActions.count)")
+        logger.log("Pending actions left: \(pendingActions.count)")
         
         return atLeastOneActionProcessed
     }

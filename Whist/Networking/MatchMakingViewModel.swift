@@ -44,7 +44,7 @@
 //
 //extension MatchmakingViewModel: GKMatchmakerViewControllerDelegate, GKMatchDelegate {
 //    func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController) {
-//        logWithTimestamp("MatchmakingViewModel: matchmakerViewControllerWasCancelled called")
+//        logger.log("MatchmakingViewModel: matchmakerViewControllerWasCancelled called")
 //        isMatchmaking = false
 //        viewController.dismiss(nil)
 //        if let window = viewController.view.window {
@@ -53,7 +53,7 @@
 //    }
 //    
 //    func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFailWithError error: Error) {
-//        logWithTimestamp("MatchmakingViewModel: matchmakerViewController:didFailWithError: \(error.localizedDescription)")
+//        logger.log("MatchmakingViewModel: matchmakerViewController:didFailWithError: \(error.localizedDescription)")
 //        isMatchmaking = false
 //        viewController.dismiss(nil)
 //        if let window = viewController.view.window {
@@ -62,7 +62,7 @@
 //    }
 //    
 //    func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFind match: GKMatch) {
-//        logWithTimestamp("MatchmakingViewModel: matchmakerViewController:didFind: called with players: \(match.players.map { $0.displayName })")
+//        logger.log("MatchmakingViewModel: matchmakerViewController:didFind: called with players: \(match.players.map { $0.displayName })")
 //        
 //        // Store the match and update state
 //        isMatchmaking = false
@@ -86,14 +86,14 @@
 //            }
 //            
 //            // Log the state after configuration
-//            self.logWithTimestamp("Match configuration completed, waiting for allPlayersConnected to become true")
+//            logger.log("Match configuration completed, waiting for allPlayersConnected to become true")
 //        }
 //    }
 //    
 //    func player(_ player: GKPlayer, didAccept invite: GKInvite) {
-//        logWithTimestamp("Player accepted invite")
+//        logger.log("Player accepted invite")
 //        guard let matchmakerVC = GKMatchmakerViewController(invite: invite) else {
-//            logWithTimestamp("Failed to create matchmaker VC from invite")
+//            logger.log("Failed to create matchmaker VC from invite")
 //            return
 //        }
 //
@@ -108,11 +108,11 @@
 //            window.contentViewController?.presentAsSheet(matchmakerVC)
 //        }
 //        
-//        logWithTimestamp("Invite acceptance workflow started - presented GKMatchmakerViewController")
+//        logger.log("Invite acceptance workflow started - presented GKMatchmakerViewController")
 //
 //    }
 //
-//    private func logWithTimestamp(_ message: String) {
+//    private func logger.log(_ message: String) {
 //        let formatter = DateFormatter()
 //        formatter.dateFormat = "HH:mm:ss"
 //        let timestamp = formatter.string(from: Date())
@@ -151,7 +151,7 @@
 //        request.inviteMessage = "C'est l'heure de ta leçon !"
 //
 //        if let vc = GKMatchmakerViewController(matchRequest: request) {
-//            logWithTimestamp("Setting up matchmaker delegate")
+//            logger.log("Setting up matchmaker delegate")
 //            vc.matchmakerDelegate = self  // Set self as the delegate
 //            
 //            // Store a strong reference to the view controller
@@ -163,12 +163,12 @@
 //            let didFail = delegateClass.instancesRespond(to: #selector(GKMatchmakerViewControllerDelegate.matchmakerViewController(_:didFailWithError:)))
 //            let didFind = delegateClass.instancesRespond(to: #selector(GKMatchmakerViewControllerDelegate.matchmakerViewController(_:didFind:)))
 //            
-//            logWithTimestamp("Delegate methods implemented: wasCancelled=\(wasCancelled), didFail=\(didFail), didFind=\(didFind)")
+//            logger.log("Delegate methods implemented: wasCancelled=\(wasCancelled), didFail=\(didFail), didFind=\(didFind)")
 //            
 //            presentMatchmakerViewController(vc)
-//            logWithTimestamp("Presenting invite friends UI.")
+//            logger.log("Presenting invite friends UI.")
 //        } else {
-//            logWithTimestamp("Failed to create GKMatchmakerViewController.")
+//            logger.log("Failed to create GKMatchmakerViewController.")
 //        }
 //    }
 //
@@ -177,11 +177,11 @@
 //            guard let self = self else { return }
 //            
 //            if let vc = self.inviteViewController {
-//                logWithTimestamp("Dismissing invite UI")
+//                logger.log("Dismissing invite UI")
 //                vc.dismiss(nil)
 //                self.inviteViewController = nil
 //            } else {
-//                logWithTimestamp("No invite UI to dismiss")
+//                logger.log("No invite UI to dismiss")
 //            }
 //        }
 //    }

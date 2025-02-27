@@ -16,14 +16,14 @@ class GameState: ObservableObject, Codable {
     @Published var table: [Card] = [] // Must be [] after each trick grab. It follows the same order as in playOrder
     @Published var lastTrick: [PlayerId: Card] = [:] {
         didSet {
-            logWithTimestamp("Last trick updated: \(String(describing: lastTrick))")
+            logger.log("Last trick updated: \(String(describing: lastTrick))")
         }
     }
     @Published var lastTrickCardStates: [PlayerId: CardState] = [:]
     @Published var players: [Player] = []
     @Published var trumpSuit: Suit? = nil {
         didSet {
-            logWithTimestamp("Trump suit changed to: \(String(describing: trumpSuit))")
+            logger.log("Trump suit changed to: \(String(describing: trumpSuit))")
         }
     } // When the trump card is defined, the first card of the deck or twos is returned and trumpSuit is defined
     @Published var playOrder: [PlayerId] = [] // should be reset after each trick grab
@@ -196,13 +196,13 @@ extension GameState {
         players.allSatisfy(\.isConnected)
     }
 }
-
-extension GameState {
-    func logWithTimestamp(_ message: String) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        let timestamp = formatter.string(from: Date())
-        print("[\(timestamp)] \(message)")
-    }
-
-}
+//
+//extension GameState {
+//    func logger.log(_ message: String) {
+//        let formatter = DateFormatter()
+//        formatter.dateFormat = "HH:mm:ss"
+//        let timestamp = formatter.string(from: Date())
+//        print("[\(timestamp)] \(message)")
+//    }
+//
+//}

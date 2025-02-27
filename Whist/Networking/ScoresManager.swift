@@ -169,7 +169,7 @@ class ScoresManager {
         do {
             try saveScores(scores)
         } catch {
-            logWithTimestamp("Error saving scores: \(error)")
+            logger.log("Error saving scores: \(error)")
         }
     }
     
@@ -179,19 +179,19 @@ class ScoresManager {
         do {
             return try loadScores(for: year)
         } catch {
-            logWithTimestamp("Error loading scores: \(error)")
+            logger.log("Error loading scores: \(error)")
             return []
         }
     }
     
     // Helper function for logging
-    private func logWithTimestamp(_ message: String) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        let timestamp = formatter.string(from: Date())
-        print("[\(timestamp)] \(message)")
-    }
-    
+//    private func logger.log(_ message: String) {
+//        let formatter = DateFormatter()
+//        formatter.dateFormat = "HH:mm:ss"
+//        let timestamp = formatter.string(from: Date())
+//        print("[\(timestamp)] \(message)")
+//    }
+//    
     func loadScores(for year: Int = Calendar.current.component(.year, from: Date())) throws -> [GameScore] {
         #if TEST_MODE
         do {

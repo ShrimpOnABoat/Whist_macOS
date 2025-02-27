@@ -235,7 +235,7 @@ struct GameView: View {
             // If all deck cards are now measured,
             // let the GameManager know we’re ready to deal.
             if !didMeasureDeck && transforms.count == (gameManager.gameState.deck.count + gameManager.gameState.trumpCards.count) {
-                gameManager.logWithTimestamp("Setting didMeasureDeck to true")
+                logger.log("Setting didMeasureDeck to true")
                 didMeasureDeck = true
                 gameManager.onDeckMeasured()
             }
@@ -306,7 +306,7 @@ struct GameView: View {
     private func resumeGame() {
         gameManager.resumeGameState()
         showMatchmaking = false
-        gameManager.logWithTimestamp("Game resumed for player: \(playerID)")
+        logger.log("Game resumed for player: \(playerID)")
     }
     
     private func eraseGameState() {
@@ -314,12 +314,12 @@ struct GameView: View {
         savedGameExists = false
         showMatchmaking = false
         startNewGame()
-        gameManager.logWithTimestamp("Saved game erased for player: \(playerID)")
+        logger.log("Saved game erased for player: \(playerID)")
     }
     
     private func startNewGame() {
         showMatchmaking = false
-        gameManager.logWithTimestamp("New game started for player: \(playerID)")
+        logger.log("New game started for player: \(playerID)")
     }
 }
 

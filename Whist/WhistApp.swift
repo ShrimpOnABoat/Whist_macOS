@@ -30,7 +30,7 @@ struct WhistApp: App {
 #if !TEST_MODE
                     gameKitManager.authenticateLocalPlayer() { name, image in
                         guard let localPlayerID = GCPlayerIdAssociation[name] else {
-                            gameManager.logWithTimestamp("No matching PlayerId for \(name)")
+                            logger.log("No matching PlayerId for \(name)")
                             return
                         }
                         connectionManager.setLocalPlayerID(localPlayerID)

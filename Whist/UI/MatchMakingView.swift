@@ -45,7 +45,7 @@ struct MatchMakingView: View {
                 .padding()
                 .onChange(of: selectedPlayerID) { _, newID in
                     guard let newID = newID else { return }
-                    gameManager.logWithTimestamp("Selected player: \(newID)")
+                    gameManager.logger.log("Selected player: \(newID)")
                     connectionManager.setLocalPlayerID(newID)
                     gameManager.setPersistencePlayerID(with: selectedPlayerID!)
                     isWaitingForPlayers = true
@@ -64,7 +64,7 @@ struct MatchMakingView: View {
         }
         .onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
             if allConnected {
-                gameManager.logWithTimestamp("All players are connected!")
+                gameManager.logger.log("All players are connected!")
                 gameManager.checkAndAdvanceStateIfNeeded() // Should start the game
                 isWaitingForPlayers = false
                 navigateToGame = true
@@ -124,11 +124,11 @@ struct MatchMakingView: View {
 //                self.localPlayerPhoto = image
 //                
 //                guard let localPlayerID = GCPlayerIdAssociation[name] else {
-//                    gameManager.logWithTimestamp("No matching PlayerId for \(name)")
+//                    gameManager.logger.log("No matching PlayerId for \(name)")
 //                    return
 //                }
-//                gameManager.logWithTimestamp("Local player username: \(name)")
-//                gameManager.logWithTimestamp("Local player ID: \(localPlayerID)")
+//                gameManager.logger.log("Local player username: \(name)")
+//                gameManager.logger.log("Local player ID: \(localPlayerID)")
 //                connectionManager.setLocalPlayerID(localPlayerID)
 //                
 //                // Update the player info in the game state
@@ -138,7 +138,7 @@ struct MatchMakingView: View {
 //        }
 //        .onChange(of: gameManager.gameState.currentPhase) { _, currentOhase in
 //            if ![.waitingForPlayers, .exchangingSeed, .setupGame].contains(currentOhase) {
-//                gameManager.logWithTimestamp("All players are connected! Initiating transition to game view...")
+//                gameManager.logger.log("All players are connected! Initiating transition to game view...")
 //
 //                // Ensure we dismiss the Game Center invite modal before navigating
 //                DispatchQueue.main.async {
@@ -150,7 +150,7 @@ struct MatchMakingView: View {
 //                    gameManager.checkAndAdvanceStateIfNeeded()
 //
 //                    DispatchQueue.main.async {
-//                        gameManager.logWithTimestamp("Setting navigateToGame = true")
+//                        gameManager.logger.log("Setting navigateToGame = true")
 //                        navigateToGame = true
 //                    }
 //                }
@@ -158,7 +158,7 @@ struct MatchMakingView: View {
 //        }
 //        .onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
 //            if allConnected {
-//                gameManager.logWithTimestamp("All players are connected! Initiating transition to game view...")
+//                gameManager.logger.log("All players are connected! Initiating transition to game view...")
 //
 //                // Ensure we dismiss the Game Center invite modal before navigating
 //                DispatchQueue.main.async {
@@ -170,7 +170,7 @@ struct MatchMakingView: View {
 //                    gameManager.checkAndAdvanceStateIfNeeded()
 //
 //                    DispatchQueue.main.async {
-//                        gameManager.logWithTimestamp("Setting navigateToGame = true")
+//                        gameManager.logger.log("Setting navigateToGame = true")
 //                        navigateToGame = true
 //                    }
 //                }

@@ -36,7 +36,7 @@ extension GameManager {
 //        guard gameState.currentPhase == .renderingDeck else { return }
         
         isDeckReady = true
-        logWithTimestamp("checkAndAdvanceStateIfNeeded from onDeckMeasured")
+        logger.log("checkAndAdvanceStateIfNeeded from onDeckMeasured")
         checkAndAdvanceStateIfNeeded()
     }
 
@@ -60,7 +60,7 @@ extension GameManager {
 
         let (totalCards, completion) = animationQueue.removeFirst()
         activeAnimations = totalCards
-//        logWithTimestamp("processAnimationQueue: setting up \(totalCards) animations")
+//        logger.log("processAnimationQueue: setting up \(totalCards) animations")
         onBatchAnimationsCompleted.append( {
             completion()
             self.onBatchAnimationsCompleted.removeFirst()
@@ -150,7 +150,7 @@ extension GameManager {
         
         // Create a MovingCard instance without toState yet
         guard let fromState = self.cardStates[card.id] else {
-//            logWithTimestamp("fromState wasn't captured")
+//            logger.log("fromState wasn't captured")
             return
         }
         let movingCardInstance = MovingCard(
@@ -169,11 +169,11 @@ extension GameManager {
     // Function to finalize card movement after animation
     func finalizeMove(_ movingCard: MovingCard) {
         guard let toState = movingCard.toState else {
-//            logWithTimestamp("toState is still nil for \(movingCard.card)")
+//            logger.log("toState is still nil for \(movingCard.card)")
             return
         }
         
-//        logWithTimestamp("✅ Finalizing move for \(movingCard.card) from \(movingCard.from) to \(movingCard.to)")
+//        logger.log("✅ Finalizing move for \(movingCard.card) from \(movingCard.from) to \(movingCard.to)")
         
         // Add the card to the destination at the correct position
         switch movingCard.to {
@@ -230,17 +230,17 @@ extension GameManager {
         // Ensure the batch animation is completed before starting another one
         activeAnimations -= 1
         if activeAnimations == 0 {
-//            logWithTimestamp("Finished moving \(movingCard.card), no active animations left.")
+//            logger.log("Finished moving \(movingCard.card), no active animations left.")
             onBatchAnimationsCompleted[0]?()  // calls the closure we set in beginBatchMove
             processAnimationQueue()
         } else {
-//            logWithTimestamp("Finished moving \(movingCard.card), but \(activeAnimations) animations still active.")
+//            logger.log("Finished moving \(movingCard.card), but \(activeAnimations) animations still active.")
         }
     }
     
     func waitForAnimationsToFinish(completion: @escaping () -> Void) {
         if activeAnimations > 0 {
-//            logWithTimestamp("Waiting for \(activeAnimations) animations to finish before proceeding.")
+//            logger.log("Waiting for \(activeAnimations) animations to finish before proceeding.")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.waitForAnimationsToFinish(completion: completion)
             }

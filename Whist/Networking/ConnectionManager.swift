@@ -74,14 +74,14 @@ class ConnectionManager: NSObject, ObservableObject {
         let borderLine = String(repeating: "*", count: lineLength)
         let formattedMessage = "** \(message) **"
         
-        logWithTimestamp(borderLine)
-        logWithTimestamp(formattedMessage)
-        logWithTimestamp(borderLine)
+        logger.log(borderLine)
+        logger.log(formattedMessage)
+        logger.log(borderLine)
 
         startListening()
-        logWithTimestamp("setLocalPlayerID called. isServer: \(isServer)")
+        logger.log("setLocalPlayerID called. isServer: \(isServer)")
         #else
-        logWithTimestamp("Local player ID set to: \(playerID.rawValue)")
+        logger.log("Local player ID set to: \(playerID.rawValue)")
 #endif
     }
     
@@ -92,57 +92,57 @@ class ConnectionManager: NSObject, ObservableObject {
             let parameters = NWParameters.tcp
             listener = try NWListener(using: parameters, on: 12345)
         } catch {
-            logWithTimestamp("Failed to create listener: \(error)")
+            logger.log("Failed to create listener: \(error)")
             return
         }
         
         listener?.stateUpdateHandler = { [weak self] newState in
             switch newState {
             case .setup:
-                self?.logWithTimestamp("Listener state: setup")
+                self?.logger.log("Listener state: setup")
             case .waiting(let error):
-                self?.logWithTimestamp("Listener state: waiting with error: \(error)")
+                self?.logger.log("Listener state: waiting with error: \(error)")
             case .ready:
                 self?.isServer = true
-                self?.logWithTimestamp("Listener ready on port \(self?.listener?.port?.debugDescription ?? "unknown")")
-                self?.logWithTimestamp("This instance is acting as the server.")
+                self?.logger.log("Listener ready on port \(self?.listener?.port?.debugDescription ?? "unknown")")
+                self?.logger.log("This instance is acting as the server.")
             case .failed(let error):
-                self?.logWithTimestamp("Listener failed with error: \(error)")
+                self?.logger.log("Listener failed with error: \(error)")
                 self?.listener?.cancel()
                 if case .posix(let posixErrorCode) = error, posixErrorCode == .EADDRINUSE {
-                    self?.logWithTimestamp("Port 12345 is already in use. This instance will act as a client.")
+                    self?.logger.log("Port 12345 is already in use. This instance will act as a client.")
                     self?.isServer = false
                     self?.connectToServer()
                 } else {
-                    self?.logWithTimestamp("Unexpected error: \(error)")
+                    self?.logger.log("Unexpected error: \(error)")
                 }
             case .cancelled:
-                self?.logWithTimestamp("Listener state: cancelled")
+                self?.logger.log("Listener state: cancelled")
             default:
                 break
             }
         }
         
         listener?.newConnectionHandler = { [weak self] connection in
-            self?.logWithTimestamp("Received new connection from \(connection.endpoint)")
+            self?.logger.log("Received new connection from \(connection.endpoint)")
             self?.acceptConnection(connection)
         }
         
         listener?.start(queue: .main)
-        logWithTimestamp("isServer after error handling: \(isServer)")
+        logger.log("isServer after error handling: \(isServer)")
     }
     
     private func acceptConnection(_ connection: NWConnection) {
         connection.stateUpdateHandler = { [weak self] newState in
             switch newState {
             case .ready:
-                self?.logWithTimestamp("Connection ready from \(connection.endpoint)")
+                self?.logger.log("Connection ready from \(connection.endpoint)")
                 self?.receive(on: connection)
                 self?.addConnection(connection)
                 // Send our presence to the new client
                 self?.sendPlayerConnectedMessage(to: [connection])
             case .failed(let error):
-                self?.logWithTimestamp("Connection failed with error: \(error)")
+                self?.logger.log("Connection failed with error: \(error)")
                 self?.removeConnection(connection)
                 connection.cancel()
             default:
@@ -157,13 +157,13 @@ class ConnectionManager: NSObject, ObservableObject {
         connection.stateUpdateHandler = { [weak self] newState in
             switch newState {
             case .ready:
-                self?.logWithTimestamp("Connected to server")
+                self?.logger.log("Connected to server")
                 self?.receive(on: connection)
                 self?.addConnection(connection, isServer: true)
                 // Send our presence to the server
                 self?.sendPlayerConnectedMessage(to: [connection])
             case .failed(let error):
-                self?.logWithTimestamp("Failed to connect to server: \(error)")
+                self?.logger.log("Failed to connect to server: \(error)")
                 connection.cancel()
             default:
                 break
@@ -174,7 +174,7 @@ class ConnectionManager: NSObject, ObservableObject {
     
     private func addConnection(_ connection: NWConnection, isServer: Bool = false) {
         if let index = connectedPeers.firstIndex(where: { $0.connection === connection }) {
-            logWithTimestamp("Updating existing connection: \(connection.endpoint)")
+            logger.log("Updating existing connection: \(connection.endpoint)")
             var peer = connectedPeers[index]
             peer.incomingData = Data() // Reset incoming data buffer
             connectedPeers[index] = peer
@@ -182,23 +182,23 @@ class ConnectionManager: NSObject, ObservableObject {
             let newPeer = PeerConnection(connection: connection, playerID: nil, isServer: isServer)
             connectedPeers.append(newPeer)
         }
-        logWithTimestamp("Updated connectedPeers: \(connectedPeers.map { $0.playerID?.rawValue ?? "nil" })")
+        logger.log("Updated connectedPeers: \(connectedPeers.map { $0.playerID?.rawValue ?? "nil" })")
     }
 //    private func addConnection(_ connection: NWConnection) {
 //        let peerConnection = PeerConnection(connection: connection, playerID: nil)
 //        connectedPeers.append(peerConnection)
-//        logWithTimestamp("Added connection from \(connection.endpoint)")
+//        logger.log("Added connection from \(connection.endpoint)")
 ////        gameManager?.syncPlayersFromConnections(connectedPeers)
 //    }
     
     private func removeConnection(_ connection: NWConnection) {
         if let index = connectedPeers.firstIndex(where: { $0.connection === connection }) {
             let playerID = connectedPeers[index].playerID
-            logWithTimestamp("Removing connection from \(connection.endpoint), playerID: \(playerID?.rawValue ?? "Undefined")")
+            logger.log("Removing connection from \(connection.endpoint), playerID: \(playerID?.rawValue ?? "Undefined")")
             connectedPeers.remove(at: index)
             gameManager?.syncPlayersFromConnections(connectedPeers) // Update the players once the connection is removed
         } else {
-            logWithTimestamp("Connection from \(connection.endpoint) not found in connectedPeers")
+            logger.log("Connection from \(connection.endpoint) not found in connectedPeers")
         }
     }
     
@@ -208,11 +208,11 @@ class ConnectionManager: NSObject, ObservableObject {
                 self?.handleReceivedData(data, from: connection)
             }
             if isComplete {
-                self?.logWithTimestamp("Connection with \(connection.endpoint) is complete")
+                self?.logger.log("Connection with \(connection.endpoint) is complete")
                 self?.removeConnection(connection)
                 connection.cancel()
             } else if let error = error {
-                self?.logWithTimestamp("Receive error from \(connection.endpoint): \(error)")
+                self?.logger.log("Receive error from \(connection.endpoint): \(error)")
                 self?.removeConnection(connection)
                 connection.cancel()
             } else {
@@ -223,7 +223,7 @@ class ConnectionManager: NSObject, ObservableObject {
     
     private func handleReceivedData(_ data: Data, from connection: NWConnection) {
         guard let peerIndex = connectedPeers.firstIndex(where: { $0.connection === connection }) else {
-            logWithTimestamp("Connection not found in connectedPeers")
+            logger.log("Connection not found in connectedPeers")
             return
         }
         
@@ -236,7 +236,7 @@ class ConnectionManager: NSObject, ObservableObject {
     
     private func processIncomingData(for connection: NWConnection) {
         guard let peerIndex = connectedPeers.firstIndex(where: { $0.connection === connection }) else {
-            logWithTimestamp("Connection not found in connectedPeers")
+            logger.log("Connection not found in connectedPeers")
             return
         }
         
@@ -250,13 +250,13 @@ class ConnectionManager: NSObject, ObservableObject {
             do {
                 // Attempt to decode as TestModeMessage
                 let message = try JSONDecoder().decode(TestModeMessage.self, from: messageData)
-//                logWithTimestamp("Received message of type \(message.type.rawValue) from \(connection.endpoint)")
+//                logger.log("Received message of type \(message.type.rawValue) from \(connection.endpoint)")
                 handleTestModeMessage(message, from: connection)
             } catch {
                 // If decoding as TestModeMessage fails, try decoding as GameAction
                 do {
                     let action = try JSONDecoder().decode(GameAction.self, from: messageData)
-//                    logWithTimestamp("Received custom action of type \(action.type) from \(action.playerId.rawValue)")
+//                    logger.log("Received custom action of type \(action.type) from \(action.playerId.rawValue)")
                     if isServer {
                         // Relay action only to the other player
                         let sourcePlayerId = action.playerId
@@ -265,16 +265,16 @@ class ConnectionManager: NSObject, ObservableObject {
                         if let otherPlayerConnection = connectedPeers.first(where: { $0.playerID != sourcePlayerId && $0.playerID != localPlayerID }) {
                             // Relay the action to the other player
                             sendData(messageData, to: otherPlayerConnection.connection)
-//                            logWithTimestamp("Relayed action \(action.type) from \(sourcePlayerId.rawValue) to \(otherPlayerConnection.playerID?.rawValue ?? "unknown")")
+//                            logger.log("Relayed action \(action.type) from \(sourcePlayerId.rawValue) to \(otherPlayerConnection.playerID?.rawValue ?? "unknown")")
                         } else {
-                            logWithTimestamp("Error: Could not find connection for the other player.")
+                            logger.log("Error: Could not find connection for the other player.")
                         }
                     }
                     gameManager?.handleReceivedAction(action)
                 } catch {
-                    logWithTimestamp("Failed to decode incoming data as TestModeMessage or GameAction: \(error)")
+                    logger.log("Failed to decode incoming data as TestModeMessage or GameAction: \(error)")
                     if let rawMessage = String(data: messageData, encoding: .utf8) {
-                        logWithTimestamp("Raw message: \(rawMessage)")
+                        logger.log("Raw message: \(rawMessage)")
                     }
                 }
             }
@@ -291,20 +291,20 @@ class ConnectionManager: NSObject, ObservableObject {
                 if peer.connection !== excludedConnection {
                     peer.connection.send(content: data, completion: .contentProcessed { error in
                         if let error = error {
-                            self.logWithTimestamp("Broadcast send error: \(error)")
+                            logger.log("Broadcast send error: \(error)")
                         }
                     })
                 }
             }
         } else {
-            logWithTimestamp("Failed to encode message for broadcasting")
+            logger.log("Failed to encode message for broadcasting")
         }
     }
     
     private func handleTestModeMessage(_ message: TestModeMessage, from connection: NWConnection) {
         switch message.type {
         case .playerConnected:
-            logWithTimestamp("handleTestModeMessage: playerConnected")
+            logger.log("handleTestModeMessage: playerConnected")
             if isServer {
                 // Server logic remains unchanged
                 if let peerIndex = connectedPeers.firstIndex(where: { $0.connection === connection }) {
@@ -312,14 +312,14 @@ class ConnectionManager: NSObject, ObservableObject {
                     peer.playerID = message.playerID
                     connectedPeers[peerIndex] = peer
                     
-                    logWithTimestamp("Server assigned playerID \(message.playerID.rawValue) to \(connection.endpoint)")
+                    logger.log("Server assigned playerID \(message.playerID.rawValue) to \(connection.endpoint)")
 
                     broadcastPlayerList()
 
                     // Notify the UI about the updated list
                     gameManager?.syncPlayersFromConnections(connectedPeers)
                 } else {
-                    logWithTimestamp("The connection wasn't found in connectedPeers")
+                    logger.log("The connection wasn't found in connectedPeers")
                 }
             } else {
                 // Client logic
@@ -327,7 +327,7 @@ class ConnectionManager: NSObject, ObservableObject {
                     // Check if this is the server's playerID
                     var peer = connectedPeers[peerIndex]
                     if connection === connectedPeers.first(where: { $0.isServer })?.connection && peer.playerID == nil {
-                        logWithTimestamp("Client updated server's playerID to \(message.playerID.rawValue)")
+                        logger.log("Client updated server's playerID to \(message.playerID.rawValue)")
                         peer.playerID = message.playerID
                         peer.isServer = true
                         connectedPeers[peerIndex] = peer
@@ -336,7 +336,7 @@ class ConnectionManager: NSObject, ObservableObject {
                             // It's the other client's connection, add it
                             let newPeer = PeerConnection(connection: connection, playerID: message.playerID, isServer: false)
                             connectedPeers.append(newPeer)
-                            logWithTimestamp("Client added a new peer with ID \(message.playerID.rawValue)")
+                            logger.log("Client added a new peer with ID \(message.playerID.rawValue)")
                         }
                     }
                 }
@@ -345,7 +345,7 @@ class ConnectionManager: NSObject, ObservableObject {
             gameManager?.syncPlayersFromConnections(connectedPeers)
 
         case .playerDisconnected:
-            logWithTimestamp("Player disconnected: \(message.playerID.rawValue)")
+            logger.log("Player disconnected: \(message.playerID.rawValue)")
             // When a player disconnects, `removeConnection` will be called, removing them from connectedPeers.
             // After removal, just re-initializePlayers.
             if !isServer {
@@ -356,7 +356,7 @@ class ConnectionManager: NSObject, ObservableObject {
             gameManager?.syncPlayersFromConnections(connectedPeers)
 
             if isServer {
-                logWithTimestamp("Broadcasting playerDisconnected message for \(message.playerID) to other clients")
+                logger.log("Broadcasting playerDisconnected message for \(message.playerID) to other clients")
                 broadcastMessage(message, excluding: connection)
             }
         }
@@ -375,7 +375,7 @@ class ConnectionManager: NSObject, ObservableObject {
                 }
             }
         } else {
-            logWithTimestamp( "applicationWillTerminate: Local player ID not found.")
+            logger.log( "applicationWillTerminate: Local player ID not found.")
         }
     }
 #endif
@@ -393,11 +393,11 @@ class ConnectionManager: NSObject, ObservableObject {
             if let peer = connectedPeers.first(where: { $0.connection.endpoint == connection.endpoint }) {
                 peer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                     if let error = error {
-                        self.logWithTimestamp("Send error: \(error)")
+                        logger.log("Send error: \(error)")
                     }
                 })
             } else {
-                logWithTimestamp("Error: No peer found with connection \(connection.endpoint)")
+                logger.log("Error: No peer found with connection \(connection.endpoint)")
             }
         } else {
             // Broadcast data to all connected peers if server
@@ -406,7 +406,7 @@ class ConnectionManager: NSObject, ObservableObject {
                     if peer.playerID != localPlayerID {
                         peer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                             if let error = error {
-                                self.logWithTimestamp("Broadcast send error: \(error)")
+                                logger.log("Broadcast send error: \(error)")
                             }
                         })
                     }
@@ -416,11 +416,11 @@ class ConnectionManager: NSObject, ObservableObject {
                 if let serverPeer = connectedPeers.first(where: { $0.isServer }) {
                     serverPeer.connection.send(content: dataWithDelimiter, completion: .contentProcessed { error in
                         if let error = error {
-                            self.logWithTimestamp("Send error: \(error)")
+                            logger.log("Send error: \(error)")
                         }
                     })
                 } else {
-                    logWithTimestamp("Error: No server connection found")
+                    logger.log("Error: No server connection found")
                 }
             }
         }
@@ -429,14 +429,14 @@ class ConnectionManager: NSObject, ObservableObject {
     func sendData(_ data: Data) {
         // GameKit implementation: send data to all players reliably.
         guard let match = self.match else {
-            logWithTimestamp("No active GameKit match to send data.")
+            logger.log("No active GameKit match to send data.")
             return
         }
         do {
             try match.sendData(toAllPlayers: data, with: .reliable)
-            logWithTimestamp("Data sent via GameKit.")
+            logger.log("Data sent via GameKit.")
         } catch {
-            logWithTimestamp("Error sending data via GameKit: \(error)")
+            logger.log("Error sending data via GameKit: \(error)")
         }
     }
 #endif
@@ -453,11 +453,11 @@ class ConnectionManager: NSObject, ObservableObject {
         var playersProcessed = 0
         let totalPlayers = match.players.count
         
-        logWithTimestamp("Configuring match with \(totalPlayers) remote players")
+        logger.log("Configuring match with \(totalPlayers) remote players")
         
         // If there are no remote players, mark the connection as complete
         if totalPlayers == 0 {
-            logWithTimestamp("No remote players to configure, match is complete")
+            logger.log("No remote players to configure, match is complete")
             return
         }
 
@@ -465,7 +465,7 @@ class ConnectionManager: NSObject, ObservableObject {
         for player in match.players {
             if let assignedId = GCPlayerIdAssociation[player.displayName] {
                 let username = player.displayName
-                logWithTimestamp("Processing player: \(username) as \(assignedId.rawValue)")
+                logger.log("Processing player: \(username) as \(assignedId.rawValue)")
                 
                 // Load the player's photo asynchronously
                 player.loadPhoto(for: .normal) { [weak self] image, error in
@@ -474,7 +474,7 @@ class ConnectionManager: NSObject, ObservableObject {
                     // Update player regardless of whether photo loaded or not
                     DispatchQueue.main.async {
                         if let error = error {
-                            self.logWithTimestamp("Error loading photo for \(username): \(error)")
+                            logger.log("Error loading photo for \(username): \(error)")
                         }
                         
                         // Update the player with whatever image we got (nil is fine)
@@ -482,21 +482,21 @@ class ConnectionManager: NSObject, ObservableObject {
                         
                         // Track processed players
                         playersProcessed += 1
-                        self.logWithTimestamp("Processed \(playersProcessed)/\(totalPlayers) players")
+                        logger.log("Processed \(playersProcessed)/\(totalPlayers) players")
 
                         // When all players are processed, check and advance game state
                         if playersProcessed == totalPlayers {
-                            self.logWithTimestamp("All players processed, advancing game state")
+                            logger.log("All players processed, advancing game state")
                             self.gameManager?.checkAndAdvanceStateIfNeeded()
                         }
                     }
                 }
             } else {
-                self.logWithTimestamp("⚠️ No PlayerId mapping found for player \(player.displayName)")
+                logger.log("⚠️ No PlayerId mapping found for player \(player.displayName)")
             }
         }
 
-        logWithTimestamp("GameKit match configured with players: \(match.players.map { $0.displayName })")
+        logger.log("GameKit match configured with players: \(match.players.map { $0.displayName })")
     }
     
     func handleReceivedGameKitData(_ data: Data, from player: GKPlayer) {
@@ -507,19 +507,19 @@ class ConnectionManager: NSObject, ObservableObject {
                 self.gameManager?.handleReceivedAction(action)
             }
         } catch {
-            logWithTimestamp("Failed to decode GameAction from GameKit data: \(error)")
+            logger.log("Failed to decode GameAction from GameKit data: \(error)")
         }
     }
 
     func handleMatchFailure(error: Error?) {
-        logWithTimestamp("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
+        logger.log("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
         
         // Handle any cleanup or UI updates needed
         self.match = nil
     }
 
     func updatePlayerConnectionStatus(playerID: PlayerId, isConnected: Bool) {
-        logWithTimestamp("Player \(playerID.rawValue) disconnected")
+        logger.log("Player \(playerID.rawValue) disconnected")
         // Update player connection status in game manager
         gameManager?.updatePlayerConnectionStatus(playerID: playerID, isConnected: isConnected)
     }
@@ -546,7 +546,7 @@ class ConnectionManager: NSObject, ObservableObject {
                     for connection in connections {
                         connection.send(content: data, completion: .contentProcessed { error in
                             if let error = error {
-                                self.logWithTimestamp("Send error: \(error)")
+                                logger.log("Send error: \(error)")
                             }
                         })
                     }
@@ -554,26 +554,25 @@ class ConnectionManager: NSObject, ObservableObject {
                     for peer in connectedPeers {
                         peer.connection.send(content: data, completion: .contentProcessed { error in
                             if let error = error {
-                                self.logWithTimestamp("Send error: \(error)")
+                                logger.log("Send error: \(error)")
                             }
                         })
                     }
                 }
             }
         } else {
-            logWithTimestamp("sendPlayerConnectedMessage called, but localPlayerID is nil")
+            logger.log("sendPlayerConnectedMessage called, but localPlayerID is nil")
         }
     }
 #endif
     
-    // MARK: - GameKit Networking
-      
-    func logWithTimestamp(_ message: String) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        let timestamp = formatter.string(from: Date())
-        print("[\(timestamp)] \(message)")
-    }
+//      
+//    func logger.log(_ message: String) {
+//        let formatter = DateFormatter()
+//        formatter.dateFormat = "HH:mm:ss"
+//        let timestamp = formatter.string(from: Date())
+//        print("[\(timestamp)] \(message)")
+//    }
 }
 
 protocol ConnectionManagerDelegate: AnyObject {
