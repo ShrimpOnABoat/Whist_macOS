@@ -23,7 +23,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var showLastTrick: Bool = false
     @Published var movingCards: [MovingCard] = []
     private var timerCancellable: AnyCancellable?
-    var randomSeed: UInt64 = UInt64.random(in: 0...UInt64.max)
+    var randomSeed: UInt64 = 0
     var isDeckReady: Bool = false
     var isDeckReceived: Bool = false
     var pendingActions: [GameAction] = []
@@ -103,17 +103,12 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         logWithTimestamp("Dealer is \(String(describing: gameState.dealer))")
         
         // Set the previous loser's monthlyLosses
-        if let loser = GameManager.SM.findLoser(),
-           let loserIndex = gameState.players.firstIndex(where: { $0.username == loser.playerId }) {
-            gameState.players[loserIndex].monthlyLosses = loser.losingMonths
-            logWithTimestamp("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
-        } else {
-            if let loser = GameManager.SM.findLoser() {
-                logWithTimestamp("Loser \(loser.playerId) not found in players.")
-            } else {
-                logWithTimestamp("No loser found.")
-            }
-        }
+        // TODO: remove the comments when the ScoresManager is implemented
+//        if let loser = GameManager.SM.findLoser() {
+        let loser = Loser(playerId: .gg, losingMonths: 2)
+        let loserPlayer = gameState.getPlayer(by: loser.playerId)
+        loserPlayer.monthlyLosses = loser.losingMonths
+        logWithTimestamp("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
         
         // Identify localPlayer, leftPlayer, and rightPlayer
         if let localPlayerID = connectionManager?.localPlayerID {
@@ -142,8 +137,10 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     }
     
     func generateAndSendSeed() { // Only if local player is toto
+        randomSeed = UInt64.random(in: 1...UInt64.max)
         logWithTimestamp("Sending seed to other players!")
         sendSeedToPlayers(randomSeed)
+        checkAndAdvanceStateIfNeeded()
     }
     
     struct SeededGenerator: RandomNumberGenerator {

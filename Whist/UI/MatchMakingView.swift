@@ -13,12 +13,12 @@ import GameKit
 #endif
 
 struct MatchMakingView: View {
-    @State private var navigateToGame = false
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var gameKitManager: GameKitManager
     @EnvironmentObject var connectionManager: ConnectionManager
     
 #if TEST_MODE
+    @State private var navigateToGame = false
     @State private var selectedPlayerID: PlayerId? = nil
     @State private var isWaitingForPlayers: Bool = false
 #else
@@ -105,64 +105,57 @@ struct MatchMakingView: View {
                     }
                     .buttonStyle(.bordered)
                     
-                    // Add a direct navigation button for testing/backup
-                    if gameManager.gameState.allPlayersConnected {
-                        Button("DEBUG -- Start Game Now") {
-                            gameManager.logWithTimestamp("Manual game start triggered")
-                            gameKitManager.dismissInviteUI()
-                            navigateToGame = true
-                        }
-                        .padding(.top, 20)
-                    }
                 } else {
                     // Fallback if the local player is not authenticated
                     Text("Please sign in to Game Center.")
                 }
             }
+            #if TEST_MODE
             .navigationDestination(isPresented: $navigateToGame) {
                 GameView()
                     .environmentObject(connectionManager)
                     .environmentObject(gameManager)
             }
+            #endif
         }
-        .onAppear {
-            gameKitManager.loadLocalPlayerInfo { name, image in
-                self.localPlayerDisplayName = name
-                self.localPlayerPhoto = image
-                
-                guard let localPlayerID = GCPlayerIdAssociation[name] else {
-                    gameManager.logWithTimestamp("No matching PlayerId for \(name)")
-                    return
-                }
-                gameManager.logWithTimestamp("Local player username: \(name)")
-                gameManager.logWithTimestamp("Local player ID: \(localPlayerID)")
-                connectionManager.setLocalPlayerID(localPlayerID)
-                
-                // Update the player info in the game state
-                gameManager.updatePlayer(localPlayerID, isLocal: true, name: name, image: self.localPlayerPhoto)
-                gameManager.setPersistencePlayerID(with: localPlayerID)
-            }
-        }
-        .onChange(of: gameManager.gameState.currentPhase) { _, currentOhase in
-            if ![.waitingForPlayers, .exchangingSeed, .setupGame].contains(currentOhase) {
-                gameManager.logWithTimestamp("All players are connected! Initiating transition to game view...")
-
-                // Ensure we dismiss the Game Center invite modal before navigating
-                DispatchQueue.main.async {
-                    gameKitManager.dismissInviteUI()
-                }
-
-                // Ensure navigation is updated on the main thread with a slight delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    gameManager.checkAndAdvanceStateIfNeeded()
-
-                    DispatchQueue.main.async {
-                        gameManager.logWithTimestamp("Setting navigateToGame = true")
-                        navigateToGame = true
-                    }
-                }
-            }
-        }
+//        .onAppear {
+//            gameKitManager.loadLocalPlayerInfo { name, image in
+//                self.localPlayerDisplayName = name
+//                self.localPlayerPhoto = image
+//                
+//                guard let localPlayerID = GCPlayerIdAssociation[name] else {
+//                    gameManager.logWithTimestamp("No matching PlayerId for \(name)")
+//                    return
+//                }
+//                gameManager.logWithTimestamp("Local player username: \(name)")
+//                gameManager.logWithTimestamp("Local player ID: \(localPlayerID)")
+//                connectionManager.setLocalPlayerID(localPlayerID)
+//                
+//                // Update the player info in the game state
+//                gameManager.updatePlayer(localPlayerID, isLocal: true, name: name, image: self.localPlayerPhoto)
+//                gameManager.setPersistencePlayerID(with: localPlayerID)
+//            }
+//        }
+//        .onChange(of: gameManager.gameState.currentPhase) { _, currentOhase in
+//            if ![.waitingForPlayers, .exchangingSeed, .setupGame].contains(currentOhase) {
+//                gameManager.logWithTimestamp("All players are connected! Initiating transition to game view...")
+//
+//                // Ensure we dismiss the Game Center invite modal before navigating
+//                DispatchQueue.main.async {
+//                    gameKitManager.dismissInviteUI()
+//                }
+//
+//                // Ensure navigation is updated on the main thread with a slight delay
+//                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+//                    gameManager.checkAndAdvanceStateIfNeeded()
+//
+//                    DispatchQueue.main.async {
+//                        gameManager.logWithTimestamp("Setting navigateToGame = true")
+//                        navigateToGame = true
+//                    }
+//                }
+//            }
+//        }
 //        .onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
 //            if allConnected {
 //                gameManager.logWithTimestamp("All players are connected! Initiating transition to game view...")

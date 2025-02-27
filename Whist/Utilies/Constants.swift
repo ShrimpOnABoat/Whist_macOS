@@ -117,3 +117,9 @@ var GCPlayerIdAssociation: [String: PlayerId] = [
     "JuliaOliver2017": .dd,
     "OddestEagle3329": .gg
 ]
+
+var namePlayerIdAssociation: [String: PlayerId] = [
+    "toto": .toto,
+    "dd": .dd,
+    "gg": .gg
+]

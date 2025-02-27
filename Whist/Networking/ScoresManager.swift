@@ -53,7 +53,7 @@ extension GameScore {
 }
 
 struct Loser {
-    let playerId: String
+    let playerId: PlayerId
     let losingMonths: Int
 }
 
@@ -335,7 +335,7 @@ class ScoresManager {
         }
         
         var losingMonths = 0
-        var loserId: String?
+        var loserName: String?
         var previousMonth = currentMonth - 1
         
         while previousMonth > 0 {
@@ -348,11 +348,11 @@ class ScoresManager {
             let points = calculatePlayerPoints(games)
             let loser = findLoserInMonth(points)
             
-            if loserId == nil {
-                loserId = loser
+            if loserName == nil {
+                loserName = loser
             }
             
-            if loserId == loser {
+            if loserName == loser {
                 losingMonths += 1
                 previousMonth -= 1
             } else {
@@ -360,8 +360,11 @@ class ScoresManager {
             }
         }
         
-        guard let loser = loserId else { return nil }
-        return Loser(playerId: loser, losingMonths: losingMonths)
+        guard let loser = loserName else { return nil }
+        guard let loserId = namePlayerIdAssociation[loser] else { return nil }
+        
+        
+        return Loser(playerId: loserId, losingMonths: losingMonths)
     }
 }
 

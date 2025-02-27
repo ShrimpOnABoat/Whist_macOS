@@ -17,7 +17,11 @@ struct ContentView: View {
             #if TEST_MODE
             MatchMakingView()
             #else
-            if gameKitManager.isAuthenticated {
+            if ![.waitingForPlayers, .exchangingSeed, .setupGame].contains(gameManager.gameState.currentPhase) {
+                GameView()
+                    .environmentObject(connectionManager)
+                    .environmentObject(gameManager)
+            } else if gameKitManager.isAuthenticated {
                 MatchMakingView()
             } else {
                 VStack(spacing: 20) {

@@ -46,7 +46,12 @@ extension GameManager {
         if gameState.currentPhase == newPhase && !multiplePhases.contains(newPhase) {
             return
         }
-        
+        if gameState.currentPhase == .setupGame && newPhase == .waitingToStart {
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+                self.logWithTimestamp("Transitionning to waitingToStart with UI refresh")
+            }
+        }
         logWithTimestamp("Transitioning from \(gameState.currentPhase) to \(newPhase)")
         gameState.currentPhase = newPhase
         handleStateTransition()
@@ -351,8 +356,8 @@ extension GameManager {
             }
             
         case .exchangingSeed:
-            if gameState.playOrder.isEmpty {
-                logWithTimestamp("Seed not received yet. Waiting in .exchangingSeed...")
+            if randomSeed == 0 {
+                logWithTimestamp("Seed not set yet. Waiting in .exchangingSeed...")
             } else {
                 logWithTimestamp("Seed received by all players! Moving to .setupGame")
                 transition(to: .setupGame)

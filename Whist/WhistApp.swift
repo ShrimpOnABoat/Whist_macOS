@@ -27,7 +27,16 @@ struct WhistApp: App {
                     gameManager.connectionManager = connectionManager
                     connectionManager.gameManager = gameManager
                     gameKitManager.connectionManager = connectionManager
-                    gameKitManager.authenticateLocalPlayer()
+#if !TEST_MODE
+                    gameKitManager.authenticateLocalPlayer() { name, image in
+                        guard let localPlayerID = GCPlayerIdAssociation[name] else {
+                            gameManager.logWithTimestamp("No matching PlayerId for \(name)")
+                            return
+                        }
+                        connectionManager.setLocalPlayerID(localPlayerID)
+                        gameManager.updatePlayer(localPlayerID, isLocal: true, name: name, image: image)
+                    }
+#endif
                 }
         }
         .defaultSize(width: 800, height: 600)
