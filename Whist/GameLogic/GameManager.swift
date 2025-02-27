@@ -42,7 +42,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
-    var isAIPlaying: Bool = false
+    var isAIPlaying: Bool = true
     
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
@@ -131,7 +131,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     func setPersistencePlayerID(with playerId: PlayerId) {
         persistence = GamePersistence(playerID: playerId)
-        if playerId != .dd {
+        if playerId != .toto {
             isAIPlaying = true
         }
     }
@@ -307,13 +307,6 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     func updateDealerFrame(playerId: PlayerId, frame: CGRect) {
         dealerPosition = CGPoint(x: frame.midX, y: frame.midY)
-//        dealerFrames[playerId] = frame
-        
-//        if playerId == gameState.localPlayer?.id {
-//            dealerPosition = CGPoint(x: frame.midX + dynamicSize.dealerButtonLocalOffset.width,
-//                                     y: frame.midY + dynamicSize.dealerButtonLocalOffset.height)
-//        } else {
-//        }
     }
     
     func updatePlayerPlayOrder(startingWith condition: StartingCondition) {
@@ -352,38 +345,20 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     }
     
     // MARK: - Game Utility Functions
-    
-//    func logger.log(_ message: String) {
-//        if logCounter % 30 == 0 {
-//            if let message = gameState.localPlayer?.id.rawValue.uppercased() {
-//                let message2 = message + " - round \(gameState.round) - phase \(gameState.currentPhase)"
-//                let formattedMessage = "** \(message2) **"
-//                print(formattedMessage)
-//            }
-//        }
-//        logCounter += 1
-//        let formatter = DateFormatter()
-//        formatter.dateFormat = "HH:mm:ss"
-//        let timestamp = formatter.string(from: Date())
-//        print("[\(timestamp)] \(message)")
-//    }
-    
+
     func updatePlayersPositions() {
         gameState.players.forEach { player in
-            player.place = determinePosition(for: player.username)
+            player.place = determinePosition(for: player.id)
         }
     }
 
-    private func determinePosition(for username: String) -> Int {
+    private func determinePosition(for playerId: PlayerId) -> Int {
         /// returns 1 if the player has the highest score, even if there's a tie
         /// returns 2 for the second player
         /// returns 3 for the last player
 
         // TODO: check that this function works as intended
-        guard let player = gameState.players.first(where: { $0.username == username }) else {
-            return 1 // Default to 1 if player is not found
-        }
-        
+        let player = gameState.getPlayer(by: playerId)
         let currentRound = gameState.round
         let currentScores = gameState.players.map { $0.scores.last ?? 0 }
         let highestScore = currentScores.max() ?? 0
@@ -424,7 +399,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
                 // Fallback to dealer-based play order
                 if let dealer = gameState.dealer,
                    let dealerIndex = gameState.playOrder.firstIndex(of: dealer),
-                   let usernameIndex = gameState.playOrder.firstIndex(of: PlayerId(rawValue: username)!) {
+                   let usernameIndex = gameState.playOrder.firstIndex(of: playerId) {
                     // Calculate the index of the player to the left of the dealer
                     let leftOfDealerIndex = (dealerIndex + 1) % gameState.playOrder.count
 

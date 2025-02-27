@@ -359,7 +359,7 @@ extension GameManager {
             if randomSeed == 0 {
                 logger.log("Seed not set yet. Waiting in .exchangingSeed...")
             } else {
-                logger.log("Seed received by all players! Moving to .setupGame")
+                logger.log("Seed initialized! Moving to .setupGame")
                 transition(to: .setupGame)
             }
             

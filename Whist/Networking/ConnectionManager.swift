@@ -500,10 +500,12 @@ class ConnectionManager: NSObject, ObservableObject {
     }
     
     func handleReceivedGameKitData(_ data: Data, from player: GKPlayer) {
+        logger.log("Received some data from \(player.displayName)")
         // Attempt to decode a GameAction (or other message) from the received data
         do {
             let action = try JSONDecoder().decode(GameAction.self, from: data)
             DispatchQueue.main.async {
+                logger.log("Received action \(action.type) from \(player.displayName)")
                 self.gameManager?.handleReceivedAction(action)
             }
         } catch {

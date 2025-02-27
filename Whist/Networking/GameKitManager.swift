@@ -159,7 +159,7 @@ class GameKitManager: NSObject, ObservableObject {
 //    }
 }
 
-// MARK: - GKLocalPlayerListener Implementation
+// MARK: - GKLocalPlayerListener
 extension GameKitManager: GKLocalPlayerListener {
     func player(_ player: GKPlayer, didAccept invite: GKInvite) {
         logger.log("Player \(player.displayName) accepted invite")
@@ -183,7 +183,7 @@ extension GameKitManager: GKLocalPlayerListener {
     }
 }
 
-// MARK: - GKMatchmakerViewControllerDelegate Implementation
+// MARK: - GKMatchmakerViewControllerDelegate
 extension GameKitManager: GKMatchmakerViewControllerDelegate {
     func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController) {
         logger.log("GameKitManager: matchmakerViewControllerWasCancelled called")
@@ -214,7 +214,7 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
     }
 }
 
-// MARK: - GKMatchDelegate Implementation
+// MARK: - GKMatchDelegate
 extension GameKitManager: GKMatchDelegate {
     func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
         logger.log("Received data from \(player.displayName)")

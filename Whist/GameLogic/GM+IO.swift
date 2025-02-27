@@ -13,6 +13,7 @@ extension GameManager {
     // MARK: - handleReceivedAction
     
     func handleReceivedAction(_ action: GameAction) {
+        logger.log("Handling action \(action.type) from a\(action.playerId)")
         DispatchQueue.main.async {
             // Check if the action is valid for the current phase
             if self.isActionValidInCurrentPhase(action.type) {
@@ -44,7 +45,6 @@ extension GameManager {
                 return
             }
             self.updateGameStateWithPlayedCard(from: action.playerId, with: card) {
-//                self.checkAndAdvanceStateIfNeeded()
                 return
             }
             
@@ -76,7 +76,6 @@ extension GameManager {
             }
             
         case .sendState:
-//            logger.log("Received state")
             if let state = try? JSONDecoder().decode(PlayerState.self, from: action.payload) {
                 self.updatePlayerWithState(from: action.playerId, with: state)
             } else {
@@ -97,7 +96,7 @@ extension GameManager {
         if let seedData = try? JSONEncoder().encode(randomSeed) {
             let action = GameAction(
                 playerId: localPlayerID,
-                type: .sendDeck,
+                type: .seed,
                 payload: seedData,
                 timestamp: Date().timeIntervalSince1970
             )
@@ -248,7 +247,7 @@ extension GameManager {
     func sendAction(_ action: GameAction) {
         if let actionData = try? JSONEncoder().encode(action) {
             connectionManager?.sendData(actionData)
-//            logger.log("Sent action \(action.type) to other players")
+            logger.log("Sent action \(action.type) to other players")
         } else {
             logger.log("Failed to encode action")
         }
