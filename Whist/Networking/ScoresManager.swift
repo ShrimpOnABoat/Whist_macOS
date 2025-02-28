@@ -184,14 +184,6 @@ class ScoresManager {
         }
     }
     
-    // Helper function for logging
-//    private func logger.log(_ message: String) {
-//        let formatter = DateFormatter()
-//        formatter.dateFormat = "HH:mm:ss"
-//        let timestamp = formatter.string(from: Date())
-//        print("[\(timestamp)] \(message)")
-//    }
-//    
     func loadScores(for year: Int = Calendar.current.component(.year, from: Date())) throws -> [GameScore] {
         #if TEST_MODE
         do {

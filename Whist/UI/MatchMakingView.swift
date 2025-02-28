@@ -21,10 +21,6 @@ struct MatchMakingView: View {
     @State private var navigateToGame = false
     @State private var selectedPlayerID: PlayerId? = nil
     @State private var isWaitingForPlayers: Bool = false
-#else
-//    @StateObject private var viewModel = MatchmakingViewModel()
-    @State private var localPlayerDisplayName = ""
-    @State private var localPlayerPhoto: NSImage?
 #endif
     
     var body: some View {
@@ -79,16 +75,14 @@ struct MatchMakingView: View {
             VStack {
                 if GKLocalPlayer.local.isAuthenticated {
                     // Player's profile image
-                    if let photo = localPlayerPhoto {
-                        Image(nsImage: photo)
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .clipShape(Circle())
-                            .padding(.bottom, 8)
-                    }
+                    Image(nsImage: gameKitManager.localImage)
+                        .resizable()
+                        .frame(width: 60, height: 60)
+                        .clipShape(Circle())
+                        .padding(.bottom, 8)
                     
                     // Player's display name
-                    Text(localPlayerDisplayName)
+                    Text(gameKitManager.localUsername)
                         .font(.headline)
                         .padding(.bottom, 20)
                     
@@ -118,64 +112,6 @@ struct MatchMakingView: View {
             }
             #endif
         }
-//        .onAppear {
-//            gameKitManager.loadLocalPlayerInfo { name, image in
-//                self.localPlayerDisplayName = name
-//                self.localPlayerPhoto = image
-//                
-//                guard let localPlayerID = GCPlayerIdAssociation[name] else {
-//                    gameManager.logger.log("No matching PlayerId for \(name)")
-//                    return
-//                }
-//                gameManager.logger.log("Local player username: \(name)")
-//                gameManager.logger.log("Local player ID: \(localPlayerID)")
-//                connectionManager.setLocalPlayerID(localPlayerID)
-//                
-//                // Update the player info in the game state
-//                gameManager.updatePlayer(localPlayerID, isLocal: true, name: name, image: self.localPlayerPhoto)
-//                gameManager.setPersistencePlayerID(with: localPlayerID)
-//            }
-//        }
-//        .onChange(of: gameManager.gameState.currentPhase) { _, currentOhase in
-//            if ![.waitingForPlayers, .exchangingSeed, .setupGame].contains(currentOhase) {
-//                gameManager.logger.log("All players are connected! Initiating transition to game view...")
-//
-//                // Ensure we dismiss the Game Center invite modal before navigating
-//                DispatchQueue.main.async {
-//                    gameKitManager.dismissInviteUI()
-//                }
-//
-//                // Ensure navigation is updated on the main thread with a slight delay
-//                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-//                    gameManager.checkAndAdvanceStateIfNeeded()
-//
-//                    DispatchQueue.main.async {
-//                        gameManager.logger.log("Setting navigateToGame = true")
-//                        navigateToGame = true
-//                    }
-//                }
-//            }
-//        }
-//        .onChange(of: gameManager.gameState.allPlayersConnected) { _, allConnected in
-//            if allConnected {
-//                gameManager.logger.log("All players are connected! Initiating transition to game view...")
-//
-//                // Ensure we dismiss the Game Center invite modal before navigating
-//                DispatchQueue.main.async {
-//                    gameKitManager.dismissInviteUI()
-//                }
-//
-//                // Ensure navigation is updated on the main thread with a slight delay
-//                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-//                    gameManager.checkAndAdvanceStateIfNeeded()
-//
-//                    DispatchQueue.main.async {
-//                        gameManager.logger.log("Setting navigateToGame = true")
-//                        navigateToGame = true
-//                    }
-//                }
-//            }
-//        }
 #endif
     }
 }

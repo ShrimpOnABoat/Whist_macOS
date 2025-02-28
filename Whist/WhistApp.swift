@@ -26,8 +26,8 @@ struct WhistApp: App {
                     // Establish the delegation relationship
                     gameManager.connectionManager = connectionManager
                     connectionManager.gameManager = gameManager
-                    gameKitManager.connectionManager = connectionManager
 #if !TEST_MODE
+                    gameKitManager.connectionManager = connectionManager
                     gameKitManager.authenticateLocalPlayer() { name, image in
                         guard let localPlayerID = GCPlayerIdAssociation[name] else {
                             logger.log("No matching PlayerId for \(name)")

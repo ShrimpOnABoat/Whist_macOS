@@ -19,6 +19,10 @@ class GameKitManager: NSObject, ObservableObject {
     @Published var match: GKMatch?
     @Published var playersInMatch: [GKPlayer] = []
     
+    @Published var localUsername: String = "Pas connecté encore"
+    @Published var localImage: NSImage = NSImage(systemSymbolName: "person.crop.circle.fill", accessibilityDescription: "Default Player Avatar") ?? NSImage(size: NSSize(width: 50, height: 50))
+
+    
     // Map to store GKPlayer to PlayerId associations
     private var matchRequest: GKMatchRequest
     private var inviteViewController: GKMatchmakerViewController?
@@ -64,6 +68,7 @@ class GameKitManager: NSObject, ObservableObject {
                         GKLocalPlayer.local.register(strongSelf)
 
                         let playerName = GKLocalPlayer.local.displayName
+                        strongSelf.localUsername = playerName
 
                         // Attempt to load the player's photo
                         GKLocalPlayer.local.loadPhoto(for: .normal) { image, error in
@@ -72,6 +77,7 @@ class GameKitManager: NSObject, ObservableObject {
                             }
 
                             let playerImage = image ?? defaultPlayerImage
+                            strongSelf.localImage = playerImage
                             completion(playerName, playerImage) // Return the player's name and either the loaded or default image
                         }
 
