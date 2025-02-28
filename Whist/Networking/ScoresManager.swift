@@ -20,6 +20,22 @@ struct GameScore: Codable, Identifiable {
     let ggConsecutiveWins: Int?
     let ddConsecutiveWins: Int?
     let totoConsecutiveWins: Int?
+
+    // 🔹 Custom initializer to provide default values
+    init(date: Date, ggScore: Int, ddScore: Int, totoScore: Int,
+         ggPosition: Int? = nil, ddPosition: Int? = nil, totoPosition: Int? = nil,
+         ggConsecutiveWins: Int? = nil, ddConsecutiveWins: Int? = nil, totoConsecutiveWins: Int? = nil) {
+        self.date = date
+        self.ggScore = ggScore
+        self.ddScore = ddScore
+        self.totoScore = totoScore
+        self.ggPosition = ggPosition
+        self.ddPosition = ddPosition
+        self.totoPosition = totoPosition
+        self.ggConsecutiveWins = ggConsecutiveWins
+        self.ddConsecutiveWins = ddConsecutiveWins
+        self.totoConsecutiveWins = totoConsecutiveWins
+    }
     
     enum CodingKeys: String, CodingKey {
         case date
@@ -90,6 +106,16 @@ class ScoresManager {
         Calendar.current.component(.year, from: Date())
     }
     
+    // MARK: - Initializer
+    private init() {
+        do {
+            try ensureiCloudFolderExists()
+            logger.log("✅ iCloud Drive folder ensured on initialization.")
+        } catch {
+            logger.log("❌ Error ensuring iCloud Drive folder: \(error)")
+        }
+    }
+    
     private func ensureDirectoryExists() throws {
 #if TEST_MODE
         if !fileManager.fileExists(atPath: scoresDirectoryURL.path) {
@@ -128,48 +154,36 @@ class ScoresManager {
             throw ScoresManagerError.fileWriteFailed
         }
 #else
-        let record = CKRecord(recordType: "GameScores")
+        let fileManager = FileManager.default
+        guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
+            .appendingPathComponent("Documents")
+            .appendingPathComponent("scores_\(currentYear).json") else {
+            print("❌ iCloud Drive is not available")
+            throw ScoresManagerError.fileWriteFailed
+        }
+
         do {
             let encoder = JSONEncoder()
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            
-            encoder.dateEncodingStrategy = .formatted(formatter)
             encoder.outputFormatting = [.prettyPrinted]
-            
+
             let data = try encoder.encode(scores)
-            record["scores"] = data as CKRecordValue
-            
-            let semaphore = DispatchSemaphore(value: 0)
-            var saveError: Error?
-            
-            CKContainer.default().privateCloudDatabase.save(record) { _, error in
-                saveError = error
-                semaphore.signal()
-            }
-            
-            semaphore.wait()
-            
-            // Check if an error occurred during save
-            if let error = saveError {
-                throw ScoresManagerError.cloudKitError(error)
-            }
-            
+            try data.write(to: iCloudURL, options: .atomic)
+            print("✅ Scores for \(currentYear) saved to iCloud Drive at \(iCloudURL.path)")
         } catch {
-            throw ScoresManagerError.encodingFailed
+            print("❌ Error saving to iCloud Drive: \(error.localizedDescription)")
+            throw ScoresManagerError.fileWriteFailed
         }
 #endif
     }
     
     // MARK: Save Score
     func saveScore(_ score: GameScore) {
-        var scores = loadScoresSafely()
+        var scores = (try? loadScores(for: currentYear)) ?? []
         scores.append(score)
         do {
             try saveScores(scores)
         } catch {
-            logger.log("Error saving scores: \(error)")
+            print("❌ Error saving score for \(currentYear): \(error)")
         }
     }
     
@@ -222,66 +236,56 @@ class ScoresManager {
             throw ScoresManagerError.decodingFailed
         }
         #else
-        var scores: [GameScore] = []
-        let query = CKQuery(recordType: "GameScores", predicate: NSPredicate(value: true))
-        let semaphore = DispatchSemaphore(value: 0)
-        var loadError: Error?
-        
-        CKContainer.default().privateCloudDatabase.fetch(
-            withQuery: query,
-            inZoneWith: nil,
-            desiredKeys: nil,
-            resultsLimit: CKQueryOperation.maximumResults
-        ) { result in
-            switch result {
-            case .failure(let error):
-                loadError = error
-            case .success(let fetchResult):
-                // Each matchResult is a tuple: (CKRecord.ID, Result<CKRecord, Error>)
-                // We need to extract the CKRecord from the Result.
-                let records = fetchResult.matchResults.compactMap { try? $0.1.get() }
-                for record in records {
-                    if let data = record["scores"] as? Data {
-                        do {
-                            let decoder = JSONDecoder()
-                            decoder.dateDecodingStrategy = .custom { decoder in
-                                let container = try decoder.singleValueContainer()
-                                let dateString = try container.decode(String.self)
-                                
-                                let iso8601Formatter = ISO8601DateFormatter()
-                                iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                                
-                                let alternateFormatter = DateFormatter()
-                                alternateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-                                
-                                if let date = iso8601Formatter.date(from: dateString) {
-                                    return date
-                                } else if let date = alternateFormatter.date(from: dateString) {
-                                    return date
-                                } else {
-                                    throw DecodingError.dataCorruptedError(
-                                        in: container,
-                                        debugDescription: "Date string does not match expected formats"
-                                    )
-                                }
-                            }
-                            
-                            let decodedScores = try decoder.decode([GameScore].self, from: data)
-                            scores.append(contentsOf: decodedScores)
-                        } catch {
-                            loadError = ScoresManagerError.decodingFailed
-                        }
-                    }
+        let fileManager = FileManager.default
+        guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
+            .appendingPathComponent("Documents")
+            .appendingPathComponent("scores_\(year).json"),
+            fileManager.fileExists(atPath: iCloudURL.path) else {
+            print("❌ No scores file found for \(year) in iCloud Drive")
+            return []
+        }
+        do {
+            let data = try Data(contentsOf: iCloudURL)
+            let decoder = JSONDecoder()
+            // Custom date decoding strategy that handles both formats:
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+                
+                let isoFormatter = ISO8601DateFormatter()
+                // Try without fractional seconds first (for "2024-01-06T21:26:07-05:00")
+                isoFormatter.formatOptions = [.withInternetDateTime]
+                if let date = isoFormatter.date(from: dateString) {
+                    return date
                 }
+                // Then try with fractional seconds (for older files, e.g. "2017-07-06T04:00:00.000Z")
+                isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = isoFormatter.date(from: dateString) {
+                    return date
+                }
+                // Fallback: use a DateFormatter that accepts the full offset with colon:
+                let fallbackFormatter = DateFormatter()
+                fallbackFormatter.locale = Locale(identifier: "en_US_POSIX")
+                fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+                if let date = fallbackFormatter.date(from: dateString) {
+                    return date
+                }
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Date string does not match expected formats")
             }
-            semaphore.signal()
+            
+            return try decoder.decode([GameScore].self, from: data)
+        } catch {
+            print("❌ Error loading scores for \(year): \(error.localizedDescription)")
+            throw ScoresManagerError.fileReadFailed
         }
-        semaphore.wait()
-        
-        if let error = loadError {
-            throw ScoresManagerError.cloudKitError(error)
-        }
-        return scores
+//        do {
+//            let data = try Data(contentsOf: iCloudURL)
+//            let decoder = JSONDecoder()
+//            return try decoder.decode([GameScore].self, from: data)
+//        } catch {
+//            print("❌ Error loading scores for \(year): \(error.localizedDescription)")
+//            throw ScoresManagerError.fileReadFailed
+//        }
         #endif
     }
     
@@ -357,6 +361,30 @@ class ScoresManager {
         
         
         return Loser(playerId: loserId, losingMonths: losingMonths)
+    }
+    
+    // MARK: iCloud Drive Creation
+    
+    func ensureiCloudFolderExists() throws {
+        let fileManager = FileManager.default
+
+        // Ensure iCloud Drive is available before proceeding
+        guard let iCloudFolder = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
+            .appendingPathComponent("Documents") else {
+            print("❌ iCloud Drive is not available yet. Retrying later...")
+            throw ScoresManagerError.directoryCreationFailed
+        }
+
+        // Check if folder already exists
+        if !fileManager.fileExists(atPath: iCloudFolder.path) {
+            do {
+                try fileManager.createDirectory(at: iCloudFolder, withIntermediateDirectories: true)
+                print("📂 Created iCloud Drive 'Documents' folder at \(iCloudFolder.path)")
+            } catch {
+                print("❌ Failed to create iCloud Drive folder: \(error.localizedDescription)")
+                throw ScoresManagerError.directoryCreationFailed
+            }
+        }
     }
 }
 

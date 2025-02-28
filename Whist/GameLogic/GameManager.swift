@@ -56,6 +56,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     var logCounter: Int = 0
 
     init() {
+        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2.0) {
+            do {
+                try GameManager.SM.ensureiCloudFolderExists()
+                logger.log("✅ iCloud Drive folder ensured on initialization.")
+            } catch {
+                logger.log("❌ Error ensuring iCloud Drive folder: \(error)")
+            }
+        }
     }
     
     // MARK: - Game State Initialization
@@ -104,12 +112,11 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         // Set the previous loser's monthlyLosses
         // TODO: remove the comments when the ScoresManager is implemented
-//        if let loser = GameManager.SM.findLoser() {
-        let loser = Loser(playerId: .gg, losingMonths: 2)
-        let loserPlayer = gameState.getPlayer(by: loser.playerId)
-        loserPlayer.monthlyLosses = loser.losingMonths
-        logger.log("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
-        
+        if let loser = GameManager.SM.findLoser() {
+            let loserPlayer = gameState.getPlayer(by: loser.playerId)
+            loserPlayer.monthlyLosses = loser.losingMonths
+            logger.log("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
+        }
         // Identify localPlayer, leftPlayer, and rightPlayer
         if let localPlayerID = connectionManager?.localPlayerID {
             gameState.updatePlayerReferences(for: localPlayerID)
