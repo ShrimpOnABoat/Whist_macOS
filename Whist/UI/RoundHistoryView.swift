@@ -39,10 +39,6 @@ struct RoundHistoryView: View {
     // MARK: - Header Row
     func headerRow() -> some View {
         HStack {
-            let players = gameManager.gameState.players.sorted { player1, player2 in
-                let order: [PlayerId] = [.gg, .dd, .toto]
-                return order.firstIndex(of: player1.id) ?? Int.max < order.firstIndex(of: player2.id) ?? Int.max
-            }
             Text("Tour").frame(width: 50).bold().foregroundColor(.primary)
  
             ForEach(["GG", "DD", "Toto"], id: \.self) { name in

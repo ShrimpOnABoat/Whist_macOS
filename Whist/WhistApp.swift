@@ -22,6 +22,7 @@ struct WhistApp: App {
                 .environmentObject(gameManager)
                 .environmentObject(gameKitManager)
                 .environmentObject(connectionManager)
+                .environmentObject(preferences)
                 .onAppear {
                     // Establish the delegation relationship
                     gameManager.connectionManager = connectionManager
@@ -72,10 +73,10 @@ struct ScoresMenuCommands: Commands {
     }
 }
 
-
 class Preferences: ObservableObject {
     @AppStorage("selectedFeltIndex") var selectedFeltIndex: Int = 0
-    @AppStorage("wearIntensity") var wearIntensity: Double = 0.5
+    // Utiliser un toggle pour l'intensité de l'usure, activé par défaut
+    @AppStorage("wearIntensity") var wearIntensity: Bool = true
     @AppStorage("motifVisibility") var motifVisibility: Double = 0.5
     @AppStorage("patternOpacity") var patternOpacity: Double = 0.5
     @AppStorage("patternScale") private var patternScaleStorage: Double = 0.5
@@ -88,24 +89,53 @@ class Preferences: ObservableObject {
     var currentFelt: Color {
         GameConstants.feltColors[selectedFeltIndex]
     }
+    
+    // Sauvegarde des couleurs activables pour le tirage aléatoire
+    @AppStorage("enabledRandomColors") private var enabledRandomColorsData: Data?
+    
+    var enabledRandomColors: [Bool] {
+        get {
+            if let data = enabledRandomColorsData,
+               let decoded = try? JSONDecoder().decode([Bool].self, from: data),
+               decoded.count == GameConstants.feltColors.count {
+                return decoded
+            } else {
+                // Initialiser avec toutes les couleurs sélectionnées par défaut
+                return Array(repeating: true, count: GameConstants.feltColors.count)
+            }
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                enabledRandomColorsData = data
+            }
+        }
+    }
 }
 
 struct PreferencesView: View {
     @EnvironmentObject var preferences: Preferences
-    @State private var isRandom: Bool = false // State for the checkbox
 
     var body: some View {
-        Form {
-            // "Choisir au hasard" Toggle
-            Section {
-                Toggle("Choisir au hasard", isOn: $isRandom)
-            }
-
-            // Felt Color Picker
-            Section(header: Text("Couleur du tapis")) {
-                HStack {
-                    Picker("Couleur du tapis", selection: $preferences.selectedFeltIndex) {
-                        ForEach(0..<GameConstants.feltColors.count, id: \.self) { idx in
+        VStack {
+            Form {
+                // Section pour les couleurs du tapis
+                Section(header: Text("Couleurs du tapis")
+                            .font(.headline)
+                            .padding(.vertical, 4)) {
+                    ForEach(0..<GameConstants.feltColors.count, id: \.self) { idx in
+                        Toggle(isOn: Binding<Bool>(
+                            get: { preferences.enabledRandomColors.indices.contains(idx) ? preferences.enabledRandomColors[idx] : false },
+                            set: { newValue in
+                                var current = preferences.enabledRandomColors
+                                if current.indices.contains(idx) {
+                                    current[idx] = newValue
+                                } else {
+                                    current = Array(repeating: false, count: GameConstants.feltColors.count)
+                                    current[idx] = newValue
+                                }
+                                preferences.enabledRandomColors = current
+                            }
+                        )) {
                             HStack {
                                 Circle()
                                     .fill(GameConstants.feltColors[idx])
@@ -114,49 +144,32 @@ struct PreferencesView: View {
                             }
                         }
                     }
-                    .disabled(isRandom) // Disable when "Choisir au hasard" is checked
-
-                    // Square showing the actual selected color
-                    Rectangle()
-                        .fill(preferences.currentFelt)
-                        .frame(width: 30, height: 30)
-                        .cornerRadius(4)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                        )
+                }
+                
+                // Section pour le toggle de l'usure du tapis
+                Section(header: Text("Usure du tapis")
+                            .font(.headline)
+                            .padding(.vertical, 4)) {
+                    Toggle("Intensité de l'usure", isOn: $preferences.wearIntensity)
                 }
             }
-
-            // Other Controls
-            Section {
-                Slider(value: $preferences.wearIntensity, in: 0...1, step: 0.25) {
-                    Text("Intensité de l'usure")
+            
+            // Bouton pour rafraîchir le background
+            Button("Rafraîchir le tapis") {
+                // Récupérer les indices des couleurs activées
+                let enabledIndices = preferences.enabledRandomColors.enumerated().compactMap { (index, isEnabled) in
+                    isEnabled ? index : nil
                 }
-                .disabled(isRandom) // Disable when "Choisir au hasard" is checked
-            }
-
-            Section {
-                Slider(value: $preferences.motifVisibility, in: 0...1, step: 0.1) {
-                    Text("Visibilité du motif")
+                // Si au moins une couleur est sélectionnée, on choisit aléatoirement l'une d'entre elles
+                if let newIndex = enabledIndices.randomElement() {
+                    preferences.selectedFeltIndex = newIndex
                 }
-                .disabled(isRandom) // Disable when "Choisir au hasard" is checked
             }
-
-            Section {
-                Slider(value: $preferences.patternScale, in: 0.1...0.8, step: 0.1) {
-                    Text("Taille du motif")
-                }
-                .disabled(isRandom) // Disable when "Choisir au hasard" is checked
-            }
+            .padding(.top)
         }
         .padding()
-        .frame(minWidth: 300, minHeight: 400)
-        .onChange(of: isRandom) { oldValue, newValue in
-            if newValue {
-                preferences.selectedFeltIndex = Int.random(in: 0..<GameConstants.feltColors.count)
-            }
-        }
+        // Ajuste la taille de la fenêtre à son contenu
+        .fixedSize()
     }
 
     func feltName(for index: Int) -> String {

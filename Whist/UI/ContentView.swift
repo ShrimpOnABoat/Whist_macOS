@@ -11,6 +11,7 @@ struct ContentView: View {
     @EnvironmentObject private var gameManager: GameManager
     @EnvironmentObject private var gameKitManager: GameKitManager
     @EnvironmentObject private var connectionManager: ConnectionManager
+    @EnvironmentObject private var preferences: Preferences
 
     var body: some View {
         ZStack {
@@ -21,6 +22,7 @@ struct ContentView: View {
                 GameView()
                     .environmentObject(connectionManager)
                     .environmentObject(gameManager)
+                    .environmentObject(preferences)
             } else if gameKitManager.isAuthenticated {
                 MatchMakingView()
             } else {

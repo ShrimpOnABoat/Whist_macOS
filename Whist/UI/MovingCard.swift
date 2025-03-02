@@ -112,57 +112,87 @@ struct MovingCardView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + suspenseDuration) {
                         switch movingCard.card.playAnimationType {
                         case .impact:
-                            // 1) Snap down instantly (one-frame drop).
-                            withAnimation(.none) {
-                                self.scale = toState.scale
+                            // We'll create a more dramatic, powerful impact animation
+                            withAnimation(.easeOut(duration: 0.15)) {
+                                // Quick drop with slight scale increase for emphasis
+                                self.scale = 1.2
                                 self.rotation = toState.rotation
                                 self.position = toState.position
                                 movingCard.card.elevation = 0
                             }
-
-                            // 2) Show cracks or smash overlay. Could be an animated shape or image.
+                            
+                            // Add camera shake effect
+                            gameManager.triggerCameraShake(intensity: 8)
+                            
+                            // Show impact effect
                             gameManager.effectPosition = self.position
-                            gameManager.showExplosion = true
-
-                            DispatchQueue.main.asyncAfter(deadline: .now() + suspenseDuration) {
-                                gameManager.showExplosion = false
-                                // Finalize move
-                                gameManager.finalizeMove(movingCard)
+                            gameManager.showImpactEffect = true
+                            
+                            // Play impact sound - a powerful thud/impact
+                            gameManager.playSound(named: "powerful impact")
+                            
+                            // Add secondary animations after the initial impact
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    // Scale back down with slight overshoot
+                                    self.scale = 0.95
+                                }
+                                
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                                        // Return to final size
+                                        self.scale = toState.scale
+                                    }
+                                    
+                                    // Hide impact effect after it completes
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                                        gameManager.showImpactEffect = false
+                                        gameManager.finalizeMove(movingCard)
+                                    }
+                                }
                             }
                         case .failure:
-                            // 1) Attempt a quick drop, but less abrupt than .impact.
+                            // 1) Gentle drop with slight tilt
                             withAnimation(.easeOut(duration: 0.25)) {
                                 self.scale = 1.0
-                                self.rotation = toState.rotation - 5 // slight tilt to show "failed attempt"
+                                self.rotation = toState.rotation - 3 // Just a slight tilt
                                 self.position = CGPoint(
-                                    x: toState.position.x,
-                                    y: toState.position.y + 10
+                                    x: toState.position.x + 5, // Subtle shift
+                                    y: toState.position.y + 5
                                 )
                                 movingCard.card.elevation = 0
                             }
 
-                            // 2) Add a quick "fizzle out" or "wind" effect:
+                            // 2) Show the subtle failure effect and add a mild "settling" animation
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                // Show a wind-like swirl
+                                // Show the subtle failure effect
                                 gameManager.effectPosition = self.position
-                                gameManager.showWindSwirl = true
-                                withAnimation(.easeIn(duration: 0.2)) {
-                                    self.scale = toState.scale
+                                gameManager.showSubtleFailureEffect = true
+                                
+                                // Play a subtle sound - something like a soft "whoosh" or light tap
+                                gameManager.playSound(named: "soft fail")
+                                
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    // Subtle settling motion
+                                    self.position = CGPoint(
+                                        x: toState.position.x,
+                                        y: toState.position.y + 2 // Just a tiny bit of extra drop
+                                    )
                                     self.rotation = toState.rotation
-                                    self.position = toState.position
-                                    movingCard.card.elevation = 0
                                 }
 
-                                // 3) Then settle into final position, removing swirl.
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                    gameManager.showWindSwirl = false
-                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
+                                // 3) Final settling into position
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    gameManager.showSubtleFailureEffect = false
+                                    
+                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                                         self.scale = toState.scale
                                         self.rotation = toState.rotation
                                         self.position = toState.position
                                         movingCard.card.elevation = 0
                                     }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                    
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                         gameManager.finalizeMove(movingCard)
                                     }
                                 }
@@ -241,81 +271,5 @@ struct ExplosionParticleView: View {
                     scale = 2.0
                 }
             }
-    }
-}
-
-// The complete explosion view with a central flash and multiple particles.
-struct ProceduralExplosionView: View {
-    private let particles: [ExplosionParticleModel]
-    @State private var flashScale: CGFloat = 0.1
-    @State private var flashOpacity: Double = 1.0
-
-    // Generate particles procedurally.
-    init(particleCount: Int = 30) {
-        var tempParticles: [ExplosionParticleModel] = []
-        for _ in 0..<particleCount {
-            let angle = Double.random(in: 0..<360)
-            let distance = CGFloat.random(in: 50...100)
-            let duration = Double.random(in: 0.3...0.6)
-            let color = [Color.yellow, Color.orange, Color.red, Color.white].randomElement()!
-            tempParticles.append(ExplosionParticleModel(angle: angle, distance: distance, duration: duration, color: color))
-        }
-        self.particles = tempParticles
-    }
-    
-    var body: some View {
-        ZStack {
-            // Central flash effect using a radial gradient.
-            Circle()
-                .fill(
-                    RadialGradient(
-                        gradient: Gradient(colors: [Color.white, Color.yellow, Color.orange, Color.red]),
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 50
-                    )
-                )
-                .frame(width: 20, height: 20)
-                .scaleEffect(flashScale)
-                .opacity(flashOpacity)
-                .onAppear {
-                    withAnimation(.easeOut(duration: 0.4)) {
-                        flashScale = 3.0
-                        flashOpacity = 0.0
-                    }
-                }
-            
-            // Explosion particles.
-            ForEach(particles) { particle in
-                ExplosionParticleView(model: particle)
-            }
-        }
-    }
-}
-struct WindSwirlView: View {
-    @State private var scale: CGFloat = 0.1
-    @State private var opacity: Double = 1.0
-    
-    var body: some View {
-        Image("windSwirl") // e.g. a swirl image
-            .resizable()
-            .scaledToFit()
-            .scaleEffect(scale)
-            .opacity(opacity)
-            .onAppear {
-                // Animate the swirl expanding or drifting
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    scale = 1.5
-                    opacity = 0
-                }
-            }
-    }
-}
-
-struct ProceduralExplosionView_Previews: PreviewProvider {
-    static var previews: some View {
-        ProceduralExplosionView()
-            .frame(width: 300, height: 300)
-            .background(Color.black)
     }
 }

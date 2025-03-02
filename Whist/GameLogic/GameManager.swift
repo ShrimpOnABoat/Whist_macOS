@@ -46,8 +46,11 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
-    @Published var showExplosion: Bool = false
     @Published var showWindSwirl: Bool = false
+    @Published var showFailureEffect: Bool = false
+    @Published var cameraShakeOffset: CGSize = .zero
+    @Published var showImpactEffect: Bool = false
+    @Published var showSubtleFailureEffect: Bool = false
     @Published var effectPosition: CGPoint = .zero // Add this line
 
     @Published var dealerPosition: CGPoint = .zero

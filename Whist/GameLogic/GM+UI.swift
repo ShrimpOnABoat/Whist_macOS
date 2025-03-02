@@ -248,4 +248,38 @@ extension GameManager {
         }
         completion()
     }
+    
+    // MARK: camera shake
+    
+    func triggerCameraShake(intensity: CGFloat = 5.0) {
+        // Initial shake
+        withAnimation(.interactiveSpring(response: 0.1, dampingFraction: 0.3, blendDuration: 0.3)) {
+            self.cameraShakeOffset = CGSize(
+                width: CGFloat.random(in: -intensity...intensity),
+                height: CGFloat.random(in: -intensity...intensity)
+            )
+        }
+        
+        // Series of decreasing shakes
+        for i in 1...4 {
+            let decreasedIntensity = intensity * (1.0 - (CGFloat(i) * 0.2))
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + (0.1 * Double(i))) {
+                withAnimation(.interactiveSpring(response: 0.1, dampingFraction: 0.3, blendDuration: 0.2)) {
+                    self.cameraShakeOffset = CGSize(
+                        width: CGFloat.random(in: -decreasedIntensity...decreasedIntensity),
+                        height: CGFloat.random(in: -decreasedIntensity...decreasedIntensity)
+                    )
+                }
+            }
+        }
+        
+        // Reset after the final shake
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
+                self.cameraShakeOffset = .zero
+            }
+        }
+    }
+
 }

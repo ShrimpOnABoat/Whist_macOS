@@ -23,6 +23,7 @@ struct CardTransformPreferenceKey: PreferenceKey {
 
 struct GameView: View {
     @EnvironmentObject var gameManager: GameManager
+    @EnvironmentObject var preferences: Preferences
     @State private var cardTransforms: [String: CardState] = [:]
     @State private var showMatchmaking: Bool = true
     @State private var showAlert: Bool = false
@@ -30,16 +31,46 @@ struct GameView: View {
     @State private var savedGameExists: Bool = false
     @State private var playerID: String = ""
     @State private var showRoundHistory: Bool = false
-
-    @State private var background: AnyView = AnyView(FeltBackgroundView(
-        radialShadingStrength: 0.5,
-        wearIntensity: CGFloat.random(in: 0...1),
-        motifVisibility: CGFloat.random(in: 0...0.5),
-        motifScale: CGFloat.random(in: 0...1),
-        showScratches: Bool.random()
-    ))
     @State private var didMeasureDeck: Bool = false
-    
+    @State private var background: AnyView = AnyView(EmptyView())
+
+//    @State private var background: AnyView = AnyView(FeltBackgroundView(
+//        radialShadingStrength: 0.5,
+//        wearIntensity: CGFloat.random(in: 0...1),
+//        motifVisibility: CGFloat.random(in: 0...0.5),
+//        motifScale: CGFloat.random(in: 0...1),
+//        showScratches: Bool.random()
+//    ))
+    func refreshBackground() {
+        // Récupérer les indices des couleurs activées
+        let enabledIndices = preferences.enabledRandomColors.enumerated().compactMap { (index, isEnabled) in
+            isEnabled ? index : nil
+        }
+        
+        // Choisir aléatoirement une couleur parmi celles cochées, avec une valeur de secours
+        let selectedColor: Color = {
+            if let randomIndex = enabledIndices.randomElement() {
+                // Mise à jour dans les préférences (optionnel)
+                preferences.selectedFeltIndex = randomIndex
+                return GameConstants.feltColors[randomIndex]
+            } else {
+                return .gray
+            }
+        }()
+        
+        // Déterminer l'intensité d'usure : aléatoire si activée, sinon 0
+        let wear: CGFloat = preferences.wearIntensity ? CGFloat.random(in: 0...1) : 0
+        
+        // Créer le background en passant la couleur sélectionnée
+        background = AnyView(FeltBackgroundView(
+            baseColor: selectedColor,
+            radialShadingStrength: 0.5,
+            wearIntensity: wear,
+            motifVisibility: CGFloat.random(in: 0...0.5),
+            motifScale: CGFloat.random(in: 0...1),
+            showScratches: Bool.random()
+        ))
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -57,12 +88,9 @@ struct GameView: View {
                     
                     // Effects layer (always under the cards but above the background)
                     ZStack {
-                        if gameManager.showExplosion {
-//                            ExplosionView()
-//                                .frame(width: 100, height: 100)
-//                                .position(gameManager.effectPosition)
-                            ProceduralExplosionView()
-                                .frame(width: 100, height: 100)
+                        if gameManager.showImpactEffect {
+                            ProceduralImpactView()
+                                .frame(width: 300, height: 300)
                                 .position(gameManager.effectPosition)
                             ProceduralCracksView()
                                 .blur(radius: 1)
@@ -70,9 +98,9 @@ struct GameView: View {
                                 .frame(width: 250, height: 250)
                                 .position(gameManager.effectPosition)
                         }
-                        if gameManager.showWindSwirl {
-                            WindSwirlView()
-                                .frame(width: 100, height: 100)
+                        if gameManager.showSubtleFailureEffect {
+                            SubtleFailureView()
+                                .frame(width: 200, height: 200)
                                 .position(gameManager.effectPosition)
                         }
                     }
@@ -149,6 +177,7 @@ struct GameView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .coordinateSpace(name: "contentArea")
+                .cameraShake(offset: $gameManager.cameraShakeOffset)
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Debug: Players not set up yet.")
@@ -280,9 +309,13 @@ struct GameView: View {
         } message: {
             Text("Êtes-vous sûr de vouloir supprimer la partie sauvegardée ? Cette action est irréversible.")
         }
-//        .onAppear() {
+        .onAppear() {
+            refreshBackground()
 //            checkSavedGame()
-//        }
+        }
+        .onChange(of: preferences.selectedFeltIndex) {
+            refreshBackground()
+        }
     }
     
     private func checkSavedGame() {
