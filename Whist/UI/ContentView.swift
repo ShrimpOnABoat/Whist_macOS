@@ -25,7 +25,7 @@ struct ContentView: View {
                 MatchMakingView()
             } else {
                 VStack(spacing: 20) {
-                    Text("Authenticating with Game Center...")
+                    Text("Authentification avec Game Center en cours…")
                         .font(.headline)
                     if let errorMessage = gameKitManager.authenticationErrorMessage {
                         Text("Error: \(errorMessage)")

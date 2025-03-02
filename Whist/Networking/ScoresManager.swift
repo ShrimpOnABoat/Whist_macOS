@@ -165,6 +165,11 @@ class ScoresManager {
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted]
+            
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            encoder.dateEncodingStrategy = .formatted(formatter)
 
             let data = try encoder.encode(scores)
             try data.write(to: iCloudURL, options: .atomic)
@@ -278,14 +283,6 @@ class ScoresManager {
             print("❌ Error loading scores for \(year): \(error.localizedDescription)")
             throw ScoresManagerError.fileReadFailed
         }
-//        do {
-//            let data = try Data(contentsOf: iCloudURL)
-//            let decoder = JSONDecoder()
-//            return try decoder.decode([GameScore].self, from: data)
-//        } catch {
-//            print("❌ Error loading scores for \(year): \(error.localizedDescription)")
-//            throw ScoresManagerError.fileReadFailed
-//        }
         #endif
     }
     
@@ -358,7 +355,6 @@ class ScoresManager {
         
         guard let loser = loserName else { return nil }
         guard let loserId = namePlayerIdAssociation[loser] else { return nil }
-        
         
         return Loser(playerId: loserId, losingMonths: losingMonths)
     }

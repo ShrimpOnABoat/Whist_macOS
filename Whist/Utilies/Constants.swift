@@ -94,8 +94,8 @@ struct DynamicSize {
     var localPlayerTrickWidth: CGFloat { localPlayerWidth * 0.25 }
     var localPlayerTrickHeight: CGFloat { localPlayerHeight * 0.25 }
     var sidePlayerCardScale: CGFloat { proportion * 2 / 3 }
-    var playerImageWidth: CGFloat { widthProportion * 50 }
-    var playerImageHeight: CGFloat { heightProportion * 50 }
+    var playerImageWidth: CGFloat { proportion * 50 }
+    var playerImageHeight: CGFloat { proportion * 50 }
     var otherTrickSpacing: CGFloat { heightProportion * 5 }
     var localTrickSpacing: CGFloat { widthProportion * 5 }
     var trickScale: CGFloat { proportion / 3 }

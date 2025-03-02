@@ -94,14 +94,15 @@ struct MatchMakingView: View {
                     }
                     
                     // Invite Friends button
-                    Button("Invite les losers") {
+                    Button("Invite les autres") {
                         gameKitManager.inviteFriends()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(InvitingButtonStyle())
+                    .padding()
                     
                 } else {
                     // Fallback if the local player is not authenticated
-                    Text("Please sign in to Game Center.")
+                    Text("Connecte toi à Game Center.")
                 }
             }
             #if TEST_MODE
@@ -113,6 +114,21 @@ struct MatchMakingView: View {
             #endif
         }
 #endif
+    }
+}
+
+struct InvitingButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundColor(.white)
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(configuration.isPressed ? Color.blue.opacity(0.7) : Color.blue)
+            .cornerRadius(12)
+            .shadow(radius: 5)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
     }
 }
 

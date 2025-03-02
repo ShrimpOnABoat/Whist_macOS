@@ -44,8 +44,9 @@ struct RoundHistoryView: View {
                 return order.firstIndex(of: player1.id) ?? Int.max < order.firstIndex(of: player2.id) ?? Int.max
             }
             Text("Tour").frame(width: 50).bold().foregroundColor(.primary)
-            ForEach(players) { player in
-                Text(player.username).frame(width: 100).bold().foregroundColor(.primary)
+ 
+            ForEach(["GG", "DD", "Toto"], id: \.self) { name in
+                Text(name).frame(width: 100).bold().foregroundColor(.primary)
             }
         }
         .padding(.vertical, 5)

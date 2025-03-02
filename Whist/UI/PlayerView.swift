@@ -131,7 +131,7 @@ struct PlayerView: View {
                                                     Color.clear
                                                         .onAppear {
                                                             let frame = proxy.frame(in: .named("contentArea"))
-                                                            print("Captured frame: \(frame)")
+                                                            logger.log("Captured frame: \(frame)")
                                                             gameManager.updateDealerFrame(playerId: player.id, frame: frame)
                                                         }
                                                 }
@@ -150,7 +150,7 @@ struct PlayerView: View {
             }
             // Listen for score updates at the top level of PlayerView.
             .onChange(of: gameManager.playersScoresUpdated) { _, _ in
-                print("Scores are updated")
+                logger.log("Scores are updated")
                 let currentScore = player.scores.last ?? 0
                 let previousScore = player.scores.dropLast().last ?? 0
                 let change = currentScore - previousScore

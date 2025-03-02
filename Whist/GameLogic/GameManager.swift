@@ -42,7 +42,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
-    var isAIPlaying: Bool = true
+    var isAIPlaying: Bool = false
     
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
@@ -111,11 +111,12 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         logger.log("Dealer is \(String(describing: gameState.dealer))")
         
         // Set the previous loser's monthlyLosses
-        // TODO: remove the comments when the ScoresManager is implemented
         if let loser = GameManager.SM.findLoser() {
             let loserPlayer = gameState.getPlayer(by: loser.playerId)
             loserPlayer.monthlyLosses = loser.losingMonths
             logger.log("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
+        } else {
+            logger.log("No loser identified")
         }
         // Identify localPlayer, leftPlayer, and rightPlayer
         if let localPlayerID = connectionManager?.localPlayerID {
@@ -138,9 +139,9 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     func setPersistencePlayerID(with playerId: PlayerId) {
         persistence = GamePersistence(playerID: playerId)
-        if playerId != .toto {
-            isAIPlaying = true
-        }
+//        if playerId != .toto {
+//            isAIPlaying = true
+//        }
     }
     
     func generateAndSendSeed() { // Only if local player is toto

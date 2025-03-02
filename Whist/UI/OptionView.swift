@@ -149,7 +149,8 @@ struct OptionsView: View {
         .shadow(radius: 10)
         .onAppear() {
             if gameManager.isAIPlaying {
-                handleBetSelection(max((gameManager.gameState.round - 2) / 3, 1))
+                gameManager.choseBet(bet: max((gameManager.gameState.round - 2) / 3, 1))
+                gameManager.checkAndAdvanceStateIfNeeded()
             }
         }
     }

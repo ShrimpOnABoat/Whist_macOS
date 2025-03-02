@@ -178,18 +178,10 @@ struct GameView: View {
             }
             
             // MARK: Dealer button
-            if gameManager.gameState.dealer == gameManager.gameState.localPlayer?.id{
-                DealerButton(size: dynamicSize.dealerButtonSize)
-                    .position(CGPoint(
-                        x: gameManager.dealerPosition.x + dynamicSize.dealerButtonLocalOffset.width,
-                        y: gameManager.dealerPosition.y + dynamicSize.dealerButtonLocalOffset.height))
-                    .animation(.easeOut, value: gameManager.dealerPosition)
-            } else {
-                DealerButton(size: dynamicSize.dealerButtonSize)
-                    .position(gameManager.dealerPosition)
-                    .animation(.easeOut, value: gameManager.dealerPosition)
-            }
-            
+            DealerButton(size: dynamicSize.dealerButtonSize)
+                .position(gameManager.dealerPosition)
+                .animation(.easeOut, value: gameManager.dealerPosition)
+
             // MARK: Show last trick
             if gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks {
                 ZStack {

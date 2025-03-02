@@ -11,11 +11,9 @@ struct ScoreBoardView: View {
     @EnvironmentObject var gameManager: GameManager
     var dynamicSize: DynamicSize
 
+    let playOrder: [PlayerId] = [.gg, .dd, .toto]
+    
     var body: some View {
-        let players = gameManager.gameState.players.sorted { player1, player2 in
-            let order: [PlayerId] = [.gg, .dd, .toto]
-            return order.firstIndex(of: player1.id) ?? Int.max < order.firstIndex(of: player2.id) ?? Int.max
-        }
         let round = gameManager.gameState.round
         let roundString = round < 4 ? "\(round)/3" : "\(round - 2)"
         
@@ -25,11 +23,11 @@ struct ScoreBoardView: View {
                 .font(.system(size: dynamicSize.roundSize))
                 .fontWeight(.bold)
 
-            // Header row: Player usernames
+            // Header row: Player IDs
             HStack {
-                ForEach(players) { player in
+                ForEach(["GG", "DD", "Toto"], id: \.self) { name in
                     VStack {
-                        Text(player.username)
+                        Text(name)
                             .font(.system(size: dynamicSize.nameSize))
                             .bold(true)
                             .frame(maxWidth: .infinity)
@@ -39,7 +37,8 @@ struct ScoreBoardView: View {
 
             // Tricks and Scores row
             HStack {
-                ForEach(players) { player in
+                ForEach(playOrder, id: \.self) { id in
+                    let player = gameManager.gameState.getPlayer(by: id)
                     HStack {
                         // Tricks
                         let tricks = player.announcedTricks.reduce(0, +)
@@ -64,7 +63,8 @@ struct ScoreBoardView: View {
 
             // Announced tricks for the round
             HStack {
-                ForEach(players) { player in
+                ForEach(playOrder, id: \.self) { id in
+                    let player = gameManager.gameState.getPlayer(by: id)
                     HStack {
                         // Announced Tricks
                         if (round < 4 || gameManager.allPlayersBet()) && (player.announcedTricks.count >= round && round > 0) {
