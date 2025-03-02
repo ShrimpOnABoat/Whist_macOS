@@ -141,11 +141,11 @@ class ScoresManager {
             
             // Set the encoder to use the custom formatter and produce human-readable JSON.
             encoder.dateEncodingStrategy = .formatted(formatter)
-            encoder.outputFormatting = [.prettyPrinted]
+            encoder.outputFormatting = [.prettylogger.loged]
             
             let data = try encoder.encode(scores)
             try data.write(to: scoresFileURL)
-            print("Scores saved locally in TEST_MODE!")
+            logger.log("Scores saved locally in TEST_MODE!")
         } catch ScoresManagerError.directoryCreationFailed {
             throw ScoresManagerError.directoryCreationFailed
         } catch EncodingError.invalidValue(_, _) {
@@ -158,7 +158,7 @@ class ScoresManager {
         guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
             .appendingPathComponent("Documents")
             .appendingPathComponent("scores_\(currentYear).json") else {
-            print("❌ iCloud Drive is not available")
+            logger.log("❌ iCloud Drive is not available")
             throw ScoresManagerError.fileWriteFailed
         }
 
@@ -173,9 +173,9 @@ class ScoresManager {
 
             let data = try encoder.encode(scores)
             try data.write(to: iCloudURL, options: .atomic)
-            print("✅ Scores for \(currentYear) saved to iCloud Drive at \(iCloudURL.path)")
+            logger.log("✅ Scores for \(currentYear) saved to iCloud Drive at \(iCloudURL.path)")
         } catch {
-            print("❌ Error saving to iCloud Drive: \(error.localizedDescription)")
+            logger.log("❌ Error saving to iCloud Drive: \(error.localizedDescription)")
             throw ScoresManagerError.fileWriteFailed
         }
 #endif
@@ -188,7 +188,7 @@ class ScoresManager {
         do {
             try saveScores(scores)
         } catch {
-            print("❌ Error saving score for \(currentYear): \(error)")
+            logger.log("❌ Error saving score for \(currentYear): \(error)")
         }
     }
     
@@ -246,7 +246,7 @@ class ScoresManager {
             .appendingPathComponent("Documents")
             .appendingPathComponent("scores_\(year).json"),
             fileManager.fileExists(atPath: iCloudURL.path) else {
-            print("❌ No scores file found for \(year) in iCloud Drive")
+            logger.log("❌ No scores file found for \(year) in iCloud Drive")
             return []
         }
         do {
@@ -280,7 +280,7 @@ class ScoresManager {
             
             return try decoder.decode([GameScore].self, from: data)
         } catch {
-            print("❌ Error loading scores for \(year): \(error.localizedDescription)")
+            logger.log("❌ Error loading scores for \(year): \(error.localizedDescription)")
             throw ScoresManagerError.fileReadFailed
         }
         #endif
@@ -367,7 +367,7 @@ class ScoresManager {
         // Ensure iCloud Drive is available before proceeding
         guard let iCloudFolder = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
             .appendingPathComponent("Documents") else {
-            print("❌ iCloud Drive is not available yet. Retrying later...")
+            logger.log("❌ iCloud Drive is not available yet. Retrying later...")
             throw ScoresManagerError.directoryCreationFailed
         }
 
@@ -375,9 +375,9 @@ class ScoresManager {
         if !fileManager.fileExists(atPath: iCloudFolder.path) {
             do {
                 try fileManager.createDirectory(at: iCloudFolder, withIntermediateDirectories: true)
-                print("📂 Created iCloud Drive 'Documents' folder at \(iCloudFolder.path)")
+                logger.log("📂 Created iCloud Drive 'Documents' folder at \(iCloudFolder.path)")
             } catch {
-                print("❌ Failed to create iCloud Drive folder: \(error.localizedDescription)")
+                logger.log("❌ Failed to create iCloud Drive folder: \(error.localizedDescription)")
                 throw ScoresManagerError.directoryCreationFailed
             }
         }

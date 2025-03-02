@@ -39,8 +39,8 @@ class GameKitManager: NSObject, ObservableObject {
         super.init()
     }
 
-        // MARK: authenticatePlayer
-    
+    // MARK: authenticatePlayer
+        
     func authenticateLocalPlayer(completion: @escaping (String, NSImage) -> Void) {
         DispatchQueue.main.async {
             let defaultPlayerImage = NSImage(systemSymbolName: "person.crop.circle.fill", accessibilityDescription: "Default Player Avatar") ?? NSImage(size: NSSize(width: 50, height: 50))
@@ -96,8 +96,9 @@ class GameKitManager: NSObject, ObservableObject {
     
     private func presentViewController(_ viewController: NSViewController) {
         // Present the view controller in your app
-        if let window = NSApplication.shared.windows.first {
-            window.contentViewController?.presentAsModalWindow(viewController)
+        if let window = NSApplication.shared.mainWindow {
+//            window.contentViewController?.presentAsModalWindow(viewController)
+            window.contentViewController?.presentAsSheet(viewController)
         } else {
             logger.log("No window available to present the view controller.")
         }
@@ -117,7 +118,7 @@ class GameKitManager: NSObject, ObservableObject {
         // Attempt to load the small (50x50) player photo
         localPlayer.loadPhoto(for: .small) { image, error in
             if let error = error {
-                print("Error loading local player photo: \(error.localizedDescription)")
+                logger.log("Error loading local player photo: \(error.localizedDescription)")
             }
             completion(name, image)
         }
@@ -156,13 +157,6 @@ class GameKitManager: NSObject, ObservableObject {
             logger.log("Failed to create GKMatchmakerViewController.")
         }
     }
-
-//    func logger.log(_ message: String) {
-//        let formatter = DateFormatter()
-//        formatter.dateFormat = "HH:mm:ss"
-//        let timestamp = formatter.string(from: Date())
-//        print("[\(timestamp)] \(message)")
-//    }
 }
 
 // MARK: - GKLocalPlayerListener
@@ -190,33 +184,52 @@ extension GameKitManager: GKLocalPlayerListener {
 }
 
 // MARK: - GKMatchmakerViewControllerDelegate
+// MARK: - GKMatchmakerViewControllerDelegate
 extension GameKitManager: GKMatchmakerViewControllerDelegate {
     func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController) {
         logger.log("GameKitManager: matchmakerViewControllerWasCancelled called")
-        viewController.dismiss(nil)
-        inviteViewController = nil
+        
+        // Dispatch UI updates to the main thread
+        DispatchQueue.main.async { [weak self] in
+            viewController.dismiss(nil)
+            self?.inviteViewController = nil
+        }
     }
     
     func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFailWithError error: Error) {
         logger.log("GameKitManager: matchmakerViewController:didFailWithError: \(error.localizedDescription)")
-        viewController.dismiss(nil)
-        inviteViewController = nil
+        
+        // Dispatch UI updates to the main thread
+        DispatchQueue.main.async { [weak self] in
+            viewController.dismiss(nil)
+            self?.inviteViewController = nil
+        }
     }
     
     func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFind match: GKMatch) {
         /// This function is invoked at the same time in all 3 apps, once the last player joins the match
         logger.log("🫑 GameKitManager: matchmakerViewController:didFind: called with players: \(match.players.map { $0.displayName })")
         
-        // Store the match and update state
-        self.match = match
-        match.delegate = self
-        
-        // Configure the connection BEFORE dismissing
-        connectionManager?.configureMatch(match)
-        
-        // Now dismiss the view controller
-        viewController.dismiss(nil)
-        inviteViewController = nil
+        // Process initial match setup on a background queue
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Store the match and update state
+            DispatchQueue.main.async {
+                self.match = match
+            }
+            
+            match.delegate = self
+            
+            // Configure the connection BEFORE dismissing
+            self.connectionManager?.configureMatch(match)
+            
+            // Now dismiss the view controller on the main thread
+            DispatchQueue.main.async {
+                viewController.dismiss(nil)
+                self.inviteViewController = nil
+            }
+        }
     }
 }
 
@@ -225,25 +238,59 @@ extension GameKitManager: GKMatchDelegate {
     func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
         logger.log("Received data from \(player.displayName)")
         
-        // Forward the received data to ConnectionManager
-        connectionManager?.handleReceivedGameKitData(data, from: player)
+        // Process received data on a background queue to prevent blocking the GameKit thread
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Forward the received data to ConnectionManager
+            self.connectionManager?.handleReceivedGameKitData(data, from: player)
+        }
     }
     
     func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
         /// This function is invoked on all remaining apps when a player connects or disconnects, but only after matchmakerViewController(_:didFind:) has been invoked
         logger.log("🫑 Player \(player.displayName) connection state changed to: \(state.rawValue)")
         
-        if let playerId = determinePlayerId(for: player) {
-            connectionManager?.updatePlayerConnectionStatus(playerID: playerId, isConnected: state == .connected ? true: false)
-        } else {
-            logger.log("Warning: Could not determine PlayerId for \(player.displayName)")
+        // Process player connection state changes on a background queue
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            let playerId = self.determinePlayerId(for: player)
+            
+            // Update UI and connection status on the main thread if needed
+            DispatchQueue.main.async {
+                if let playerId = playerId {
+                    self.connectionManager?.updatePlayerConnectionStatus(playerID: playerId, isConnected: state == .connected)
+                } else {
+                    logger.log("Warning: Could not determine PlayerId for \(player.displayName)")
+                }
+                
+                // Update any UI-related properties if needed
+                if state == .connected {
+                    // Handle player connected UI updates if needed
+                } else {
+                    // Handle player disconnected UI updates if needed
+                }
+            }
         }
     }
     
     func match(_ match: GKMatch, didFailWithError error: Error?) {
+        // Log the error
         logger.log("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
         
-        connectionManager?.handleMatchFailure(error: error)
+        // Handle match failure on a background queue
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Handle failure and update UI on the main thread
+            DispatchQueue.main.async {
+                self.connectionManager?.handleMatchFailure(error: error)
+                
+                // Additional UI updates if needed
+                // self.someUIProperty = someNewValue
+            }
+        }
     }
     
     private func determinePlayerId(for player: GKPlayer) -> PlayerId? {

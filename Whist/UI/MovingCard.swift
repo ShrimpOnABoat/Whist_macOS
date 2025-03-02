@@ -89,7 +89,7 @@ struct MovingCardView: View {
                         self.position = toState.position
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration) {
-                        print("Finalizing move for \(movingCard.card) with normal animation")
+                        logger.log("Finalizing move for \(movingCard.card) with normal animation")
                         gameManager.finalizeMove(movingCard)
                     }
 
@@ -104,7 +104,7 @@ struct MovingCardView: View {
                             y: toState.position.y - 60 // raise it higher
                         )
                         movingCard.card.elevation = 20 // bigger shadow while in the air
-                        if movingCard.to == .table { movingCard.card.isFaceDown = false } // Show the card if playCard
+                        if (gameManager.gameState.round > 3) && (movingCard.from != .localPlayer) { movingCard.card.isFaceDown = true }
                     }
 
 
@@ -113,7 +113,7 @@ struct MovingCardView: View {
                         switch movingCard.card.playAnimationType {
                         case .impact:
                             // We'll create a more dramatic, powerful impact animation
-                            withAnimation(.easeOut(duration: 0.15)) {
+                            withAnimation(.none) {
                                 // Quick drop with slight scale increase for emphasis
                                 self.scale = 1.2
                                 self.rotation = toState.rotation

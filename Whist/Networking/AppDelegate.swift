@@ -21,7 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
                 let inviteURLString = String(arg.dropFirst("--gc-invite=".count))
                 if let url = URL(string: inviteURLString) {
                     pendingInviteURL = url
-                    print("Found pending invite from command-line: \(url)")
+                    logger.log("Found pending invite from command-line: \(url)")
                 }
             }
         }
@@ -37,7 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
             // Check for your custom URL scheme. For example, "gamecenter://invite?inviteID=..."
             if url.scheme?.lowercased() == "gamecenter" {
                 pendingInviteURL = url
-                print("Found pending invite from URL: \(url)")
+                logger.log("Found pending invite from URL: \(url)")
             }
         }
     }
@@ -47,20 +47,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
         localPlayer.authenticateHandler = { [weak self] viewController, error in
             if let vc = viewController {
                 // On macOS, present the Game Center login view controller as a modal.
-                if let window = NSApplication.shared.windows.first,
+                if let window = NSApplication.shared.mainWindow,
                    let rootVC = window.contentViewController {
-                    rootVC.presentAsModalWindow(vc)
+                    rootVC.presentAsSheet(vc)
                 }
             } else if localPlayer.isAuthenticated {
                 // Register for Game Center events.
                 localPlayer.register(self!)
-                print("Local player authenticated.")
+                logger.log("Local player authenticated.")
                 // Now check if an invite was passed at launch.
                 if let inviteID = self?.checkForPendingInvite() {
                     self?.handleInvite(withID: inviteID)
                 }
             } else {
-                print("Game Center authentication failed: \(error?.localizedDescription ?? "unknown error")")
+                logger.log("Game Center authentication failed: \(error?.localizedDescription ?? "unknown error")")
             }
         }
     }
@@ -75,7 +75,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
             if let inviteID = queryItems?.first(where: { $0.name.lowercased() == "inviteid" })?.value {
                 // Clear the stored URL after processing.
                 pendingInviteURL = nil
-                print("Extracted inviteID: \(inviteID)")
+                logger.log("Extracted inviteID: \(inviteID)")
                 return inviteID
             }
         }
@@ -86,23 +86,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
     /// Note: There is no public API to convert an invite ID to a GKInvite, so here you must implement
     /// your own logic—perhaps by contacting your server or showing a custom UI—to let the player join the match.
     func handleInvite(withID inviteID: String) {
-        print("Handling Game Center invite with ID: \(inviteID)")
-        // TODO: Implement your logic to join the match using the inviteID.
-        // For example, you might present a custom UI or use your server to fetch match details.
-    }
-    
-    // MARK: - GKLocalPlayerListener
-    // This callback handles invites accepted while the app is already running.
-    func player(_ player: GKPlayer, didAccept invite: GKInvite) {
-        handleInvite(withGKInvite: invite)
-    }
-    
-    /// Helper to handle GKInvite objects (for in-app invites).
-    func handleInvite(withGKInvite invite: GKInvite) {
-        if let window = NSApplication.shared.windows.first,
-           let rootVC = window.contentViewController,
-           let mmvc = GKMatchmakerViewController(invite: invite) {
-            rootVC.presentAsModalWindow(mmvc)
-        }
+        logger.log("Handling Game Center invite with ID: \(inviteID)")
     }
 }

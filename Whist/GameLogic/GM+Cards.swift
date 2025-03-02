@@ -366,7 +366,7 @@ extension GameManager {
     
     func assignTrick(completion: @escaping () -> Void) {
         guard gameState.tricksGrabbed[gameState.currentTrick] == false else {
-            print("Already assigned trick \(gameState.currentTrick).")
+            logger.log("Already assigned trick \(gameState.currentTrick).")
             return
         }
         gameState.tricksGrabbed[gameState.currentTrick] = true
