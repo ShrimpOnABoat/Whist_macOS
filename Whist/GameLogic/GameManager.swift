@@ -59,14 +59,14 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     var logCounter: Int = 0
 
     init() {
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2.0) {
-            do {
-                try GameManager.SM.ensureiCloudFolderExists()
-                logger.log("✅ iCloud Drive folder ensured on initialization.")
-            } catch {
-                logger.log("❌ Error ensuring iCloud Drive folder: \(error)")
-            }
-        }
+//        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2.0) {
+//            do {
+//                try GameManager.SM.ensureiCloudFolderExists()
+//                logger.log("✅ iCloud Drive folder ensured on initialization.")
+//            } catch {
+//                logger.log("❌ Error ensuring iCloud Drive folder: \(error)")
+//            }
+//        }
     }
     
     // MARK: - Game State Initialization
@@ -114,12 +114,16 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         logger.log("Dealer is \(String(describing: gameState.dealer))")
         
         // Set the previous loser's monthlyLosses
-        if let loser = GameManager.SM.findLoser() {
-            let loserPlayer = gameState.getPlayer(by: loser.playerId)
-            loserPlayer.monthlyLosses = loser.losingMonths
-            logger.log("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
-        } else {
-            logger.log("No loser identified")
+        GameManager.SM.findLoser { loser in
+            DispatchQueue.main.async {
+                if let loser = loser {
+                    let loserPlayer = self.gameState.getPlayer(by: loser.playerId)
+                    loserPlayer.monthlyLosses = loser.losingMonths
+                    logger.log("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
+                } else {
+                    logger.log("No loser identified")
+                }
+            }
         }
         // Identify localPlayer, leftPlayer, and rightPlayer
         if let localPlayerID = connectionManager?.localPlayerID {
@@ -575,37 +579,40 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     // MARK: Save scores
     func saveScore() {
-        // Retrieve players by their ID using the gameState helper.
-        let ggPlayer = gameState.getPlayer(by: .gg)
-        let ddPlayer = gameState.getPlayer(by: .dd)
-        let totoPlayer = gameState.getPlayer(by: .toto)
-        
         // Update the game's winner
         lastGameWinner = gameState.players.first { $0.place == 1 }?.id
         
-        // Get the latest score for each player (defaulting to 0 if not available).
-        let ggScore = ggPlayer.scores.last ?? 0
-        let ddScore = ddPlayer.scores.last ?? 0
-        let totoScore = totoPlayer.scores.last ?? 0
+        // Save the score only once
+        if gameState.localPlayer?.id == .toto {
+            // Retrieve players by their ID using the gameState helper.
+            let ggPlayer = gameState.getPlayer(by: .gg)
+            let ddPlayer = gameState.getPlayer(by: .dd)
+            let totoPlayer = gameState.getPlayer(by: .toto)
+            
+            // Get the latest score for each player (defaulting to 0 if not available).
+            let ggScore = ggPlayer.scores.last ?? 0
+            let ddScore = ddPlayer.scores.last ?? 0
+            let totoScore = totoPlayer.scores.last ?? 0
 
-        // Create a new GameScore instance with current date, scores, and positions.
-        let newScore = GameScore(
-            date: Date(),
-            ggScore: ggScore,
-            ddScore: ddScore,
-            totoScore: totoScore,
-            ggPosition: ggPlayer.place,
-            ddPosition: ddPlayer.place,
-            totoPosition: totoPlayer.place,
-            ggConsecutiveWins: consecutiveWins(by: .gg),
-            ddConsecutiveWins: consecutiveWins(by: .dd),
-            totoConsecutiveWins: consecutiveWins(by: .toto)
-        )
-        
-        // Save the updated scores array.
-        ScoresManager.shared.saveScore(newScore)
-        
-        logger.log("New game score saved: \(newScore)")
+            // Create a new GameScore instance with current date, scores, and positions.
+            let newScore = GameScore(
+                date: Date(),
+                ggScore: ggScore,
+                ddScore: ddScore,
+                totoScore: totoScore,
+                ggPosition: ggPlayer.place,
+                ddPosition: ddPlayer.place,
+                totoPosition: totoPlayer.place,
+                ggConsecutiveWins: consecutiveWins(by: .gg),
+                ddConsecutiveWins: consecutiveWins(by: .dd),
+                totoConsecutiveWins: consecutiveWins(by: .toto)
+            )
+            
+            // Save the updated scores array.
+            ScoresManager.shared.saveScore(newScore)
+            
+            logger.log("New game score saved: \(newScore)")
+        }
     }
     
     func consecutiveWins(by playerId: PlayerId) -> Int {

@@ -4,19 +4,21 @@
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-<key>NSUbiquitousContainers</key>
-<dict>
-    <key>iCloud.com.Tony.Whist</key>
-    <dict>
-        <key>NSUbiquitousContainerIsDocumentScopePublic</key>
-        <true/>
-        <key>NSUbiquitousContainerName</key>
-        <string>Whist</string>
-        <key>NSUbiquitousContainerSupportedFolderLevels</key>
-        <string>Any</string>
-        <key>NSUbiquitousContainerAllowsContentAccess</key>
-        <true/>
-    </dict>
-</dict>
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.com.Tony.Whist</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Whist</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+			<key>NSUbiquitousContainerAllowsContentAccess</key>
+			<true/>
+		</dict>
+	</dict>
+	<key>NSUbiquitousContainerIdentifiers</key>
+	<string>iCloud.com.Tony.Whist</string>
 </dict>
 </plist>

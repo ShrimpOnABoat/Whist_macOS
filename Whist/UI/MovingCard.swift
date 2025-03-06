@@ -95,6 +95,8 @@ struct MovingCardView: View {
 
                 case .impact, .failure:
                     // --- Common "Suspense" part: Make the card appear to float higher than before ---
+                    let shouldBeFaceDown = (gameManager.gameState.round > 3) && (movingCard.from != .localPlayer)
+                    logger.log("🇫🇷 isFaceDown: \(movingCard.card.isFaceDown), shouldBeFaceDown: \(shouldBeFaceDown), round = \(gameManager.gameState.round), from: \(movingCard.from)")
                     let suspenseDuration: TimeInterval = 1
                     withAnimation(.easeOut(duration: suspenseDuration)) {
                         self.scale = 1.3
@@ -104,12 +106,12 @@ struct MovingCardView: View {
                             y: toState.position.y - 60 // raise it higher
                         )
                         movingCard.card.elevation = 20 // bigger shadow while in the air
-                        if (gameManager.gameState.round > 3) && (movingCard.from != .localPlayer) { movingCard.card.isFaceDown = true }
+                        movingCard.card.isFaceDown = shouldBeFaceDown
                     }
-
 
                     // Phase 2: After the suspense, perform the special animation.
                     DispatchQueue.main.asyncAfter(deadline: .now() + suspenseDuration) {
+                        movingCard.card.isFaceDown = false
                         switch movingCard.card.playAnimationType {
                         case .impact:
                             // We'll create a more dramatic, powerful impact animation

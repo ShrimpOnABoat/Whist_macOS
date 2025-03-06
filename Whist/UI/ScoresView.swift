@@ -76,11 +76,12 @@ struct MonthlySummary: Identifiable {
 
 struct SummaryView: View {
     let year: Int
+    @State private var monthlySummaries: [MonthlySummary] = []
 
     // Compute the monthly summaries by grouping games per month and awarding points:
-    var monthlySummaries: [MonthlySummary] {
-        computeMonthlySummaries(for: year)
-    }
+//    var monthlySummaries: [MonthlySummary] {
+//        computeMonthlySummaries(for: year)
+//    }
 
     // Compute overall totals from the monthly summaries.
     var total: (gg: Int, dd: Int, toto: Int, ggTally: Int, ddTally: Int, totoTally: Int) {
@@ -161,54 +162,63 @@ struct SummaryView: View {
                         .fill(Color(NSColor.windowBackgroundColor)))
         .overlay(RoundedRectangle(cornerRadius: 8)
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1))
+        .onAppear {
+            computeMonthlySummaries(for: year) { summaries in
+                DispatchQueue.main.async {
+                    self.monthlySummaries = summaries
+                }
+            }
+        }
     }
 }
 
 /// Computes the monthly summaries for the given year by loading the scores and grouping them.
 /// Update the monthly summaries function to use the new point calculation.
-func computeMonthlySummaries(for year: Int) -> [MonthlySummary] {
-    let scores = ScoresManager.shared.loadScoresSafely(for: year)
-    let monthNames = [
-        1: "Janvier", 2: "Février", 3: "Mars", 4: "Avril",
-        5: "Mai", 6: "Juin", 7: "Juillet", 8: "Août",
-        9: "Septembre", 10: "Octobre", 11: "Novembre", 12: "Décembre"
-    ]
-
-    var monthlyData: [Int: (gg: Int, dd: Int, toto: Int)] = [:]
-
-    for score in scores {
-        let calendar = Calendar.current
-        guard calendar.component(.year, from: score.date) == year else { continue }
-        let gameMonth = calendar.component(.month, from: score.date)
+func computeMonthlySummaries(for year: Int, completion: @escaping ([MonthlySummary]) -> Void) {
+    ScoresManager.shared.loadScoresSafely(for: year) { scores in
+        let monthNames = [
+            1: "Janvier", 2: "Février", 3: "Mars", 4: "Avril",
+            5: "Mai", 6: "Juin", 7: "Juillet", 8: "Août",
+            9: "Septembre", 10: "Octobre", 11: "Novembre", 12: "Décembre"
+        ]
         
-        if monthlyData[gameMonth] == nil {
-            monthlyData[gameMonth] = (0, 0, 0)
+        var monthlyData: [Int: (gg: Int, dd: Int, toto: Int)] = [:]
+        
+        for score in scores {
+            let calendar = Calendar.current
+            guard calendar.component(.year, from: score.date) == year else { continue }
+            let gameMonth = calendar.component(.month, from: score.date)
+            
+            if monthlyData[gameMonth] == nil {
+                monthlyData[gameMonth] = (0, 0, 0)
+            }
+            
+            let points = calculateGamePoints(for: score)
+            monthlyData[gameMonth]!.gg += points.gg
+            monthlyData[gameMonth]!.dd += points.dd
+            monthlyData[gameMonth]!.toto += points.toto
         }
         
-        let points = calculateGamePoints(for: score)
-        monthlyData[gameMonth]!.gg += points.gg
-        monthlyData[gameMonth]!.dd += points.dd
-        monthlyData[gameMonth]!.toto += points.toto
-    }
-
-    var summaries: [MonthlySummary] = []
-    for (month, points) in monthlyData {
-        let tallies = calculateTallies(for: points)
-        if let monthName = monthNames[month] {
-            summaries.append(MonthlySummary(month: monthName,
-                                            ggPoints: points.gg,
-                                            ddPoints: points.dd,
-                                            totoPoints: points.toto,
-                                            ggTally: tallies.gg,
-                                            ddTally: tallies.dd,
-                                            totoTally: tallies.toto))
+        var summaries: [MonthlySummary] = []
+        for (month, points) in monthlyData {
+            let tallies = calculateTallies(for: points)
+            if let monthName = monthNames[month] {
+                summaries.append(MonthlySummary(month: monthName,
+                                                ggPoints: points.gg,
+                                                ddPoints: points.dd,
+                                                totoPoints: points.toto,
+                                                ggTally: tallies.gg,
+                                                ddTally: tallies.dd,
+                                                totoTally: tallies.toto))
+            }
         }
+        // Sort summaries in month order.
+        let order = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+                     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+        summaries.sort { order.firstIndex(of: $0.month)! < order.firstIndex(of: $1.month)! }
+        
+        completion(summaries)
     }
-    // Sort summaries in month order.
-    let order = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                 "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
-    summaries.sort { order.firstIndex(of: $0.month)! < order.firstIndex(of: $1.month)! }
-    return summaries
 }
 
 /// Calculate the game points for a single GameScore according to tie-breaking rules.
@@ -322,14 +332,7 @@ func calculateTallies(for points: (gg: Int, dd: Int, toto: Int)) -> (gg: Int, dd
 
 struct DetailedScoresView: View {
     let year: Int
-
-    // Loads all game scores for the given year.
-    var detailedScores: [GameScore] {
-        let allScores = ScoresManager.shared.loadScoresSafely(for: year)
-        let calendar = Calendar.current
-        return allScores.filter { calendar.component(.year, from: $0.date) == year }
-                        .sorted { $0.date < $1.date }
-    }
+    @State private var detailedScores: [GameScore] = []
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -340,11 +343,19 @@ struct DetailedScoresView: View {
 
             // Table header
             HStack {
-                Text("Date").frame(width: 100, alignment: .leading).foregroundColor(.secondary)
+                Text("Date")
+                    .frame(width: 100, alignment: .leading)
+                    .foregroundColor(.secondary)
                 Spacer()
-                Text("GG").frame(width: 50, alignment: .center).foregroundColor(.secondary)
-                Text("DD").frame(width: 50, alignment: .center).foregroundColor(.secondary)
-                Text("Toto").frame(width: 50, alignment: .center).foregroundColor(.secondary)
+                Text("GG")
+                    .frame(width: 50, alignment: .center)
+                    .foregroundColor(.secondary)
+                Text("DD")
+                    .frame(width: 50, alignment: .center)
+                    .foregroundColor(.secondary)
+                Text("Toto")
+                    .frame(width: 50, alignment: .center)
+                    .foregroundColor(.secondary)
             }
             .font(.subheadline)
             .padding(.vertical, 4)
@@ -358,11 +369,8 @@ struct DetailedScoresView: View {
                         .foregroundColor(.primary)
                     Spacer()
                     
-                    // Use the helper function to compute the points for the game,
-                    // which incorporates tie-breaking rules using positions if available.
                     let gamePoints = calculateGamePoints(for: score)
                     
-                    // Highlighting: blue for a 2-point (winner), green for 1-point, default for 0.
                     Text("\(score.ggScore)")
                         .frame(width: 50, alignment: .center)
                         .foregroundColor(colorForPoints(gamePoints.gg))
@@ -376,6 +384,19 @@ struct DetailedScoresView: View {
             }
         }
         .padding()
+        .onAppear {
+            ScoresManager.shared.loadScoresSafely(for: year) { scores in
+                let calendar = Calendar.current
+                let filteredScores = scores.filter {
+                    calendar.component(.year, from: $0.date) == year
+                }
+                .sorted { $0.date < $1.date }
+                
+                DispatchQueue.main.async {
+                    self.detailedScores = filteredScores
+                }
+            }
+        }
     }
     
     func colorForPoints(_ points: Int) -> Color {
