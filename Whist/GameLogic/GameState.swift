@@ -125,7 +125,7 @@ class GameState: ObservableObject, Codable {
     func updatePlayerReferences(for localPlayerId: PlayerId) {
         // Find the index of the local player in the playOrder
         guard let localIndex = playOrder.firstIndex(of: localPlayerId) else {
-            fatalError("Error: Local player ID \(localPlayerId.rawValue) not found in playOrder")
+            logger.fatalErrorAndLog("Error: Local player ID \(localPlayerId.rawValue) not found in playOrder")
         }
         
         // Map tablePosition for each player
@@ -154,7 +154,7 @@ extension GameState {
 extension GameState {
     func getPlayer(by id: PlayerId) -> Player {
         guard let player = players.first(where: { $0.id == id }) else {
-            fatalError("Error: Player with ID \(id.rawValue) not found.")
+            logger.fatalErrorAndLog("Error: Player with ID \(id.rawValue) not found.")
         }
         return player
     }
@@ -164,7 +164,7 @@ extension GameState {
     func moveCardPreview(from source: inout [Card], to destination: inout [Card], card: Card) {
         // Ensure the card exists in the source array
         guard let cardIndex = source.firstIndex(of: card) else {
-            fatalError("Card \(card) not found in \(source)")
+            logger.fatalErrorAndLog("Card \(card) not found in \(source)")
         }
 
         // Remove the card from the source

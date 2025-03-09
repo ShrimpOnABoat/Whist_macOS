@@ -42,7 +42,11 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
-    var isAIPlaying: Bool = false
+    @Published var autoPilot: Bool = false {
+        didSet {
+            logger.log("Autopilot is now \(autoPilot ? "on": "off")!")
+        }
+    }
     
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
@@ -129,13 +133,13 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         if let localPlayerID = connectionManager?.localPlayerID {
             gameState.updatePlayerReferences(for: localPlayerID)
         } else {
-            fatalError("Error: Unable to determine main player or neighbors.")
+            logger.fatalErrorAndLog("Error: Unable to determine main player or neighbors.")
         }
         
         if let localPlayer = gameState.localPlayer, let leftPlayer = gameState.leftPlayer, let rightPlayer = gameState.rightPlayer {
             logger.log("Main Player: \(localPlayer.username), Left Player: \(leftPlayer.username), Right Player: \(rightPlayer.username)")
         } else {
-            fatalError("Players could not be assigned correctly.")
+            logger.fatalErrorAndLog("Players could not be assigned correctly.")
         }
 
         isGameSetup = true
@@ -205,7 +209,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         if let localPlayerID = connectionManager?.localPlayerID {
             gameState.updatePlayerReferences(for: localPlayerID)
         } else {
-            fatalError("Error: Unable to determine main player or neighbors.")
+            logger.fatalErrorAndLog("Error: Unable to determine main player or neighbors.")
         }
         
         for player in gameState.players {
@@ -272,7 +276,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         // Move to the next dealer in playOrder so that another player starts the game
         guard let dealer = gameState.dealer,
               let currentIndex = gameState.playOrder.firstIndex(of: dealer) else {
-            fatalError("Error: Dealer is not set or not found in play order.")
+            logger.fatalErrorAndLog("Error: Dealer is not set or not found in play order.")
         }
         let nextIndex = (currentIndex + 1) % gameState.playOrder.count
         gameState.dealer = gameState.playOrder[nextIndex]
@@ -301,11 +305,12 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         gameState.players.forEach {
             $0.hasDiscarded = false
         }
+        autoPilot = false // Resets the autoPilot
 
         // Move to the next dealer in playOrder
         guard let dealer = gameState.dealer,
               let currentIndex = gameState.playOrder.firstIndex(of: dealer) else {
-            fatalError("Error: Dealer is not set or not found in play order.")
+            logger.fatalErrorAndLog("Error: Dealer is not set or not found in play order.")
         }
         let nextIndex = (currentIndex + 1) % gameState.playOrder.count
         gameState.dealer = gameState.playOrder[nextIndex]
@@ -345,7 +350,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         
         guard let startingPlayerId = startingPlayerId,
               let startingIndex = gameState.playOrder.firstIndex(of: startingPlayerId) else {
-            fatalError("Error: Starting player not found.")
+            logger.fatalErrorAndLog("Error: Starting player not found.")
         }
         
         let reorderedPlayOrder = gameState.playOrder[startingIndex...] + gameState.playOrder[..<startingIndex]
@@ -454,7 +459,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     func updateGameStateWithBet(from playerId: PlayerId, with bet: Int) {
         // Check if bet legal
         if !(bet > -1 && bet <= max(gameState.round - 2, 1)) {
-            fatalError("Received a illegal bet from \(playerId) with \(bet).")
+            logger.fatalErrorAndLog("Received a illegal bet from \(playerId) with \(bet).")
         }
         
         // Set the player's bet
@@ -554,7 +559,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     func choseBet(bet: Int) {
         // Ensure the local player is defined
         guard let localPlayer = gameState.localPlayer else {
-            fatalError("Error: Local player is not defined.")
+            logger.fatalErrorAndLog("Error: Local player is not defined.")
         }
         
         if gameState.round < 4 {
@@ -609,9 +614,17 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             )
             
             // Save the updated scores array.
-            ScoresManager.shared.saveScore(newScore)
-            
-            logger.log("New game score saved: \(newScore)")
+            ScoresManager.shared.saveScore(newScore) { result in
+                switch result {
+                case .success(let savedRecord):
+                    // The GameScore was successfully saved to CloudKit.
+                    logger.log("Score saved successfully with recordID: \(savedRecord.recordID)")
+                case .failure(let error):
+                    // Handle the error (e.g., display an alert to the user).
+                    logger.log("Failed to save score: \(error.localizedDescription)")
+                    logger.log("Scores to save: \(newScore)")
+                }
+            }
         }
     }
     

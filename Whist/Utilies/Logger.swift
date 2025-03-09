@@ -74,6 +74,11 @@ class SimpleLogger {
         }
     }
     
+    func fatalErrorAndLog(_ message: String) -> Never {
+        log(message)
+        fatalError(message)
+    }
+    
     /// Returns the content of the current log file
     func getLogContent() -> String? {
         try? String(contentsOf: logFileURL, encoding: .utf8)

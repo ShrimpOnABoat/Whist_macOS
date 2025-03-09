@@ -143,14 +143,14 @@ class ScoresManager {
         let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         return documentDirectory.appendingPathComponent("scores/")
         #else
-        fatalError("Use CloudKit in release mode")
+        logger.fatalErrorAndLog("Use CloudKit in release mode")
         #endif
     }
     private var scoresFileURL: URL {
         #if TEST_MODE
         return scoresDirectoryURL.appendingPathComponent("scores_\(currentYear).json")
         #else
-        fatalError("Use CloudKit in release mode")
+        logger.fatalErrorAndLog("Use CloudKit in release mode")
         #endif
     }
     private var currentYear: Int {
@@ -159,12 +159,6 @@ class ScoresManager {
     
     // MARK: - Initializer
     init() {
-//        do {
-//            try ensureiCloudFolderExists()
-//            logger.log("✅ iCloud Drive folder ensured on initialization.")
-//        } catch {
-//            logger.log("❌ Error ensuring iCloud Drive folder: \(error)")
-//        }
     }
     
     private func ensureDirectoryExists() throws {
@@ -233,13 +227,37 @@ class ScoresManager {
     }
     
     // MARK: Save Score
-    func saveScore(_ score: GameScore) {
-        var scores = (try? loadScores(for: currentYear)) ?? []
-        scores.append(score)
-        do {
-            try saveScores(scores)
-        } catch {
-            logger.log("❌ Error saving score for \(currentYear): \(error)")
+//    func saveScore(_ score: GameScore) {
+//        var scores = (try? loadScores(for: currentYear)) ?? []
+//        scores.append(score)
+//        do {
+//            try saveScores(scores)
+//        } catch {
+//            logger.log("❌ Error saving score for \(currentYear): \(error)")
+//        }
+//    }
+
+    /// Saves a GameScore to CloudKit.
+    func saveScore(_ gameScore: GameScore, completion: @escaping (Result<CKRecord, Error>) -> Void) {
+        // Convert GameScore to CKRecord.
+        let record = gameScore.toCKRecord()
+        
+        // Get the default public CloudKit database.
+        let container = CKContainer(identifier: "iCloud.com.Tony.WhistTest")
+        let publicDatabase = container.publicCloudDatabase
+        
+        // Save the record in CloudKit.
+        publicDatabase.save(record) { savedRecord, error in
+            // Make sure UI updates happen on the main thread.
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error saving GameScore: \(error.localizedDescription)")
+                    completion(.failure(error))
+                } else if let savedRecord = savedRecord {
+                    print("Successfully saved GameScore with recordID: \(savedRecord.recordID)")
+                    completion(.success(savedRecord))
+                }
+            }
         }
     }
     
@@ -452,7 +470,7 @@ extension ScoresManager {
     /// Saves an array of GameScore objects to CloudKit.
     func saveScores(_ scores: [GameScore], completion: @escaping (Result<Void, Error>) -> Void) {
         let container = CKContainer(identifier: "iCloud.com.Tony.WhistTest")
-        let database = container.privateCloudDatabase
+        let database = container.publicCloudDatabase
         let records = scores.map { $0.toCKRecord() }
         
         // Partition records into chunks of 400
@@ -494,7 +512,7 @@ extension ScoresManager {
     func loadScores(for year: Int = Calendar.current.component(.year, from: Date()),
                     completion: @escaping (Result<[GameScore], Error>) -> Void) {
         let container = CKContainer(identifier: "iCloud.com.Tony.WhistTest")
-        let database = container.privateCloudDatabase
+        let database = container.publicCloudDatabase
         
         // Calculate the start and end dates for the given year.
         let calendar = Calendar.current
@@ -542,7 +560,7 @@ extension ScoresManager {
     /// Deletes all GameScore records from CloudKit.
     func deleteAllScores(completion: @escaping (Result<Void, Error>) -> Void) {
         let container = CKContainer(identifier: "iCloud.com.Tony.WhistTest")
-        let database = container.privateCloudDatabase
+        let database = container.publicCloudDatabase
         let query = CKQuery(recordType: "GameScore", predicate: NSPredicate(value: true))
         var recordIDsToDelete: [CKRecord.ID] = []
         
@@ -583,8 +601,14 @@ extension ScoresManager {
     ///   - backupDirectory: The URL of the directory containing the backup JSON files.
     ///   - completion: Completion handler returning a Result with success or an Error.
     func restoreBackup(from backupDirectory: URL, completion: @escaping (Result<Void, Error>) -> Void) {
+
         do {
             let backupFiles = try fileManager.contentsOfDirectory(at: backupDirectory, includingPropertiesForKeys: nil)
+            if backupFiles.isEmpty {
+                logger.log("No files to restore. Aborting")
+                return
+            }
+            
             var allScores: [GameScore] = []
             
             for fileURL in backupFiles where fileURL.pathExtension == "json" {

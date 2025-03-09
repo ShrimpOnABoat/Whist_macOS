@@ -87,8 +87,7 @@ struct DatabaseMenuCommands: Commands {
         CommandMenu("Database") {
             Button("Restore Database from Backup") {
                 let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
-                // Obtain a ScoresManager instance. If you already have one in your environment,
-                // use that instance instead of creating a new one.
+                
                 let scoresManager = ScoresManager()
                 
                 scoresManager.restoreBackup(from: backupDirectory) { restoreResult in

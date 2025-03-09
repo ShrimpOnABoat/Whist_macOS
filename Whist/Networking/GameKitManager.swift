@@ -222,7 +222,9 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
             match.delegate = self
             
             // Configure the connection BEFORE dismissing
-            self.connectionManager?.configureMatch(match)
+            DispatchQueue.main.async {
+                self.connectionManager?.configureMatch(match)
+            }
             
             // Now dismiss the view controller on the main thread
             DispatchQueue.main.async {

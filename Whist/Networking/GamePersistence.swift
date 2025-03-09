@@ -17,7 +17,7 @@ class GamePersistence {
         if let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
             self.fileURL = documentDirectory.appendingPathComponent("gameState_\(playerID).json")
         } else {
-            fatalError("Unable to access document directory")
+            logger.fatalErrorAndLog("Unable to access document directory")
         }
     }
 

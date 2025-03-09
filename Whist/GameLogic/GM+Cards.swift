@@ -24,7 +24,7 @@ extension GameManager {
             }
         }
         if gameState.deck.count != 32 || gameState.trumpCards.count != 4 {
-            fatalError("Something went wrong creating the deck")
+            logger.fatalErrorAndLog("Something went wrong creating the deck")
         }
     }
     
@@ -60,7 +60,7 @@ extension GameManager {
             let trumpCardCount: Int = gameState.trumpCards.count
             
             if (deckCardCount != 32) || (trumpCardCount != 4) {
-                fatalError("Some cards are missing or wrong count")
+                logger.fatalErrorAndLog("Some cards are missing or wrong count")
             }
         } else {
             completion()
@@ -204,7 +204,7 @@ extension GameManager {
                     destination = .rightPlayer
                     card.isFaceDown = gameState.round < 4 ? false : true
                 default:
-                    fatalError("Invalid table position")
+                    logger.fatalErrorAndLog("Invalid table position")
                 }
  
                 // Wait for card movement to complete before dealing next card
@@ -244,7 +244,7 @@ extension GameManager {
     
     func sortLocalPlayerHand() {
         guard let localPlayerId = gameState.localPlayer?.id else {
-            fatalError("Error: Local player is not defined.")
+            logger.fatalErrorAndLog("Error: Local player is not defined.")
         }
 
         let player = gameState.getPlayer(by: localPlayerId)
@@ -271,12 +271,12 @@ extension GameManager {
     func playCard(_ card: Card, completion: @escaping () -> Void) {
         // Ensure the local player is defined
         guard let localPlayer = gameState.localPlayer else {
-            fatalError("Error: Local player is not defined.")
+            logger.fatalErrorAndLog("Error: Local player is not defined.")
         }
 
         // Ensure the local player has the card in their hand
         guard localPlayer.hand.firstIndex(where: { $0 == card }) != nil else {
-            fatalError("Error: The card is not in the local player's hand.")
+            logger.fatalErrorAndLog("Error: The card is not in the local player's hand.")
         }
 
         // Play the card
@@ -311,7 +311,7 @@ extension GameManager {
         
         // Check if the player already played
         guard let playerIndex = gameState.playOrder.firstIndex(of: playerId) else {
-            fatalError("Player ID not found in play order.")
+            logger.fatalErrorAndLog("Player ID not found in play order.")
         }
         
         if gameState.table.indices.contains(playerIndex) {
@@ -338,7 +338,7 @@ extension GameManager {
     func setPlayableCards() {
         // Ensure the local player is defined
         guard let localPlayer = gameState.localPlayer else {
-            fatalError("Error: Local player is not defined.")
+            logger.fatalErrorAndLog("Error: Local player is not defined.")
         }
 
         // Determine the leading suit if available
@@ -373,17 +373,17 @@ extension GameManager {
         
         // Ensure there are exactly 3 cards on the table
         guard gameState.table.count == 3 else {
-            fatalError("Table must contain exactly 3 cards. Cards on the table: \(gameState.table).")
+            logger.fatalErrorAndLog("Table must contain exactly 3 cards. Cards on the table: \(gameState.table).")
         }
         
         // Ensure there's a trump suit defined
         guard let trumpSuit = gameState.trumpSuit else {
-            fatalError("Trump suit is not defined.")
+            logger.fatalErrorAndLog("Trump suit is not defined.")
         }
         
         // Determine the leading suit (suit of the first card played)
         guard let leadingSuit = gameState.table.first?.suit else {
-            fatalError("No leading suit found.")
+            logger.fatalErrorAndLog("No leading suit found.")
         }
         
         // Find the winning card
@@ -405,13 +405,13 @@ extension GameManager {
             // If both cards are of the same suit, compare ranks
             return card1.rank.precedence < card2.rank.precedence
         }) else {
-            fatalError("Failed to determine the winning card.")
+            logger.fatalErrorAndLog("Failed to determine the winning card.")
         }
         
         // Find the winner (player who played the winning card)
         guard let winningCardIndex = gameState.table.firstIndex(of: winningCard),
               let winningPlayerID = gameState.playOrder[safe: winningCardIndex] else {
-            fatalError("Could not determine the winner.")
+            logger.fatalErrorAndLog("Could not determine the winner.")
         }
         
         let winner = gameState.getPlayer(by: winningPlayerID)
@@ -453,7 +453,7 @@ extension GameManager {
                 case .right:
                     self.moveCard(card, from: .table, to: .rightPlayerTricks)
                 default:
-                    fatalError("Unknown winner table position)")
+                    logger.fatalErrorAndLog("Unknown winner table position)")
                 }
             }
             
@@ -541,11 +541,11 @@ extension GameManager {
     func AIPlayCard(completion: @escaping () -> Void) {
         // Ensure the local player is defined
         guard let localPlayer = gameState.localPlayer else {
-            fatalError("Error: Local player is not defined.")
+            logger.fatalErrorAndLog("Error: Local player is not defined.")
         }
         
         guard let localIndex = gameState.playOrder.firstIndex(of: localPlayer.id) else {
-            fatalError("Error: Local player index is not defined.")
+            logger.fatalErrorAndLog("Error: Local player index is not defined.")
         }
 
         if !gameState.table.indices.contains(localIndex) {
@@ -554,7 +554,7 @@ extension GameManager {
             
             // Ensure there are playable cards
             guard !playableCards.isEmpty else {
-                fatalError("Error: No playable cards available.")
+                logger.fatalErrorAndLog("Error: No playable cards available.")
             }
 
             // Select a random playable card

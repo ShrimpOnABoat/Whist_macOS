@@ -21,7 +21,7 @@ extension GameManager {
         
         // Assign local and adjacent players
         guard gameState.players.count >= 3 else {
-            fatalError("Not enough players in the preview game state.")
+            logger.fatalErrorAndLog("Not enough players in the preview game state.")
         }
 
         gameState.playOrder = [.dd, .gg, .toto]
@@ -60,7 +60,7 @@ extension GameManager {
         for player in gameState.players {
             for _ in 0..<cardsPerPlayer {
                 guard !gameState.deck.isEmpty else {
-                    fatalError("Deck is empty while assigning hands.")
+                    logger.fatalErrorAndLog("Deck is empty while assigning hands.")
                 }
                 if let card = gameState.deck.last {
                     gameState.moveCardPreview(from: &gameState.deck, to: &player.hand, card: card)

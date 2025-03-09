@@ -145,7 +145,7 @@ extension GameManager {
                         case 1: transition(to: .bidding)
                         case 2: transition(to: .waitingForTrump)
                         case 3: transition(to: .choosingTrump)
-                        default: fatalError("Unknown place \(localPlayer.place)")
+                        default: logger.fatalErrorAndLog("Unknown place \(localPlayer.place)")
                         }
                     }
                 }
@@ -184,13 +184,13 @@ extension GameManager {
             
             waitForAnimationsToFinish {
                 self.chooseTrump() {
-                    if self.isAIPlaying {
-                        self.waitForAnimationsToFinish {
-                            self.AIChooseTrumpSuit() {
-                                self.transition(to: .bidding)
-                            }
-                        }
-                    }
+//                    if self.isAIPlaying {
+//                        self.waitForAnimationsToFinish {
+//                            self.AIChooseTrumpSuit() {
+//                                self.transition(to: .bidding)
+//                            }
+//                        }
+//                    }
                 }
             }
             
@@ -204,19 +204,19 @@ extension GameManager {
             
         case .discard:
             setPlayerState(to: .discarding)
-            if isAIPlaying {
-                waitForAnimationsToFinish {
-                    self.AIdiscard() {
-                        if let place = self.gameState.localPlayer?.place {
-                            if place == 2 {
-                                self.transition(to: .bidding)
-                            } else {
-                                self.transition(to: .playingTricks)
-                            }
-                        }
-                    }
-                }
-            }
+//            if isAIPlaying {
+//                waitForAnimationsToFinish {
+//                    self.AIdiscard() {
+//                        if let place = self.gameState.localPlayer?.place {
+//                            if place == 2 {
+//                                self.transition(to: .bidding)
+//                            } else {
+//                                self.transition(to: .playingTricks)
+//                            }
+//                        }
+//                    }
+//                }
+//            }
             
         case .bidding:
             if gameState.round < 4 {
@@ -273,7 +273,7 @@ extension GameManager {
             if isLocalPlayerTurnToPlay() {
                 setPlayerState(to: .playing)
                 setPlayableCards()
-                if isAIPlaying {
+                if autoPilot {
                     waitForAnimationsToFinish {
                         self.AIPlayCard() {
                             if self.allPlayersPlayed() {
@@ -517,11 +517,11 @@ extension GameManager {
     
     func isLocalPlayerTurnToPlay() -> Bool {
         guard let localPlayerID = connectionManager?.localPlayerID else {
-            fatalError("Error: Local player ID not found.")
+            logger.fatalErrorAndLog("Error: Local player ID not found.")
         }
 
         guard let playerIndex = gameState.playOrder.firstIndex(of: localPlayerID) else {
-            fatalError("Error: Local player not found in play order.")
+            logger.fatalErrorAndLog("Error: Local player not found in play order.")
         }
 
         // Check if it's the local player's turn to play
@@ -540,6 +540,7 @@ extension GameManager {
     func isLastTrick() -> Bool {
         // Check if all players' hands are empty
         let allHandsEmpty = gameState.players.allSatisfy { $0.hand.isEmpty }
+        logger.log("allHandsEmpty: \(allHandsEmpty)")
         if allHandsEmpty {
             return true
         }

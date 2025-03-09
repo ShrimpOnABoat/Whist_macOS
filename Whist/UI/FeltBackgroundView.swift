@@ -555,7 +555,7 @@ struct StainsOverlay: View {
             centerX = Double.random(in: 0...size.width)
             centerY = Double.random(in: size.height * 0.7...size.height)
         default:
-            fatalError("Unexpected region value")
+            logger.fatalErrorAndLog("Unexpected region value")
         }
         
         let ringRadius = Double.random(in: 10...25)
@@ -1075,7 +1075,7 @@ struct DynamicWearOverlay: View {
                     x = Double.random(in: size.width * -0.1...size.width * 0.9)
                     y = Double.random(in: size.height * 0.75...size.height * 0.95)
                 default:
-                    fatalError("Unexpected region value")
+                    logger.fatalErrorAndLog("Unexpected region value")
                 }
                 let rect = CGRect(x: x, y: y, width: markWidth, height: markHeight)
                 

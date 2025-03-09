@@ -141,8 +141,98 @@ struct PlayerView: View {
                             }
                             .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
                             Spacer()
-                            PlayerHand(dynamicSize: dynamicSize)
-                                .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
+                            ZStack {
+                                PlayerHand(dynamicSize: dynamicSize)
+                                    .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
+                                if gameManager.gameState.currentPhase == .playingTricks {
+                                    if [.playingTricks, .grabTrick].contains(gameManager.gameState.currentPhase) {
+                                        HStack {
+                                            Spacer()
+                                            Button(action: {
+                                                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                                                    gameManager.autoPilot.toggle()
+                                                    // Optional: Add haptic feedback for better user experience
+                                                    //                                                NSHapticFeedbackManager.defaultPerformer.performFeedback(.generic, performanceTime: .default)
+                                                }
+                                            }) {
+                                                VStack(spacing: 4) {
+                                                    Image(systemName: gameManager.autoPilot ? "airplane.circle.fill" : "airplane.circle")
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .frame(width: 30, height: 30)
+                                                        .foregroundColor(.white)
+                                                    
+                                                    Text(gameManager.autoPilot ? "Auto On" : "Auto Off")
+                                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                                        .foregroundColor(.white)
+                                                }
+                                                .padding(12)
+                                                .frame(width: 70, height: 70)
+                                                .background(
+                                                    ZStack {
+                                                        // Depth layer
+                                                        Circle()
+                                                            .fill(Color.black.opacity(0.2))
+                                                            .offset(x: 0, y: 2)
+                                                            .blur(radius: 2)
+                                                        
+                                                        // Main gradient background
+                                                        Circle()
+                                                            .fill(
+                                                                LinearGradient(
+                                                                    gradient: Gradient(colors: gameManager.autoPilot
+                                                                                       ? [Color(NSColor.systemGreen).opacity(0.9), Color(NSColor.systemBlue)]
+                                                                                       : [Color(NSColor.darkGray), Color(NSColor.gray)]),
+                                                                    startPoint: .topLeading,
+                                                                    endPoint: .bottomTrailing
+                                                                )
+                                                            )
+                                                        
+                                                        // Subtle inner shadow for depth
+                                                        Circle()
+                                                            .stroke(
+                                                                gameManager.autoPilot
+                                                                ? LinearGradient(
+                                                                    gradient: Gradient(colors: [Color.white.opacity(0.6), Color.white.opacity(0)]),
+                                                                    startPoint: .topLeading,
+                                                                    endPoint: .bottomTrailing
+                                                                )
+                                                                : LinearGradient(
+                                                                    gradient: Gradient(colors: [Color.white.opacity(0.3), Color.white.opacity(0)]),
+                                                                    startPoint: .topLeading,
+                                                                    endPoint: .bottomTrailing
+                                                                ),
+                                                                lineWidth: 2
+                                                            )
+                                                    }
+                                                )
+                                                .shadow(color: gameManager.autoPilot ? Color.blue.opacity(0.5) : Color.black.opacity(0.3),
+                                                        radius: 8, x: 0, y: 4)
+                                                .overlay(
+                                                    Circle()
+                                                        .trim(from: 0, to: gameManager.autoPilot ? 1 : 0)
+                                                        .stroke(
+                                                            LinearGradient(
+                                                                gradient: Gradient(colors: [Color.blue, Color.green]),
+                                                                startPoint: .leading,
+                                                                endPoint: .trailing
+                                                            ),
+                                                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                                                        )
+                                                        .rotationEffect(.degrees(-90))
+                                                        .animation(.easeInOut(duration: 0.5), value: gameManager.autoPilot)
+                                                )
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                            .scaleEffect(gameManager.autoPilot ? 1.05 : 1.0)
+                                            .accessibility(label: Text(gameManager.autoPilot ? "Disable Autopilot" : "Enable Autopilot"))
+                                            .help(gameManager.autoPilot ? "Disable autopilot mode" : "Enable autopilot mode")
+                                            .padding(.trailing, 20)
+                                            .padding(.bottom, 20)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
