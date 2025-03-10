@@ -15,6 +15,7 @@ struct GameAction: Codable {
         case discard
         case choseBet
         case choseTrump
+        case cancelTrump
         case sendState
         case startNewGame
         

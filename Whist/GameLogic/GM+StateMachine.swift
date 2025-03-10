@@ -396,7 +396,11 @@ extension GameManager {
         case .discard:
             let numberOfCardsToDiscard = (gameState.localPlayer?.hand.count ?? 0) - max(1, gameState.round - 2)
             if numberOfCardsToDiscard > 0 {
-                return
+                if gameState.trumpCards.last?.isFaceDown == false {
+                    return
+                } else { // the player cancelled the trump choice
+                    transition(to: .waitingForTrump)
+                }
             } else if gameState.localPlayer?.place == 2 {
                 transition(to: .bidding)
             } else {

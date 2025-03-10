@@ -25,13 +25,19 @@ struct TrumpView: View {
                     )
             } else {
                 ForEach(Array(gameManager.gameState.trumpCards.enumerated()), id: \.element.id) { index, card in
-                    let offset = CGFloat(CGFloat(index)*GameConstants.deckOffset.y) // Offset for visual separation
+                    let offset = CGFloat(index) * GameConstants.deckOffset.y // Offset for visual separation
                     TransformableCardView(card: card, scale: dynamicSize.deckCardsScale, xOffset: offset, yOffset: -offset, dynamicSize: dynamicSize)
                         .hueRotation(Angle(degrees: -90 * (card.isFaceDown == true ? 1 : 0)))
                 }
             }
         }
         .padding() // Add padding for layout spacing
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if gameManager.gameState.currentPhase == .discard && gameManager.gameState.localPlayer?.place == 2 {
+                gameManager.cancelTrumpChoice()
+            }
+        }
     }
 }
 

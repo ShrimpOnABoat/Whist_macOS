@@ -501,6 +501,16 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
 //        checkAndAdvanceStateIfNeeded()
     }
     
+    func updateGameStateWithTrumpCancellation() {
+        // Reset trump-related state to cancel the trump choice
+        gameState.trumpSuit = nil
+        gameState.trumpCards.last?.isFaceDown = true
+        
+        logger.log("Trump choice cancelled by second player.")
+        
+        transition(to: .choosingTrump)
+    }
+    
     func updateGameStateWithDiscardedCards(from playerId: PlayerId, with cards: [Card], completion: @escaping () -> Void) {
         // Validate the player
         let player = gameState.getPlayer(by: playerId)
@@ -580,6 +590,22 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         sendBetToPlayers(bet)
         persistence.saveGameState(gameState)
 //        checkAndAdvanceStateIfNeeded()
+    }
+    
+    // MARK: Cancel Trump Choice
+    
+    func cancelTrumpChoice() {
+        // Reset trump-related state to cancel the trump choice
+        gameState.trumpSuit = nil
+        gameState.trumpCards.last?.isFaceDown = true
+        
+        logger.log("Trump choice cancelled by local player.")
+        
+        // Notify other players about the cancellation
+        sendCancelTrumpChoice()
+        
+        // Advance the game state as needed
+        checkAndAdvanceStateIfNeeded()
     }
     
     // MARK: Save scores

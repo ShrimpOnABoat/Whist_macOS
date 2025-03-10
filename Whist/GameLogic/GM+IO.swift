@@ -67,6 +67,13 @@ extension GameManager {
                 logger.log("Failed to decode trump suit.")
             }
             
+        case .cancelTrump:
+            logger.log("Received cancellation of trump suit")
+            // Do something only if last
+            if gameState.localPlayer?.place == 3 {
+                self.updateGameStateWithTrumpCancellation()
+            }
+            
         case .discard:
             logger.log("Received discard")
             if let discardedCards = try? JSONDecoder().decode([Card].self, from: action.payload) {
@@ -238,6 +245,22 @@ extension GameManager {
         let action = GameAction(
             playerId: localPlayer.id,
             type: .startNewGame,
+            payload: Data(),
+            timestamp: Date().timeIntervalSince1970
+        )
+        sendAction(action)
+    }
+    
+    func sendCancelTrumpChoice() {
+        logger.log("Sending cancel trump choice action to players")
+        guard let localPlayer = gameState.localPlayer else {
+            logger.log("Error: Local player is not defined")
+            return
+        }
+        
+        let action = GameAction(
+            playerId: localPlayer.id,
+            type: .cancelTrump,
             payload: Data(),
             timestamp: Date().timeIntervalSince1970
         )
