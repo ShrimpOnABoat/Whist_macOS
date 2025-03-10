@@ -505,6 +505,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         // Reset trump-related state to cancel the trump choice
         gameState.trumpSuit = nil
         gameState.trumpCards.last?.isFaceDown = true
+        showOptions = false
         
         logger.log("Trump choice cancelled by second player.")
         

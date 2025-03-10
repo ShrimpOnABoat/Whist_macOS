@@ -34,13 +34,6 @@ struct GameView: View {
     @State private var didMeasureDeck: Bool = false
     @State private var background: AnyView = AnyView(EmptyView())
 
-//    @State private var background: AnyView = AnyView(FeltBackgroundView(
-//        radialShadingStrength: 0.5,
-//        wearIntensity: CGFloat.random(in: 0...1),
-//        motifVisibility: CGFloat.random(in: 0...0.5),
-//        motifScale: CGFloat.random(in: 0...1),
-//        showScratches: Bool.random()
-//    ))
     func refreshBackground() {
         // Récupérer les indices des couleurs activées
         let enabledIndices = preferences.enabledRandomColors.enumerated().compactMap { (index, isEnabled) in
@@ -116,6 +109,11 @@ struct GameView: View {
                                 Group {
                                     HStack {
                                         TrumpView(dynamicSize: dynamicSize)
+                                            .onTapGesture {
+                                                if gameManager.gameState.currentPhase == .discard && gameManager.gameState.localPlayer?.place == 2 {
+                                                    gameManager.cancelTrumpChoice()
+                                                }
+                                            }
                                         
                                         Button(action: {
                                             if gameManager.gameState.round > 1 {

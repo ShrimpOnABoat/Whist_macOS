@@ -32,12 +32,6 @@ struct TrumpView: View {
             }
         }
         .padding() // Add padding for layout spacing
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if gameManager.gameState.currentPhase == .discard && gameManager.gameState.localPlayer?.place == 2 {
-                gameManager.cancelTrumpChoice()
-            }
-        }
     }
 }
 
