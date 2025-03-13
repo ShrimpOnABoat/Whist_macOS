@@ -60,6 +60,9 @@ struct CardView: View {
     private func handleCardTap() {
         // 1. If we’re in “discard” phase, handle discarding:
         if gameManager.gameState.currentPhase == .discard {
+            if card.rank == .two && gameManager.gameState.localPlayer?.place == 2 {
+                gameManager.cancelTrumpChoice()
+            }
             // Let the parent do the toggling logic
             if canSelect || isSelected {
                 onTap()

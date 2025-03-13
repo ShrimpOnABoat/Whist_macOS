@@ -332,6 +332,8 @@ extension GameManager {
         case .gameOver:
             setPlayerState(to: .idle)
             showConfetti.toggle()
+            playSound(named: "applaud")
+            playSound(named: "Confetti")
             // Show final results, store the score, transition to .newGame ...
             persistence.clearSavedGameState()
             // save the game

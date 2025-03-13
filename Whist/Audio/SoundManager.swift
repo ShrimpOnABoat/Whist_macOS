@@ -11,6 +11,12 @@ class SoundManager {
     private var soundIDs: [String: SystemSoundID] = [:]
     private let soundFiles: [String] = [
         "card shuffle.mp3",
+        "applaud.wav",
+        "fail.wav",
+        "impact.wav",
+        "Confetti.wav",
+        "pouet.wav",
+        "normal-click.wav",
         "play card.mp3"
     ]
 

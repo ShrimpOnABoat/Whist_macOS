@@ -297,11 +297,7 @@ extension GameKitManager: GKMatchDelegate {
     
     private func determinePlayerId(for player: GKPlayer) -> PlayerId? {
         let name = player.displayName
-        guard let localPlayerID = GCPlayerIdAssociation[name] else {
-            // Provide a fallback or handle the error
-            logger.log("No matching PlayerId for \(name)")
-            return nil
-        }
+        let localPlayerID = GCPlayerIdAssociation[name, default: .dd]
         return localPlayerID
     }
 }

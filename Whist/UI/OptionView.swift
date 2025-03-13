@@ -113,7 +113,12 @@ struct OptionsView: View {
                     size: 60,
                     backgroundColor: backgroundColor,
                     isSelected: randomNumber != nil,
-                    action: randomNumber == nil ? handleRandomBetSelection : {}
+                    action: {
+                        gameManager.soundManager.playSound(named: "normal-click")
+                        if randomNumber == nil {
+                            handleRandomBetSelection()
+                        }
+                    }
                 )
             } else {
                 // Display the regular betting chips
@@ -134,7 +139,10 @@ struct OptionsView: View {
                                         size: dynamicSize.optionsButtonSize,
                                         backgroundColor: backgroundColor,
                                         isSelected: selectedBet == numbers[numberIndex],
-                                        action: { handleBetSelection(numbers[numberIndex]) }
+                                        action: {
+                                            gameManager.soundManager.playSound(named: "normal-click")
+                                            handleBetSelection(numbers[numberIndex])
+                                        }
                                     )
                                 }
                             }
@@ -147,12 +155,6 @@ struct OptionsView: View {
         .background(Color.white.opacity(0.2))
         .cornerRadius(15)
         .shadow(radius: 10)
-//        .onAppear() {
-//            if gameManager.isAIPlaying {
-//                gameManager.choseBet(bet: max((gameManager.gameState.round - 2) / 3, 1))
-//                gameManager.checkAndAdvanceStateIfNeeded()
-//            }
-//        }
     }
     
     private func handleBetSelection(_ bet: Int) {

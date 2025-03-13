@@ -192,6 +192,7 @@ extension GameManager {
             if let card = gameState.deck.last
             {
                 card.isFaceDown = true
+                card.isPlayable = false
                 var destination: CardPlace = .localPlayer
                 switch (gameState.getPlayer(by: playerID).tablePosition ) {
                 case .local:

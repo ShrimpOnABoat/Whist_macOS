@@ -463,36 +463,33 @@ class ConnectionManager: NSObject, ObservableObject {
 
         // Loop over remote players and assign playerIDs using the association dictionary.
         for player in match.players {
-            if let assignedId = GCPlayerIdAssociation[player.displayName] {
-                let username = player.displayName
-                logger.log("Processing player: \(username) as \(assignedId.rawValue)")
+            let assignedId = GCPlayerIdAssociation[player.displayName, default: .dd]
+            let username = player.displayName
+            logger.log("Processing player: \(username) as \(assignedId.rawValue)")
+            
+            // Load the player's photo asynchronously
+            player.loadPhoto(for: .normal) { [weak self] image, error in
+                guard let self = self else { return }
                 
-                // Load the player's photo asynchronously
-                player.loadPhoto(for: .normal) { [weak self] image, error in
-                    guard let self = self else { return }
+                // Update player regardless of whether photo loaded or not
+                DispatchQueue.main.async {
+                    if let error = error {
+                        logger.log("Error loading photo for \(username): \(error)")
+                    }
                     
-                    // Update player regardless of whether photo loaded or not
-                    DispatchQueue.main.async {
-                        if let error = error {
-                            logger.log("Error loading photo for \(username): \(error)")
-                        }
-                        
-                        // Update the player with whatever image we got (nil is fine)
-                        self.gameManager?.updatePlayer(assignedId, name: username, image: image)
-                        
-                        // Track processed players
-                        playersProcessed += 1
-                        logger.log("Processed \(playersProcessed)/\(totalPlayers) players")
-
-                        // When all players are processed, check and advance game state
-                        if playersProcessed == totalPlayers {
-                            logger.log("All players processed, advancing game state")
-                            self.gameManager?.checkAndAdvanceStateIfNeeded()
-                        }
+                    // Update the player with whatever image we got (nil is fine)
+                    self.gameManager?.updatePlayer(assignedId, name: username, image: image)
+                    
+                    // Track processed players
+                    playersProcessed += 1
+                    logger.log("Processed \(playersProcessed)/\(totalPlayers) players")
+                    
+                    // When all players are processed, check and advance game state
+                    if playersProcessed == totalPlayers {
+                        logger.log("All players processed, advancing game state")
+                        self.gameManager?.checkAndAdvanceStateIfNeeded()
                     }
                 }
-            } else {
-                logger.log("⚠️ No PlayerId mapping found for player \(player.displayName)")
             }
         }
 

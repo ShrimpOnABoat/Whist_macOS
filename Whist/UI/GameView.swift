@@ -85,6 +85,9 @@ struct GameView: View {
                             ProceduralImpactView()
                                 .frame(width: 300, height: 300)
                                 .position(gameManager.effectPosition)
+                                .onAppear {
+                                    gameManager.soundManager.playSound(named: "impact")
+                                }
                             ProceduralCracksView()
                                 .blur(radius: 1)
                                 .blendMode(.multiply)
@@ -95,6 +98,9 @@ struct GameView: View {
                             SubtleFailureView()
                                 .frame(width: 200, height: 200)
                                 .position(gameManager.effectPosition)
+                                .onAppear {
+                                    gameManager.soundManager.playSound(named: "fail")
+                                }
                         }
                     }
                 }
@@ -109,11 +115,6 @@ struct GameView: View {
                                 Group {
                                     HStack {
                                         TrumpView(dynamicSize: dynamicSize)
-                                            .onTapGesture {
-                                                if gameManager.gameState.currentPhase == .discard && gameManager.gameState.localPlayer?.place == 2 {
-                                                    gameManager.cancelTrumpChoice()
-                                                }
-                                            }
                                         
                                         Button(action: {
                                             if gameManager.gameState.round > 1 {

@@ -78,11 +78,6 @@ struct SummaryView: View {
     let year: Int
     @State private var monthlySummaries: [MonthlySummary] = []
 
-    // Compute the monthly summaries by grouping games per month and awarding points:
-//    var monthlySummaries: [MonthlySummary] {
-//        computeMonthlySummaries(for: year)
-//    }
-
     // Compute overall totals from the monthly summaries.
     var total: (gg: Int, dd: Int, toto: Int, ggTally: Int, ddTally: Int, totoTally: Int) {
         var total = (gg: 0, dd: 0, toto: 0, ggTally: 0, ddTally: 0, totoTally: 0)
@@ -163,10 +158,17 @@ struct SummaryView: View {
         .overlay(RoundedRectangle(cornerRadius: 8)
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1))
         .onAppear {
-            computeMonthlySummaries(for: year) { summaries in
-                DispatchQueue.main.async {
-                    self.monthlySummaries = summaries
-                }
+            loadData()
+        }
+        .onChange(of: year) { _, _ in
+            loadData()
+        }
+    }
+    
+    private func loadData() {
+        computeMonthlySummaries(for: year) { summaries in
+            DispatchQueue.main.async {
+                self.monthlySummaries = summaries
             }
         }
     }
@@ -385,16 +387,23 @@ struct DetailedScoresView: View {
         }
         .padding()
         .onAppear {
-            ScoresManager.shared.loadScoresSafely(for: year) { scores in
-                let calendar = Calendar.current
-                let filteredScores = scores.filter {
-                    calendar.component(.year, from: $0.date) == year
-                }
+            loadData()
+        }
+        .onChange(of: year) { _, _ in
+            loadData()
+        }
+    }
+    
+    private func loadData() {
+        ScoresManager.shared.loadScoresSafely(for: year) { scores in
+            let calendar = Calendar.current
+            let filteredScores = scores.filter {
+                calendar.component(.year, from: $0.date) == year
+            }
                 .sorted { $0.date < $1.date }
-                
-                DispatchQueue.main.async {
-                    self.detailedScores = filteredScores
-                }
+            
+            DispatchQueue.main.async {
+                self.detailedScores = filteredScores
             }
         }
     }

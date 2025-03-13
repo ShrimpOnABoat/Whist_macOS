@@ -144,7 +144,6 @@ struct PlayerView: View {
                             ZStack {
                                 PlayerHand(dynamicSize: dynamicSize)
                                     .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
-                                if gameManager.gameState.currentPhase == .playingTricks {
                                     if [.playingTricks, .grabTrick].contains(gameManager.gameState.currentPhase) {
                                         HStack {
                                             Spacer()
@@ -231,7 +230,6 @@ struct PlayerView: View {
                                             .padding(.bottom, 20)
                                         }
                                     }
-                                }
                             }
                         }
                     }
