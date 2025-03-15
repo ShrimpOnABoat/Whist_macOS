@@ -25,6 +25,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
                 }
             }
         }
+        // Defer removal of the "View" menu.
+        DispatchQueue.main.async {
+            if let mainMenu = NSApplication.shared.mainMenu {
+                for item in mainMenu.items {
+                    if let submenu = item.submenu,
+                       // Check for the "Copy" command, which is unique to the Edit menu.
+                       submenu.items.contains(where: { $0.action == #selector(NSText.copy(_:)) }) {
+                        mainMenu.removeItem(item)
+                        break
+                    }
+                }
+            }
+        }
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {

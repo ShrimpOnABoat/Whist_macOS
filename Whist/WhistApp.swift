@@ -45,6 +45,7 @@ struct WhistApp: App {
         }
         .defaultSize(width: 800, height: 600)
         .commands {
+            CommandGroup(replacing: .newItem) { }
             Group {
                 ScoresMenuCommands()
                 DatabaseMenuCommands()
@@ -61,26 +62,21 @@ struct WhistApp: App {
             ScoresView()
                 .environmentObject(gameManager)
         }
+        .commandsRemoved()
     }
-    
-    // Add your commands in the computed property below.
-    //    var commands: some Commands {
-    //        Group {
-    //            ScoresMenuCommands()
-    //            DatabaseMenuCommands()
-    //        }
-    //    }
 }
 
 struct ScoresMenuCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     
     var body: some Commands {
-        CommandGroup(replacing: .windowList) {
+        CommandGroup(after: .sidebar) {
+            Divider()
             Button("Voir les scores") {
                 openWindow(id: "ScoresWindow")
             }
             .keyboardShortcut("s", modifiers: [.command])
+            Divider()
         }
     }
 }
