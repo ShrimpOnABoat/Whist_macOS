@@ -67,7 +67,7 @@ struct MovingCardView: View {
                 self.scale = movingCard.fromState.scale
                 movingCard.card.elevation = 5
             }
-            .onChange(of: movingCard.toState) { _, newToState in
+            .onChange(of: movingCard.toState) { newToState in
                 guard let toState = newToState, !hasAnimated else { return }
                 hasAnimated = true
 

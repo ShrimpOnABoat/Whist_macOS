@@ -312,7 +312,7 @@ struct GameView: View {
             refreshBackground()
 //            checkSavedGame()
         }
-        .onChange(of: preferences.selectedFeltIndex) {
+        .onChange(of: preferences.selectedFeltIndex) { _ in
             refreshBackground()
         }
     }

@@ -130,6 +130,7 @@ extension GameManager {
             
         case .dealingCards:
             setPlayerState(to: .idle)
+            hoveredSuit = nil
             let isDealer = (connectionManager?.localPlayerID == gameState.dealer)
 
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
@@ -184,13 +185,7 @@ extension GameManager {
             
             waitForAnimationsToFinish {
                 self.chooseTrump() {
-//                    if self.isAIPlaying {
-//                        self.waitForAnimationsToFinish {
-//                            self.AIChooseTrumpSuit() {
-//                                self.transition(to: .bidding)
-//                            }
-//                        }
-//                    }
+                    self.hoveredSuit = nil
                 }
             }
             
@@ -204,19 +199,6 @@ extension GameManager {
             
         case .discard:
             setPlayerState(to: .discarding)
-//            if isAIPlaying {
-//                waitForAnimationsToFinish {
-//                    self.AIdiscard() {
-//                        if let place = self.gameState.localPlayer?.place {
-//                            if place == 2 {
-//                                self.transition(to: .bidding)
-//                            } else {
-//                                self.transition(to: .playingTricks)
-//                            }
-//                        }
-//                    }
-//                }
-//            }
             
         case .bidding:
             if gameState.round < 4 {
@@ -251,6 +233,7 @@ extension GameManager {
             
         case .showCard:
             setPlayerState(to: .idle)
+            hoveredSuit = nil
             if let localPlayer = gameState.localPlayer {
                 for i in localPlayer.hand.indices {
                     localPlayer.hand[i].isFaceDown = false
@@ -261,15 +244,12 @@ extension GameManager {
             
         case .playingTricks:
             showOptions = false // Hide the options view
+            hoveredSuit = nil
             let allPlayersAreTied: Bool = gameState.players.map { $0.scores.last ?? 0 }.allSatisfy { $0 == gameState.players.first?.scores.last ?? 0 }
             if gameState.round > 3 && !allPlayersAreTied {
                 gameState.trumpCards.last?.isFaceDown = false // show the trump card to the first player
             }
             
-            // In case someone already played a card
-//            processPendingActionsForCurrentPhase()
-
-
             if isLocalPlayerTurnToPlay() {
                 setPlayerState(to: .playing)
                 setPlayableCards()

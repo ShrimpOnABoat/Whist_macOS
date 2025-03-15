@@ -160,7 +160,7 @@ struct SummaryView: View {
         .onAppear {
             loadData()
         }
-        .onChange(of: year) { _, _ in
+        .onChange(of: year) { _ in
             loadData()
         }
     }
@@ -389,7 +389,7 @@ struct DetailedScoresView: View {
         .onAppear {
             loadData()
         }
-        .onChange(of: year) { _, _ in
+        .onChange(of: year) { _ in
             loadData()
         }
     }

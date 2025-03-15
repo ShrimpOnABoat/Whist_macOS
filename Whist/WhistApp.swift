@@ -35,6 +35,12 @@ struct WhistApp: App {
                         gameManager.updatePlayer(localPlayerID, isLocal: true, name: name, image: image)
                     }
 #endif
+                    
+                    // Set the content aspect ratio to enforce a 4:3 window size ratio
+                    if let window = NSApplication.shared.windows.first {
+                        window.contentAspectRatio = NSSize(width: 4, height: 3)
+                    }
+                    
                 }
         }
         .defaultSize(width: 800, height: 600)
@@ -44,7 +50,7 @@ struct WhistApp: App {
                 DatabaseMenuCommands()
             }
         }
-
+        
         Settings {
             PreferencesView()
                 .environmentObject(preferences)
@@ -58,12 +64,12 @@ struct WhistApp: App {
     }
     
     // Add your commands in the computed property below.
-//    var commands: some Commands {
-//        Group {
-//            ScoresMenuCommands()
-//            DatabaseMenuCommands()
-//        }
-//    }
+    //    var commands: some Commands {
+    //        Group {
+    //            ScoresMenuCommands()
+    //            DatabaseMenuCommands()
+    //        }
+    //    }
 }
 
 struct ScoresMenuCommands: Commands {
@@ -216,206 +222,3 @@ struct PreferencesView: View {
         return names.indices.contains(index) ? names[index] : "Couleur Inconnue"
     }
 }
-
-// MARK: TEST APP
-
-//import SwiftUI
-//import CloudKit
-//
-//class CloudKitManager: ObservableObject {
-//    private let messageRecordType = "Message"
-//    private let scoreRecordType = "GameScore"
-//    private let cloudKitContainerIdentifier = "iCloud.com.Tony.WhistTest"
-//    private let database: CKDatabase
-//
-//    @Published var fetchedMessage: String = ""
-//    @Published var fetchedScores: [GameScore] = []
-//
-//    init() {
-//        let container = CKContainer(identifier: cloudKitContainerIdentifier)
-//        self.database = container.privateCloudDatabase
-//    }
-//
-//    func saveMessage(_ message: String) {
-//        let record = CKRecord(recordType: messageRecordType)
-//        record["text"] = message as CKRecordValue
-//
-//        database.save(record) { _, error in
-//            DispatchQueue.main.async {
-//                if let error = error {
-//                    let bundleID = Bundle.main.bundleIdentifier ?? "Unknown Bundle ID"
-//                    self.fetchedMessage = """
-//                    Error saving message:
-//                    \(error.localizedDescription)
-//                    Bundle ID: \(bundleID)
-//                    CloudKit Container: \(self.cloudKitContainerIdentifier)
-//                    """
-//                    print(self.fetchedMessage)
-//                } else {
-//                    self.fetchedMessage = "Message saved!"
-//                }
-//            }
-//        }
-//    }
-//
-//    func saveScore(_ score: GameScore) {
-//        let record = CKRecord(recordType: scoreRecordType)
-//        record["date"] = score.date as CKRecordValue
-//        record["gg_score"] = score.ggScore as CKRecordValue
-//        record["dd_score"] = score.ddScore as CKRecordValue
-//        record["toto_score"] = score.totoScore as CKRecordValue
-//        record["gg_position"] = score.ggPosition as CKRecordValue?
-//        record["dd_position"] = score.ddPosition as CKRecordValue?
-//        record["toto_position"] = score.totoPosition as CKRecordValue?
-//        record["gg_consecutive_wins"] = score.ggConsecutiveWins as CKRecordValue?
-//        record["dd_consecutive_wins"] = score.ddConsecutiveWins as CKRecordValue?
-//        record["toto_consecutive_wins"] = score.totoConsecutiveWins as CKRecordValue?
-//
-//        database.save(record) { _, error in
-//            DispatchQueue.main.async {
-//                if let error = error {
-//                    let bundleID = Bundle.main.bundleIdentifier ?? "Unknown Bundle ID"
-//                    self.fetchedMessage = """
-//                    Error saving message:
-//                    \(error.localizedDescription)
-//                    Bundle ID: \(bundleID)
-//                    CloudKit Container: \(self.cloudKitContainerIdentifier)
-//                    """
-//                    print(self.fetchedMessage)
-//                } else {
-//                    self.fetchedMessage = "Score saved!"
-//                }
-//            }
-//        }
-//    }
-//
-//    func fetchMessage() {
-//        let query = CKQuery(recordType: messageRecordType, predicate: NSPredicate(value: true))
-//        query.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-//
-//        database.perform(query, inZoneWith: nil) { records, error in
-//            DispatchQueue.main.async {
-//                if let error = error {
-//                    let bundleID = Bundle.main.bundleIdentifier ?? "Unknown Bundle ID"
-//                    self.fetchedMessage = """
-//                    Error fetching message:
-//                    \(error.localizedDescription)
-//                    Bundle ID: \(bundleID)
-//                    CloudKit Container: \(self.cloudKitContainerIdentifier)
-//                    """
-//                    print(self.fetchedMessage)
-//                } else if let record = records?.first, let text = record["text"] as? String {
-//                    self.fetchedMessage = text
-//                } else {
-//                    self.fetchedMessage = "No message found"
-//                }
-//            }
-//        }
-//    }
-//
-//    func fetchGameScores() {
-//        let query = CKQuery(recordType: scoreRecordType, predicate: NSPredicate(value: true))
-//        query.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
-//
-//        database.perform(query, inZoneWith: nil) { records, error in
-//            DispatchQueue.main.async {
-//                if let error = error {
-//                    let bundleID = Bundle.main.bundleIdentifier ?? "Unknown Bundle ID"
-//                    let message = """
-//                    Error saving message:
-//                    \(error.localizedDescription)
-//                    Bundle ID: \(bundleID)
-//                    CloudKit Container: \(self.cloudKitContainerIdentifier)
-//                    """
-//                    print(message)
-//                } else {
-//                    self.fetchedScores = records?.compactMap { record in
-//                        guard let date = record["date"] as? Date,
-//                              let ggScore = record["gg_score"] as? Int,
-//                              let ddScore = record["dd_score"] as? Int,
-//                              let totoScore = record["toto_score"] as? Int else { return nil }
-//                        return GameScore(
-//                            date: date,
-//                            ggScore: ggScore,
-//                            ddScore: ddScore,
-//                            totoScore: totoScore,
-//                            ggPosition: record["gg_position"] as? Int,
-//                            ddPosition: record["dd_position"] as? Int,
-//                            totoPosition: record["toto_position"] as? Int,
-//                            ggConsecutiveWins: record["gg_consecutive_wins"] as? Int,
-//                            ddConsecutiveWins: record["dd_consecutive_wins"] as? Int,
-//                            totoConsecutiveWins: record["toto_consecutive_wins"] as? Int
-//                        )
-//                    } ?? []
-//                    print("Number of records fetched: \(self.fetchedScores.count)")
-//                }
-//            }
-//        }
-//    }
-//}
-//
-//struct ContentView2: View {
-//    @StateObject private var cloudKitManager = CloudKitManager()
-//    @State private var inputText: String = ""
-//
-//    var body: some View {
-//        VStack(spacing: 20) {
-//            TextField("Enter a message", text: $inputText)
-//                .textFieldStyle(RoundedBorderTextFieldStyle())
-//                .padding()
-//
-//            Button("Save to CloudKit") {
-//                cloudKitManager.saveMessage(inputText)
-//            }
-//            .padding()
-//
-//            Button("Generate & Save Random GameScore") {
-//                let randomScore = GameScore(
-//                    date: Date(),
-//                    ggScore: Int.random(in: 0...100),
-//                    ddScore: Int.random(in: 0...100),
-//                    totoScore: Int.random(in: 0...100),
-//                    ggPosition: Int.random(in: 1...3),
-//                    ddPosition: Int.random(in: 1...3),
-//                    totoPosition: Int.random(in: 1...3),
-//                    ggConsecutiveWins: Int.random(in: 0...10),
-//                    ddConsecutiveWins: Int.random(in: 0...10),
-//                    totoConsecutiveWins: Int.random(in: 0...10)
-//                )
-//                cloudKitManager.saveScore(randomScore)
-//            }
-//            .padding()
-//
-//            Button("Fetch from CloudKit") {
-//                cloudKitManager.fetchMessage()
-//            }
-//            .padding()
-//
-//            Button("Fetch GameScores") {
-//                cloudKitManager.fetchGameScores()
-//            }
-//            .padding()
-//
-//
-//            Text("Fetched Message: \(cloudKitManager.fetchedMessage)")
-//                .padding()
-//
-//            List(cloudKitManager.fetchedScores) { score in
-//                VStack(alignment: .leading) {
-//                    Text("Date: \(score.date)")
-//                    Text("GG Score: \(score.ggScore), DD Score: \(score.ddScore), Toto Score: \(score.totoScore)")
-//                }
-//            }
-//        }
-//        .frame(width: 400, height: 600)
-//    }
-//}
-//
-//@main
-//struct CloudKitApp: App {
-//    var body: some Scene {
-//        WindowGroup {
-//            ContentView2()
-//        }
-//    }
-//}

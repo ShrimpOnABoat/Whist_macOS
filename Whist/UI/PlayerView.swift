@@ -237,7 +237,7 @@ struct PlayerView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
             // Listen for score updates at the top level of PlayerView.
-            .onChange(of: gameManager.playersScoresUpdated) { _, _ in
+            .onChange(of: gameManager.playersScoresUpdated) { _ in
                 logger.log("Scores are updated")
                 let currentScore = player.scores.last ?? 0
                 let previousScore = player.scores.dropLast().last ?? 0
@@ -465,7 +465,7 @@ struct PlayerView: View {
             .onAppear {
                 displayedMessage = newMessage
             }
-            .onChange(of: player.state) { _, _ in
+            .onChange(of: player.state) { _ in
                 withAnimation {
                     displayedMessage = newMessage
                 }

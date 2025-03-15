@@ -19,6 +19,18 @@ struct CardView: View {
     let canSelect: Bool       // Can we select more cards, or have we hit the limit?
     let onTap: () -> Void     // Callback to parent for toggling selection
     var dynamicSize: DynamicSize
+    
+    // Compute if this card should be greyed out based on the hovered suit
+    private var shouldGreyOut: Bool {
+        // Only apply to local player's hand cards that are face up
+        if gameManager.hoveredSuit != nil &&
+           !card.isFaceDown &&
+            (card.isPlayable || gameManager.gameState.currentPhase == .choosingTrump) &&
+           gameManager.gameState.localPlayer?.hand.contains(where: { $0.id == card.id }) == true {
+            return card.suit != gameManager.hoveredSuit
+        }
+        return false
+    }
 
     var body: some View {
         ZStack {
@@ -33,10 +45,16 @@ struct CardView: View {
                     .resizable()
                     .scaledToFit()
                     .cornerRadius(4)
+//                    .saturation(shouldGreyOut ? 0.3 : 1.0) // Reduce saturation for non-matching suits
+                    .brightness(shouldGreyOut ? -0.3 : 0) // Slightly darken non-matching suits
+//                    .opacity(shouldGreyOut ? 0.7 : 1.0) // Make non-matching suits slightly transparent
             }
         }
         .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)
-//        .shadow(radius: dynamicSize.cardShadowRadius)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(isSelected ? Color.blue.opacity(0.7) : Color.clear, lineWidth: isSelected ? 4 : 0)
+        )
         .offset(y: (hovered || isSelected) && (card.isPlayable || gameManager.gameState.currentPhase == .discard) ? -dynamicSize.cardHoverOffset : 0)
         .opacity(card.isPlaceholder ? 0.0 : 1.0)
         .contentShape(Rectangle())
@@ -50,10 +68,17 @@ struct CardView: View {
             
             withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
                 hovered = hovering
+                
+                // Only update the hovered suit for the local player's hand
+                if hovering && !card.isFaceDown {
+                    gameManager.hoveredSuit = card.suit
+                } else if !hovering && gameManager.hoveredSuit == card.suit {
+                    gameManager.hoveredSuit = nil
+                }
             }
         }
         .onTapGesture {
-                handleCardTap()
+            handleCardTap()
         }
     }
     
@@ -147,7 +172,7 @@ struct TransformableCardView: View {
     }
 }
 
-	
+    
 // MARK: - Preview
 
 struct CardView_Previews: PreviewProvider {

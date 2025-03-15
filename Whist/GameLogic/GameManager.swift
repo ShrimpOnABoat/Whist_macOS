@@ -22,6 +22,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var showTrumps: Bool = false
     @Published var showLastTrick: Bool = false
     @Published var movingCards: [MovingCard] = []
+    @Published var hoveredSuit: Suit? = nil
     private var timerCancellable: AnyCancellable?
     var randomSeed: UInt64 = 0
     var isDeckReady: Bool = false
@@ -62,16 +63,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     var logCounter: Int = 0
 
-    init() {
-//        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 2.0) {
-//            do {
-//                try GameManager.SM.ensureiCloudFolderExists()
-//                logger.log("✅ iCloud Drive folder ensured on initialization.")
-//            } catch {
-//                logger.log("❌ Error ensuring iCloud Drive folder: \(error)")
-//            }
-//        }
-    }
+    init() {}
     
     // MARK: - Game State Initialization
     
