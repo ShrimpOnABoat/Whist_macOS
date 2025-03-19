@@ -27,14 +27,11 @@ struct WhistApp: App {
                     // Establish the delegation relationship
                     gameManager.connectionManager = connectionManager
                     connectionManager.gameManager = gameManager
-#if !TEST_MODE
                     gameKitManager.connectionManager = connectionManager
-                    gameKitManager.authenticateLocalPlayer() { name, image in
-                        let localPlayerID = GCPlayerIdAssociation[name, default: .dd]
-                        connectionManager.setLocalPlayerID(localPlayerID)
-                        gameManager.updatePlayer(localPlayerID, isLocal: true, name: name, image: image)
+                    gameKitManager.authenticateLocalPlayer() { playerID, name, image in
+                        connectionManager.setLocalPlayerID(playerID)
+                        gameManager.updatePlayer(playerID, isLocal: true, name: name, image: image)
                     }
-#endif
                     
                     // Set the content aspect ratio to enforce a 4:3 window size ratio
                     if let window = NSApplication.shared.windows.first {

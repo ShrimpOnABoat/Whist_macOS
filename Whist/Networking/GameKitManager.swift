@@ -5,7 +5,6 @@
 //  Created by Tony Buffard on 2024-11-18.
 //  Handles Game Center authentication, matchmaking, and UI interactions.
 
-#if !TEST_MODE
 import Foundation
 
 import GameKit
@@ -41,55 +40,65 @@ class GameKitManager: NSObject, ObservableObject {
 
     // MARK: authenticatePlayer
         
-    func authenticateLocalPlayer(completion: @escaping (String, NSImage) -> Void) {
-        DispatchQueue.main.async {
-            let defaultPlayerImage = NSImage(systemSymbolName: "person.crop.circle.fill", accessibilityDescription: "Default Player Avatar") ?? NSImage(size: NSSize(width: 50, height: 50))
-            GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
-                DispatchQueue.main.async {
-                    guard let strongSelf = self else {
-                        completion("", defaultPlayerImage) // Return default values if self is nil
-                        return
-                    }
-
-                    if let error = error {
-                        strongSelf.authenticationErrorMessage = error.localizedDescription
-                        logger.log("Authentication error: \(error.localizedDescription)")
-                        completion("", defaultPlayerImage) // Return default image
-                        return
-                    }
-
-                    if let vc = viewController {
-                        strongSelf.presentViewController(vc)
-                    } else if GKLocalPlayer.local.isAuthenticated {
-                        strongSelf.isAuthenticated = true
-                        strongSelf.authenticationErrorMessage = nil
-                        logger.log("Game Center authentication successful.")
-
-                        GKLocalPlayer.local.register(strongSelf)
-
-                        let playerName = GKLocalPlayer.local.displayName
-                        strongSelf.localUsername = playerName
-
-                        // Attempt to load the player's photo
-                        GKLocalPlayer.local.loadPhoto(for: .normal) { image, error in
+    func authenticateLocalPlayer(completion: @escaping (PlayerId, String, NSImage) -> Void) {
+        let localPlayer = GKLocalPlayer.local
+        localPlayer.authenticateHandler = { [weak self] viewController, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                if let error = error {
+                    self.authenticationErrorMessage = error.localizedDescription
+                    logger.log("Game Center authentication failed: \(error.localizedDescription)")
+                    return
+                }
+                
+                if let viewController = viewController {
+                    self.presentViewController(viewController)
+                } else if localPlayer.isAuthenticated {
+                    self.isAuthenticated = true
+                    self.localUsername = localPlayer.displayName
+                    
+                    // Load player photo
+                    localPlayer.loadPhoto(for: .normal) { [weak self] image, error in
+                        guard let self = self else { return }
+                        
+                        DispatchQueue.main.async {
                             if let error = error {
                                 logger.log("Error loading player photo: \(error.localizedDescription)")
                             }
-
-                            let playerImage = image ?? defaultPlayerImage
-                            strongSelf.localImage = playerImage
-                            completion(playerName, playerImage) // Return the player's name and either the loaded or default image
+                            
+                            let playerImage = image ?? NSImage(systemSymbolName: "person.crop.circle.fill", accessibilityDescription: nil) ?? NSImage()
+                            self.localImage = playerImage
+                            
+                            // Determine player ID
+                            let playerID = self.determineLocalPlayerID(name: localPlayer.displayName)
+                            
+                            // Call the completion handler with all necessary information
+                            completion(playerID, localPlayer.displayName, playerImage)
+                            
+                            // Register for Game Center events
+                            localPlayer.register(self)
+                            
+                            // For handling invites, we rely on the AppDelegate's GKLocalPlayerListener implementation
+                            // which will handle the invite process
                         }
-
-                    } else {
-                        strongSelf.isAuthenticated = false
-                        strongSelf.authenticationErrorMessage = "Game Center authentication failed."
-                        logger.log("Game Center authentication failed.")
-                        completion("", defaultPlayerImage) // Return default image
                     }
+                } else {
+                    self.isAuthenticated = false
+                    self.authenticationErrorMessage = "Game Center authentication failed."
+                    logger.log("Game Center authentication failed.")
+                    
+                    // Return a default value for the completion handler
+                    let defaultImage = NSImage(systemSymbolName: "person.crop.circle.fill", accessibilityDescription: nil) ?? NSImage()
+                    completion(.dd, "", defaultImage)
                 }
             }
         }
+    }
+
+    private func determineLocalPlayerID(name: String) -> PlayerId {
+        // Use a consistent mapping from display name to PlayerId
+        return GCPlayerIdAssociation[name, default: .dd]
     }
 
     // MARK: - UI Presentation
@@ -301,4 +310,3 @@ extension GameKitManager: GKMatchDelegate {
         return localPlayerID
     }
 }
-#endif

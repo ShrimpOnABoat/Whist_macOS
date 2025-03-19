@@ -41,7 +41,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        authenticateLocalPlayer()
+        // Just check for pending invites
+        if let inviteURL = pendingInviteURL {
+            logger.log("Processing pending invite URL at launch: \(inviteURL)")
+        }
     }
     
     // This method is invoked when the app is launched via a URL.
@@ -51,29 +54,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
             if url.scheme?.lowercased() == "gamecenter" {
                 pendingInviteURL = url
                 logger.log("Found pending invite from URL: \(url)")
-            }
-        }
-    }
-    
-    func authenticateLocalPlayer() {
-        let localPlayer = GKLocalPlayer.local
-        localPlayer.authenticateHandler = { [weak self] viewController, error in
-            if let vc = viewController {
-                // On macOS, present the Game Center login view controller as a modal.
-                if let window = NSApplication.shared.mainWindow,
-                   let rootVC = window.contentViewController {
-                    rootVC.presentAsSheet(vc)
-                }
-            } else if localPlayer.isAuthenticated {
-                // Register for Game Center events.
-                localPlayer.register(self!)
-                logger.log("Local player authenticated.")
-                // Now check if an invite was passed at launch.
-                if let inviteID = self?.checkForPendingInvite() {
-                    self?.handleInvite(withID: inviteID)
-                }
-            } else {
-                logger.log("Game Center authentication failed: \(error?.localizedDescription ?? "unknown error")")
             }
         }
     }

@@ -20,7 +20,7 @@ struct GameScore: Codable, Identifiable {
     let ggConsecutiveWins: Int?
     let ddConsecutiveWins: Int?
     let totoConsecutiveWins: Int?
-
+    
     // 🔹 Custom initializer to provide default values
     init(date: Date, ggScore: Int, ddScore: Int, totoScore: Int,
          ggPosition: Int? = nil, ddPosition: Int? = nil, totoPosition: Int? = nil,
@@ -137,22 +137,6 @@ class ScoresManager {
     static let shared = ScoresManager()
     
     private let fileManager = FileManager.default
-    private var scoresDirectoryURL: URL {
-        #if TEST_MODE
-        // /Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents
-        let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentDirectory.appendingPathComponent("scores/")
-        #else
-        logger.fatalErrorAndLog("Use CloudKit in release mode")
-        #endif
-    }
-    private var scoresFileURL: URL {
-        #if TEST_MODE
-        return scoresDirectoryURL.appendingPathComponent("scores_\(currentYear).json")
-        #else
-        logger.fatalErrorAndLog("Use CloudKit in release mode")
-        #endif
-    }
     private var currentYear: Int {
         Calendar.current.component(.year, from: Date())
     }
@@ -161,44 +145,8 @@ class ScoresManager {
     init() {
     }
     
-    private func ensureDirectoryExists() throws {
-#if TEST_MODE
-        if !fileManager.fileExists(atPath: scoresDirectoryURL.path) {
-            do {
-                try fileManager.createDirectory(at: scoresDirectoryURL, withIntermediateDirectories: true)
-            } catch {
-                throw ScoresManagerError.directoryCreationFailed
-            }
-        }
-#endif
-    }
-    
     // MARK: Save Scores
     func saveScores(_ scores: [GameScore]) throws {
-        #if TEST_MODE
-        do {
-            try ensureDirectoryExists()
-            
-            let encoder = JSONEncoder()
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            
-            // Set the encoder to use the custom formatter and produce human-readable JSON.
-            encoder.dateEncodingStrategy = .formatted(formatter)
-            encoder.outputFormatting = [.prettylogger.loged]
-            
-            let data = try encoder.encode(scores)
-            try data.write(to: scoresFileURL)
-            logger.log("Scores saved locally in TEST_MODE!")
-        } catch ScoresManagerError.directoryCreationFailed {
-            throw ScoresManagerError.directoryCreationFailed
-        } catch EncodingError.invalidValue(_, _) {
-            throw ScoresManagerError.encodingFailed
-        } catch {
-            throw ScoresManagerError.fileWriteFailed
-        }
-#else
         let fileManager = FileManager.default
         guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
             .appendingPathComponent("Documents")
@@ -206,7 +154,7 @@ class ScoresManager {
             logger.log("❌ iCloud Drive is not available")
             throw ScoresManagerError.fileWriteFailed
         }
-
+        
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted]
@@ -215,7 +163,7 @@ class ScoresManager {
             formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
             formatter.locale = Locale(identifier: "en_US_POSIX")
             encoder.dateEncodingStrategy = .formatted(formatter)
-
+            
             let data = try encoder.encode(scores)
             try data.write(to: iCloudURL, options: .atomic)
             logger.log("✅ Scores for \(currentYear) saved to iCloud Drive at \(iCloudURL.path)")
@@ -223,20 +171,10 @@ class ScoresManager {
             logger.log("❌ Error saving to iCloud Drive: \(error.localizedDescription)")
             throw ScoresManagerError.fileWriteFailed
         }
-#endif
     }
     
     // MARK: Save Score
-//    func saveScore(_ score: GameScore) {
-//        var scores = (try? loadScores(for: currentYear)) ?? []
-//        scores.append(score)
-//        do {
-//            try saveScores(scores)
-//        } catch {
-//            logger.log("❌ Error saving score for \(currentYear): \(error)")
-//        }
-//    }
-
+    
     /// Saves a GameScore to CloudKit.
     func saveScore(_ gameScore: GameScore, completion: @escaping (Result<CKRecord, Error>) -> Void) {
         // Convert GameScore to CKRecord.
@@ -264,7 +202,7 @@ class ScoresManager {
     // MARK: Load Scores
     // Add a non-throwing convenience method
     func loadScoresSafely(for year: Int = Calendar.current.component(.year, from: Date()),
-                            completion: @escaping ([GameScore]) -> Void) {
+                          completion: @escaping ([GameScore]) -> Void) {
         loadScores(for: year) { result in
             switch result {
             case .success(let scores):
@@ -277,48 +215,11 @@ class ScoresManager {
     }
     
     func loadScores(for year: Int = Calendar.current.component(.year, from: Date())) throws -> [GameScore] {
-        #if TEST_MODE
-        do {
-            try ensureDirectoryExists()
-            
-            let data = try Data(contentsOf: scoresDirectoryURL.appendingPathComponent("scores_\(year).json"))
-            let decoder = JSONDecoder()
-            
-            // Custom date decoding strategy to handle different formats
-            decoder.dateDecodingStrategy = .custom { decoder in
-                let container = try decoder.singleValueContainer()
-                let dateString = try container.decode(String.self)
-                
-                let iso8601Formatter = ISO8601DateFormatter()
-                iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                
-                let alternateFormatter = DateFormatter()
-                alternateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-                
-                if let date = iso8601Formatter.date(from: dateString) {
-                    return date
-                } else if let date = alternateFormatter.date(from: dateString) {
-                    return date
-                }
-                throw DecodingError.dataCorruptedError(
-                    in: container,
-                    debugDescription: "Date string does not match expected formats"
-                )
-            }
-            
-            return try decoder.decode([GameScore].self, from: data)
-        } catch {
-            if !FileManager.default.fileExists(atPath: scoresFileURL.path) {
-                return []
-            }
-            throw ScoresManagerError.decodingFailed
-        }
-        #else
         let fileManager = FileManager.default
         guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
             .appendingPathComponent("Documents")
             .appendingPathComponent("scores_\(year).json"),
-            fileManager.fileExists(atPath: iCloudURL.path) else {
+              fileManager.fileExists(atPath: iCloudURL.path) else {
             logger.log("❌ No scores file found for \(year) in iCloud Drive")
             return []
         }
@@ -356,7 +257,6 @@ class ScoresManager {
             logger.log("❌ Error loading scores for \(year): \(error.localizedDescription)")
             throw ScoresManagerError.fileReadFailed
         }
-        #endif
     }
     
     // MARK: Find Loser
@@ -437,30 +337,6 @@ class ScoresManager {
             completion(Loser(playerId: loserId, losingMonths: losingMonths))
         }
     }
-    
-    // MARK: iCloud Drive Creation
-    
-//    func ensureiCloudFolderExists() throws {
-//        let fileManager = FileManager.default
-//
-//        // Ensure iCloud Drive is available before proceeding
-//        guard let iCloudFolder = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
-//            .appendingPathComponent("Documents") else {
-//            logger.log("❌ iCloud Drive is not available yet. Retrying later...")
-//            throw ScoresManagerError.directoryCreationFailed
-//        }
-//
-//        // Check if folder already exists
-//        if !fileManager.fileExists(atPath: iCloudFolder.path) {
-//            do {
-//                try fileManager.createDirectory(at: iCloudFolder, withIntermediateDirectories: true)
-//                logger.log("📂 Created iCloud Drive 'Documents' folder at \(iCloudFolder.path)")
-//            } catch {
-//                logger.log("❌ Failed to create iCloud Drive folder: \(error.localizedDescription)")
-//                throw ScoresManagerError.directoryCreationFailed
-//            }
-//        }
-//    }
 }
 
 // MARK: - Updated ScoresManager Methods with CloudKit
@@ -601,7 +477,7 @@ extension ScoresManager {
     ///   - backupDirectory: The URL of the directory containing the backup JSON files.
     ///   - completion: Completion handler returning a Result with success or an Error.
     func restoreBackup(from backupDirectory: URL, completion: @escaping (Result<Void, Error>) -> Void) {
-
+        
         do {
             let backupFiles = try fileManager.contentsOfDirectory(at: backupDirectory, includingPropertiesForKeys: nil)
             if backupFiles.isEmpty {

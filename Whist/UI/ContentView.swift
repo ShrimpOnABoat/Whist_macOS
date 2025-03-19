@@ -15,9 +15,6 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            #if TEST_MODE
-            MatchMakingView()
-            #else
             if ![.waitingForPlayers, .exchangingSeed, .setupGame].contains(gameManager.gameState.currentPhase) {
                 GameView()
                     .environmentObject(connectionManager)
@@ -37,7 +34,6 @@ struct ContentView: View {
                     }
                 }
             }
-            #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

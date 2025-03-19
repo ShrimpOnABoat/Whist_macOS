@@ -78,9 +78,6 @@ class SoundManager {
 
 extension GameManager {
     func playSound(named filename: String) {
-#if TEST_MODE
-        guard gameState.localPlayer?.id == .dd else { return }
-#endif
         soundManager.playSound(named: filename)
     }
 }

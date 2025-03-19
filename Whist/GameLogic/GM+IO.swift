@@ -275,35 +275,4 @@ extension GameManager {
             logger.log("Failed to encode action")
         }
     }
-    
-    #if TEST_MODE
-    func syncPlayersFromConnections(_ connectedPeers: [PeerConnection]) {
-        var connectedPlayerIDs = connectedPeers.compactMap { $0.playerID }
-        logger.log("--> Connected players: \(connectedPlayerIDs)")
-        
-        // Add the local player since they're always "connected" by definition
-        if let localPlayerID = connectionManager?.localPlayerID {
-            connectedPlayerIDs.append(localPlayerID)
-        }
-        logger.log("--> Connected players: \(connectedPlayerIDs)")
-
-        for (index, player) in gameState.players.enumerated() {
-            let wasConnected = player.isConnected
-            let isConnected = connectedPlayerIDs.contains(player.id)
-            
-            // Update the player connected status by replacing it in the array (if Player is a class this might not be needed, but it's safer)
-            if wasConnected != isConnected {
-                gameState.players[index].isConnected = isConnected
-                logger.log("Player \(gameState.players[index].id) is updated to \(gameState.players[index].isConnected ? "connected" : "disconnected")")
-            } else {
-                logger.log("Player \(gameState.players[index].id) stays \(gameState.players[index].isConnected ? "connected" : "disconnected")")
-            }
-        }
-
-        // Force update
-        self.objectWillChange.send()
-        
-//        checkAndAdvanceStateIfNeeded()
-    }
-    #endif
 }
