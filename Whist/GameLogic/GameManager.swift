@@ -555,7 +555,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         let player = gameState.getPlayer(by: playerId)
         player.state = state
         persistence.saveGameState(gameState)
-//        logger.log("\(playerId) updated their state to \(state).")
+        logger.log("\(playerId) updated their state to \(state).")
     }
     
     // MARK: Choose bet

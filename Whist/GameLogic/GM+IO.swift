@@ -13,7 +13,7 @@ extension GameManager {
     // MARK: - handleReceivedAction
     
     func handleReceivedAction(_ action: GameAction) {
-        logger.log("Handling action \(action.type) from a\(action.playerId)")
+        logger.log("Handling action \(action.type) from \(action.playerId)")
         DispatchQueue.main.async {
             // Check if the action is valid for the current phase
             if self.isActionValidInCurrentPhase(action.type) {
@@ -86,7 +86,7 @@ extension GameManager {
             if let state = try? JSONDecoder().decode(PlayerState.self, from: action.payload) {
                 self.updatePlayerWithState(from: action.playerId, with: state)
             } else {
-                logger.log("Failed to decode discarded cards.")
+                logger.log("Failed to decode state.")
             }
             
         case .startNewGame:
@@ -223,7 +223,7 @@ extension GameManager {
             return
         }
         let state = localPlayer.state
-//        logger.log("Sending new state \(state.message) to players")
+        logger.log("Sending new state \(state.message) to players")
         
         if let state = try? JSONEncoder().encode(state) {
             let action = GameAction(

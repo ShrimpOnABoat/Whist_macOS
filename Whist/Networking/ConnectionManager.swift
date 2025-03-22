@@ -52,9 +52,7 @@ class ConnectionManager: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - GameKit Match Configuration (Non‑TEST_MODE)
-    /// Call this method from your GameKitManager once a match is found.
-    // In ConnectionManager.swift
+    // MARK: - GameKit Match Configuration
     
     func configureMatch(_ match: GKMatch) {
         self.match = match

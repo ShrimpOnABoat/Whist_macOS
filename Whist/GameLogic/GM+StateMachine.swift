@@ -62,6 +62,7 @@ extension GameManager {
     func setPlayerState(to newState: PlayerState) {
         if gameState.localPlayer?.state != newState {
             gameState.localPlayer?.state = newState
+            logger.log("My state is now \(newState)")
             sendStateToPlayers()
             persistence.saveGameState(gameState)
         }

@@ -17,7 +17,7 @@ struct PlayerView: View {
     
     @State private var dealerFrame: CGRect = .zero
     @State private var selectedCardIDs: Set<String> = []
-    @State private var displayedMessage: String = ""
+//    @State private var displayedMessage: String = ""
     @State private var scoreChange: Int? = nil
     
     var body: some View {
@@ -406,7 +406,7 @@ struct PlayerView: View {
                 .buttonStyle(HoverMoveUpButtonStyle(isActive: true))
             }
         } else {
-            let newMessage: String = {
+            let stateMessage: String = {
                 if player.tablePosition != .local {
                     switch player.state {
                     case .idle: return ""
@@ -431,8 +431,8 @@ struct PlayerView: View {
             }()
             
             VStack {
-                if !displayedMessage.isEmpty {
-                    Text(displayedMessage)
+                if !stateMessage.isEmpty {
+                    Text(stateMessage)
                         .font(.system(size: dynamicSize.stateTextSize))
                         .padding(.vertical, 5)
                         .padding(.horizontal, 10)
@@ -444,34 +444,86 @@ struct PlayerView: View {
                                 .stroke(Color.white, lineWidth: 2)
                         )
                         .transition(.opacity.combined(with: .scale))
-                        .animation(.easeInOut(duration: 0.3), value: displayedMessage)
+                        .animation(.easeInOut(duration: 0.3), value: player.state)
                 } else {
-                    Text(displayedMessage)
+                    Text("")
                         .font(.system(size: dynamicSize.stateTextSize))
                         .padding(.vertical, 5)
                         .padding(.horizontal, 10)
-                        .background(Color.white.opacity(0.5))
-                        .cornerRadius(5)
-                        .shadow(radius: 5)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(Color.white, lineWidth: 2)
-                        )
-                        .transition(.opacity.combined(with: .scale))
-                        .animation(.easeInOut(duration: 0.3), value: displayedMessage)
                         .opacity(0)
-                }
-            }
-            .onAppear {
-                displayedMessage = newMessage
-            }
-            .onChange(of: player.state) { _ in
-                withAnimation {
-                    displayedMessage = newMessage
                 }
             }
         }
     }
+//        } else {
+//            let newMessage: String = {
+//                if player.tablePosition != .local {
+//                    switch player.state {
+//                    case .idle: return ""
+//                    case .choosingTrump: return "Choisit l'atout"
+//                    case .bidding: return "Choisit sa mise"
+//                    case .discarding: return "Défausse sa carte"
+//                    case .playing: return "Joue une carte"
+//                    case .waiting: return "Attend les autres"
+//                    default: return ""
+//                    }
+//                } else {
+//                    switch player.state {
+//                    case .idle: return ""
+//                    case .choosingTrump: return "Choisis l'atout"
+//                    case .bidding: return "Choisis une mise"
+//                    case .discarding: return "Défausse tes cartes"
+//                    case .playing: return "Joue une carte"
+//                    case .waiting: return ""
+//                    default: return ""
+//                    }
+//                }
+//            }()
+//            
+//            VStack {
+//                if !displayedMessage.isEmpty {
+//                    Text(displayedMessage)
+//                        .font(.system(size: dynamicSize.stateTextSize))
+//                        .padding(.vertical, 5)
+//                        .padding(.horizontal, 10)
+//                        .background(Color.white.opacity(0.5))
+//                        .cornerRadius(5)
+//                        .shadow(radius: 5)
+//                        .overlay(
+//                            RoundedRectangle(cornerRadius: 5)
+//                                .stroke(Color.white, lineWidth: 2)
+//                        )
+//                        .transition(.opacity.combined(with: .scale))
+//                        .animation(.easeInOut(duration: 0.3), value: displayedMessage)
+//                } else {
+//                    Text(displayedMessage)
+//                        .font(.system(size: dynamicSize.stateTextSize))
+//                        .padding(.vertical, 5)
+//                        .padding(.horizontal, 10)
+//                        .background(Color.white.opacity(0.5))
+//                        .cornerRadius(5)
+//                        .shadow(radius: 5)
+//                        .overlay(
+//                            RoundedRectangle(cornerRadius: 5)
+//                                .stroke(Color.white, lineWidth: 2)
+//                        )
+//                        .transition(.opacity.combined(with: .scale))
+//                        .animation(.easeInOut(duration: 0.3), value: displayedMessage)
+//                        .opacity(0)
+//                }
+//            }
+//            .onAppear {
+//                displayedMessage = newMessage
+//                logger.log("\(player)'s state should now be \(displayedMessage)")
+//            }
+//            .onChange(of: player.state) { _ in
+//                withAnimation {
+//                    displayedMessage = newMessage
+//                    logger.log("\(player)'s state should now be \(displayedMessage)")
+//                }
+//            }
+//        }
+//    }
     
     // MARK: - Player Hand
     @ViewBuilder
