@@ -9,6 +9,7 @@ import Foundation
 
 struct GameAction: Codable {
     enum ActionType: String, Codable {
+        case id
         case seed
         case playCard
         case sendDeck
@@ -21,6 +22,7 @@ struct GameAction: Codable {
         
         var associatedPhases: [GamePhase] {
             switch self {
+            case .id: return [.exchangingIDs]
             case .seed: return [.exchangingSeed]
             case .playCard: return [.playingTricks]
             case .sendDeck: return [.waitingForDeck]

@@ -26,7 +26,7 @@ extension GameManager {
 
         gameState.playOrder = [.dd, .gg, .toto]
         
-        gameState.updatePlayerReferences(for: gameState.players[0].id)
+        gameState.updatePlayerReferences()
         
         gameState.round = 7
         

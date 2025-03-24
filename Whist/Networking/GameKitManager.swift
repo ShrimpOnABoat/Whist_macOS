@@ -26,21 +26,22 @@ class GameKitManager: NSObject, ObservableObject {
     private var matchRequest: GKMatchRequest
     private var inviteViewController: GKMatchmakerViewController?
     
-    weak var connectionManager: ConnectionManager?
+    weak var gameManager: GameManager?
+    var preferences: Preferences
 
-    override init() {
+    init(preferences: Preferences) {
         // Configure the match request
         matchRequest = GKMatchRequest()
         matchRequest.minPlayers = 3
         matchRequest.maxPlayers = 3
-
-        // Optionally set player attributes or groups
-        super.init()
+        self.preferences = preferences
     }
 
     // MARK: authenticatePlayer
         
     func authenticateLocalPlayer(completion: @escaping (PlayerId, String, NSImage) -> Void) {
+        guard isAuthenticated == false else { return }
+        
         let localPlayer = GKLocalPlayer.local
         localPlayer.authenticateHandler = { [weak self] viewController, error in
             guard let self = self else { return }
@@ -71,7 +72,7 @@ class GameKitManager: NSObject, ObservableObject {
                             self.localImage = playerImage
                             
                             // Determine player ID
-                            let playerID = self.determineLocalPlayerID(name: localPlayer.displayName)
+                            let playerID = self.determineLocalPlayerID()
                             
                             // Call the completion handler with all necessary information
                             completion(playerID, localPlayer.displayName, playerImage)
@@ -96,9 +97,9 @@ class GameKitManager: NSObject, ObservableObject {
         }
     }
 
-    private func determineLocalPlayerID(name: String) -> PlayerId {
+    private func determineLocalPlayerID() -> PlayerId {
         // Use a consistent mapping from display name to PlayerId
-        return GCPlayerIdAssociation[name, default: .dd]
+        return preferences.playerId.toPlayerIdEnum()
     }
 
     // MARK: - UI Presentation
@@ -193,7 +194,7 @@ extension GameKitManager: GKLocalPlayerListener {
 }
 
 // MARK: - GKMatchmakerViewControllerDelegate
-// MARK: - GKMatchmakerViewControllerDelegate
+
 extension GameKitManager: GKMatchmakerViewControllerDelegate {
     func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController) {
         logger.log("GameKitManager: matchmakerViewControllerWasCancelled called")
@@ -230,16 +231,13 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
             
             match.delegate = self
             
-            // Configure the connection BEFORE dismissing
-            DispatchQueue.main.async {
-                self.connectionManager?.configureMatch(match)
-            }
-            
             // Now dismiss the view controller on the main thread
             DispatchQueue.main.async {
                 viewController.dismiss(nil)
                 self.inviteViewController = nil
             }
+            
+            gameManager?.checkAndAdvanceStateIfNeeded()
         }
     }
 }
@@ -254,34 +252,30 @@ extension GameKitManager: GKMatchDelegate {
             guard let self = self else { return }
             
             // Forward the received data to ConnectionManager
-            self.connectionManager?.handleReceivedGameKitData(data, from: player)
+//            self.connectionManager?.handleReceivedGameKitData(data, from: player)
+            do {
+                let action = try JSONDecoder().decode(GameAction.self, from: data)
+                DispatchQueue.main.async {
+                    logger.log("Received action \(action.type) from \(player.displayName)")
+                    self.gameManager?.handleReceivedAction(action)
+                }
+            } catch {
+                logger.log("Failed to decode GameAction from GameKit data: \(error)")
+            }
         }
     }
     
     func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
         /// This function is invoked on all remaining apps when a player connects or disconnects, but only after matchmakerViewController(_:didFind:) has been invoked
-        logger.log("🫑 Player \(player.displayName) connection state changed to: \(state.rawValue)")
+        logger.log("🫑 Player \(player.displayName) connection state changed to: \(state)")
         
         // Process player connection state changes on a background queue
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             
-            let playerId = self.determinePlayerId(for: player)
-            
             // Update UI and connection status on the main thread if needed
             DispatchQueue.main.async {
-                if let playerId = playerId {
-                    self.connectionManager?.updatePlayerConnectionStatus(playerID: playerId, isConnected: state == .connected)
-                } else {
-                    logger.log("Warning: Could not determine PlayerId for \(player.displayName)")
-                }
-                
-                // Update any UI-related properties if needed
-                if state == .connected {
-                    // Handle player connected UI updates if needed
-                } else {
-                    // Handle player disconnected UI updates if needed
-                }
+                self.gameManager?.updatePlayerConnectionStatus(username: player.displayName, isConnected: state == .connected)
             }
         }
     }
@@ -296,17 +290,26 @@ extension GameKitManager: GKMatchDelegate {
             
             // Handle failure and update UI on the main thread
             DispatchQueue.main.async {
-                self.connectionManager?.handleMatchFailure(error: error)
-                
-                // Additional UI updates if needed
-                // self.someUIProperty = someNewValue
+                logger.log("Match failed with error: \(error?.localizedDescription ?? "Unknown error")")
+                self.match = nil
+
             }
         }
     }
     
-    private func determinePlayerId(for player: GKPlayer) -> PlayerId? {
-        let name = player.displayName
-        let localPlayerID = GCPlayerIdAssociation[name, default: .dd]
-        return localPlayerID
+    // MARK: Send Data
+    
+    func sendData(_ data: Data) {
+        // GameKit implementation: send data to all players reliably.
+        guard let match = self.match else {
+            logger.log("No active GameKit match to send data.")
+            return
+        }
+        do {
+            try match.sendData(toAllPlayers: data, with: .reliable)
+            logger.log("Data sent via GameKit.")
+        } catch {
+            logger.log("Error sending data via GameKit: \(error)")
+        }
     }
 }

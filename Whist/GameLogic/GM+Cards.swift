@@ -334,6 +334,31 @@ extension GameManager {
         logger.log("Card \(card) played by \(playerId.rawValue). Updated gameState.table: \(gameState.table)")
     }
     
+    // MARK: UpdatePlayerCGId
+    
+    func updatePlayerGCId(_ playerId: PlayerId, with identification: PlayerIdentification) {
+        logger.log("Processing GKPlayer identification for player \(playerId)")
+        guard let player = gameState.players.first(where: { $0.id == playerId }) else {
+            logger.log("Could not find player with ID \(playerId)")
+            return
+        }
+
+        player.username = identification.username
+        if let imageData = identification.imageData,
+           let nsImage = NSImage(data: imageData) {
+            player.image = Image(nsImage: nsImage)
+        }
+
+        player.isConnected = true // Set for GK
+
+        // Replace the updated player in the array
+        if let index = gameState.players.firstIndex(where: { $0.id == playerId }) {
+            gameState.players[index] = player
+            logger.log("Player \(playerId) successfully updated with name: \(player.username)")
+            logger.log("Players connected: \(gameState.players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
+        }
+    }
+    
     // MARK: setPlayableCards
     
     func setPlayableCards() {

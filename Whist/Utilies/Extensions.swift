@@ -28,6 +28,10 @@ extension String {
         let initials = words.compactMap { $0.first }.map { String($0) }
         return initials.joined()
     }
+    
+    func toPlayerIdEnum() -> PlayerId {
+        PlayerId(rawValue: self) ?? .dd
+    }
 }
 
 extension Bool {

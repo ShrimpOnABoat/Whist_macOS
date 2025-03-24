@@ -13,7 +13,6 @@ import GameKit
 struct MatchMakingView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var gameKitManager: GameKitManager
-    @EnvironmentObject var connectionManager: ConnectionManager
     
     var body: some View {
         NavigationStack {
@@ -33,7 +32,7 @@ struct MatchMakingView: View {
                     
                     // Status text to show connection state
                     if gameManager.gameState.allPlayersConnected {
-                        Text("All players connected! Starting game...")
+                        Text("Tout le monde est là, c'est parti !")
                             .foregroundColor(.green)
                             .padding(.bottom, 10)
                     }
@@ -69,11 +68,11 @@ struct InvitingButtonStyle: ButtonStyle {
     }
 }
 
-struct MatchMakingView_Previews: PreviewProvider {
-    static var previews: some View {
-        MatchMakingView()
-            .environmentObject(GameManager())
-            .environmentObject(ConnectionManager())
-            .environmentObject(GameKitManager())
-    }
-}
+//struct MatchMakingView_Previews: PreviewProvider {
+//    static var previews: some View {
+//        MatchMakingView()
+//            .environmentObject(GameManager())
+//            .environmentObject(ConnectionManager())
+//            .environmentObject(GameKitManager())
+//    }
+//}

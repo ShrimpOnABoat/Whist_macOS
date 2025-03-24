@@ -10,14 +10,12 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var gameManager: GameManager
     @EnvironmentObject private var gameKitManager: GameKitManager
-    @EnvironmentObject private var connectionManager: ConnectionManager
     @EnvironmentObject private var preferences: Preferences
 
     var body: some View {
         ZStack {
-            if ![.waitingForPlayers, .exchangingSeed, .setupGame].contains(gameManager.gameState.currentPhase) {
+            if ![.waitingForPlayers, .exchangingIDs, .exchangingSeed, .setupGame].contains(gameManager.gameState.currentPhase) {
                 GameView()
-                    .environmentObject(connectionManager)
                     .environmentObject(gameManager)
                     .environmentObject(preferences)
             } else if gameKitManager.isAuthenticated {
@@ -39,9 +37,9 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView()
-        .environmentObject(GameManager())
-        .environmentObject(GameKitManager())
-        .environmentObject(ConnectionManager())
-}
+//#Preview {
+//    ContentView()
+//        .environmentObject(GameManager())
+//        .environmentObject(GameKitManager())
+//        .environmentObject(ConnectionManager())
+//}

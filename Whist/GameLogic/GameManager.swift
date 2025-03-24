@@ -16,7 +16,7 @@ enum PlayerId: String, Codable, CaseIterable {
     case toto = "toto"
 }
 
-class GameManager: ObservableObject, ConnectionManagerDelegate {
+class GameManager: ObservableObject {
     @Published var gameState: GameState = GameState()
     @Published var showOptions: Bool = false
     @Published var showTrumps: Bool = false
@@ -36,7 +36,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     @Published var isShuffling: Bool = false
     var shuffleCallback: ((_ deck: [Card], _ completion: @escaping () -> Void) -> Void)?
     // Injected dependencies
-    var connectionManager: ConnectionManager?
+    var gameKitManager: GameKitManager?
     let soundManager = SoundManager()
     static let SM = ScoresManager.shared
     var persistence: GamePersistence = GamePersistence(playerID: .dd) // default value
@@ -67,7 +67,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     // MARK: - Game State Initialization
     
-    func updatePlayer(_ playerId: PlayerId, isLocal: Bool = false, name: String, image: NSImage?) {
+    func updateLocalPlayer(_ playerId: PlayerId, name: String, image: NSImage?) {
         logger.log("updatePlayer: processing \(playerId)")
         let players = gameState.players
         guard let index = players.firstIndex(where: { $0.id == playerId }) else {
@@ -81,9 +81,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         } else {
             players[index].image = Image(systemName: "person.crop.circle.fill")
         }
-        if isLocal {
-            players[index].tablePosition = .local
-        }
+        players[index].tablePosition = .local
         players[index].isConnected = true // Set for GK
         logger.log("Player \(playerId.rawValue) updated successfully with name: \(name)")
         logger.log("Players connected: \(players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
@@ -122,11 +120,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             }
         }
         // Identify localPlayer, leftPlayer, and rightPlayer
-        if let localPlayerID = connectionManager?.localPlayerID {
-            gameState.updatePlayerReferences(for: localPlayerID)
-        } else {
-            logger.fatalErrorAndLog("Error: Unable to determine main player or neighbors.")
-        }
+        gameState.updatePlayerReferences()
         
         if let localPlayer = gameState.localPlayer, let leftPlayer = gameState.leftPlayer, let rightPlayer = gameState.rightPlayer {
             logger.log("Main Player: \(localPlayer.username), Left Player: \(leftPlayer.username), Right Player: \(rightPlayer.username)")
@@ -171,16 +165,16 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
     
     // MARK: Connection/Deconnection
 
-    func updatePlayerConnectionStatus(playerID: PlayerId, isConnected: Bool) {
+    func updatePlayerConnectionStatus(username: String, isConnected: Bool) {
         // Find the player by ID
-        guard let index = gameState.players.firstIndex(where: { $0.id == playerID }) else {
-            logger.log("Could not find player with ID \(playerID.rawValue) to update connection status")
+        guard let index = gameState.players.firstIndex(where: { $0.username == username }) else {
+            logger.log("Could not find player \(username) to update connection status")
             return
         }
         
         // Update connection status
         gameState.players[index].isConnected = isConnected
-        logger.log("Updated player \(playerID.rawValue) connection status to \(isConnected)")
+        logger.log("Updated \(username) connection status to \(isConnected)")
         
         checkAndAdvanceStateIfNeeded() // Might pause the game while the player reconnects
         
@@ -198,11 +192,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
         gameState = savedState
 
         // Identify localPlayer, leftPlayer, and rightPlayer
-        if let localPlayerID = connectionManager?.localPlayerID {
-            gameState.updatePlayerReferences(for: localPlayerID)
-        } else {
-            logger.fatalErrorAndLog("Error: Unable to determine main player or neighbors.")
-        }
+        gameState.updatePlayerReferences()
         
         for player in gameState.players {
             let isLocalPlayer = (player.tablePosition == .local)
@@ -671,7 +661,7 @@ class GameManager: ObservableObject, ConnectionManagerDelegate {
             let tablePosition = player.tablePosition?.rawValue ?? "unknown"
             let isConnected = player.isConnected
 
-            logger.log("🔹 Player: \(username), PlayerId: \(playerId), TablePosition: \(tablePosition), Connected: \(isConnected)")
+            logger.log("\(isConnected ? "✅": "❌") Player: \(username), PlayerId: \(playerId), TablePosition: \(tablePosition), Connected: \(isConnected)")
         }
     }
 }

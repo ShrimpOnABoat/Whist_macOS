@@ -9,6 +9,7 @@ import SwiftUI
 
 enum GamePhase: Encodable, Decodable {
     case waitingForPlayers      // Before the game starts, waiting for all players to connect
+    case exchangingIDs          // Ensuring everybody knows who's who
     case exchangingSeed         // Ensuring seed is distributed before setup
     case setupGame              // Setup the game for the evening!
     case waitingToStart         // Display a "New game" button and the last game's winner
@@ -77,6 +78,9 @@ extension GameManager {
         case .waitingForPlayers:
             setPlayerState(to: .idle)
             
+        case .exchangingIDs:
+            sendGCIdToPlayers()
+            
         case .exchangingSeed:
             if gameState.localPlayer?.id == .toto {
                 generateAndSendSeed()
@@ -100,7 +104,7 @@ extension GameManager {
         case .setupNewRound:
             setPlayerState(to: .idle)
             newGameRound()
-            if connectionManager?.localPlayerID == gameState.dealer {
+            if gameState.localPlayer?.id == gameState.dealer {
                 if !isDeckReady {
                     logger.log("isDeckReady: \(isDeckReady)")
                     transition(to: .renderingDeck)
@@ -132,7 +136,7 @@ extension GameManager {
         case .dealingCards:
             setPlayerState(to: .idle)
             hoveredSuit = nil
-            let isDealer = (connectionManager?.localPlayerID == gameState.dealer)
+            let isDealer = (gameState.localPlayer?.id == gameState.dealer)
 
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
             func afterDealing() {
@@ -333,8 +337,16 @@ extension GameManager {
         logger.log("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
-            if gameState.allPlayersConnected {
-                logger.log("All players connected! Moving to .exchangingSeed")
+            if let match = gameKitManager?.match {
+                if match.players.count == 2 { // counts only remote players
+                    logger.log("All players connected! Moving to .exchangingIDs")
+                    transition(to: .exchangingIDs)
+                }
+            }
+            
+        case .exchangingIDs:
+            if allPlayersIded() {
+                logger.log("All players identified, proceeding to exchanging seed")
                 transition(to: .exchangingSeed)
             }
             
@@ -449,7 +461,7 @@ extension GameManager {
     }
     
     func isLocalPlayerTurnToBet() -> Bool {
-        guard let localPlayerID = connectionManager?.localPlayerID else {
+        guard let localPlayerID = gameState.localPlayer?.id else {
             logger.log("Error: Local player ID not found.")
             return false
         }
@@ -503,7 +515,7 @@ extension GameManager {
     }
     
     func isLocalPlayerTurnToPlay() -> Bool {
-        guard let localPlayerID = connectionManager?.localPlayerID else {
+        guard let localPlayerID = gameState.localPlayer?.id else {
             logger.fatalErrorAndLog("Error: Local player ID not found.")
         }
 
@@ -522,6 +534,10 @@ extension GameManager {
     }
     func allPlayersPlayed() -> Bool {
         return gameState.table.count == gameState.players.count
+    }
+    
+    func allPlayersIded() -> Bool {
+        return gameState.players.allSatisfy { !$0.username.isEmpty }
     }
 
     func isLastTrick() -> Bool {

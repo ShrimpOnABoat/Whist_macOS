@@ -12,28 +12,32 @@ struct WhistApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate // to quickly catch an invitation if the app wasn't launched already
     
     @StateObject private var gameManager = GameManager()
-    @StateObject private var gameKitManager = GameKitManager()
-    @StateObject private var connectionManager = ConnectionManager()
-    @StateObject var preferences = Preferences()
+    @StateObject var preferences: Preferences
+    @StateObject private var gameKitManager: GameKitManager
+
+    init() {
+        let prefs = Preferences()
+        _preferences = StateObject(wrappedValue: prefs)
+        _gameKitManager = StateObject(wrappedValue: GameKitManager(preferences: prefs))
+    }
     
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(gameManager)
                 .environmentObject(gameKitManager)
-                .environmentObject(connectionManager)
                 .environmentObject(preferences)
+                .sheet(isPresented: .constant(preferences.playerId.isEmpty)) {
+                    IdentityPromptView(playerId: $preferences.playerId)
+                }
                 .onAppear {
-                    // Establish the delegation relationship
-                    gameManager.connectionManager = connectionManager
-                    connectionManager.gameManager = gameManager
-                    gameKitManager.connectionManager = connectionManager
+                    gameManager.gameKitManager = gameKitManager
+                    gameKitManager.gameManager = gameManager
+                    
                     gameKitManager.authenticateLocalPlayer() { playerID, name, image in
-                        connectionManager.setLocalPlayerID(playerID)
-                        gameManager.updatePlayer(playerID, isLocal: true, name: name, image: image)
+                        gameManager.updateLocalPlayer(playerID, name: name, image: image)
                     }
                     
-                    // Set the content aspect ratio to enforce a 4:3 window size ratio
                     if let window = NSApplication.shared.windows.first {
                         window.contentAspectRatio = NSSize(width: 4, height: 3)
                     }
@@ -48,6 +52,7 @@ struct WhistApp: App {
                 DatabaseMenuCommands()
             }
         }
+
         
         Settings {
             PreferencesView()
@@ -107,6 +112,7 @@ class Preferences: ObservableObject {
     @AppStorage("motifVisibility") var motifVisibility: Double = 0.5
     @AppStorage("patternOpacity") var patternOpacity: Double = 0.5
     @AppStorage("patternScale") private var patternScaleStorage: Double = 0.5
+    @AppStorage("playerId") var playerId: String = ""
     
     var patternScale: CGFloat {
         get { CGFloat(patternScaleStorage) }
@@ -193,6 +199,24 @@ struct PreferencesView: View {
                 }
             }
             .padding(.top)
+            
+            Form {
+                Section(header: Text("Identité du joueur")
+                            .font(.headline)
+                            .padding(.vertical, 4)) {
+                    if preferences.playerId.isEmpty {
+                        Text("Veuillez choisir votre identité")
+                            .foregroundColor(.red)
+                            .font(.caption)
+                    }
+                    Picker("", selection: $preferences.playerId) {
+                        ForEach(["dd", "gg", "toto"], id: \.self) { id in
+                            Text(id).tag(id)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                }
+            }
         }
         .padding()
         // Ajuste la taille de la fenêtre à son contenu
@@ -213,5 +237,26 @@ struct PreferencesView: View {
             "Rouge Écarlate"
         ]
         return names.indices.contains(index) ? names[index] : "Couleur Inconnue"
+    }
+}
+
+struct IdentityPromptView: View {
+    @Binding var playerId: String
+    let identities = ["dd", "gg", "toto"]
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Choisissez votre identité")
+                .font(.headline)
+            Picker("Identité", selection: $playerId) {
+                ForEach(identities, id: \.self) { id in
+                    Text(id).tag(id)
+                }
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding()
+        }
+        .frame(width: 300, height: 150)
+        .padding()
     }
 }

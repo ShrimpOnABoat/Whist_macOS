@@ -7,9 +7,29 @@
 
 import Foundation
 import SwiftUI
+import AppKit
+
+extension Image {
+    func asNSImage(size: CGSize = CGSize(width: 100, height: 100)) -> NSImage? {
+        let hostingView = NSHostingView(rootView: self.resizable())
+        hostingView.frame = CGRect(origin: .zero, size: size)
+
+        let rep = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds)
+        hostingView.cacheDisplay(in: hostingView.bounds, to: rep!)
+        let image = NSImage(size: size)
+        image.addRepresentation(rep!)
+        return image
+    }
+}
 
 extension GameManager {
     
+    struct PlayerIdentification: Codable {
+        let id: PlayerId
+        let username: String
+        let imageData: Data?
+    }
+
     // MARK: - handleReceivedAction
     
     func handleReceivedAction(_ action: GameAction) {
@@ -32,6 +52,14 @@ extension GameManager {
     func processAction(_ action: GameAction) {
         logger.log("Processing action \(action.type) from player \(action.playerId)...")
         switch action.type {
+            
+        case .id:
+            guard let playerIdentification = try? JSONDecoder().decode(PlayerIdentification.self, from: action.payload) else {
+                logger.log("Failed to decode player ID.")
+                return
+            }
+            self.updatePlayerGCId(action.playerId, with: playerIdentification)
+            
         case .seed:
             guard let seed = try? JSONDecoder().decode(UInt64.self, from: action.payload) else {
                 logger.log("Failed to decode random seed.")
@@ -96,6 +124,30 @@ extension GameManager {
     }
     
     // MARK: - Send data
+    
+    func sendGCIdToPlayers() {
+        guard let localPlayer = gameState.localPlayer else {
+            logger.log("Local player not defined. Can't send PlayerIdentification.")
+            return
+        }
+        
+        let playerIdentification = PlayerIdentification(
+            id: localPlayer.id,
+            username: localPlayer.username,
+            imageData: localPlayer.image?.asNSImage()?.tiffRepresentation
+        )
+        if let idData = try? JSONEncoder().encode(playerIdentification) {
+            let action = GameAction(
+                playerId: localPlayer.id,
+                type: .id,
+                payload: idData,
+                timestamp: Date().timeIntervalSince1970
+            )
+            sendAction(action)
+        } else {
+            logger.log("Failed to encode PlayerIdentification.")
+        }
+    }
     
     func sendSeedToPlayers(_ seed: UInt64) {
         guard let localPlayerID = gameState.localPlayer?.id, localPlayerID == .toto else { return }
@@ -269,10 +321,11 @@ extension GameManager {
     
     func sendAction(_ action: GameAction) {
         if let actionData = try? JSONEncoder().encode(action) {
-            connectionManager?.sendData(actionData)
+            gameKitManager?.sendData(actionData)
             logger.log("Sent action \(action.type) to other players")
         } else {
             logger.log("Failed to encode action")
         }
     }
+
 }

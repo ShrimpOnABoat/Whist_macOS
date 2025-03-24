@@ -14,18 +14,10 @@ class GameState: ObservableObject, Codable {
     var newDeck: [Card] = [] // Used to store the deck from the dealer
     @Published var trumpCards: [Card] = [Card(suit: .clubs, rank: .two), Card(suit: .spades, rank: .two), Card(suit: .diamonds, rank: .two), Card(suit: .hearts, rank: .two)]
     @Published var table: [Card] = [] // Must be [] after each trick grab. It follows the same order as in playOrder
-    @Published var lastTrick: [PlayerId: Card] = [:] {
-        didSet {
-            logger.log("Last trick updated: \(String(describing: lastTrick))")
-        }
-    }
+    @Published var lastTrick: [PlayerId: Card] = [:]
     @Published var lastTrickCardStates: [PlayerId: CardState] = [:]
     @Published var players: [Player] = []
-    @Published var trumpSuit: Suit? = nil {
-        didSet {
-            logger.log("Trump suit changed to: \(String(describing: trumpSuit))")
-        }
-    } // When the trump card is defined, the first card of the deck or twos is returned and trumpSuit is defined
+    @Published var trumpSuit: Suit? = nil
     @Published var playOrder: [PlayerId] = [] // should be reset after each trick grab
     @Published var dealer: PlayerId? = nil
     @Published var currentPhase: GamePhase = .waitingForPlayers
@@ -122,23 +114,22 @@ class GameState: ObservableObject, Codable {
     }
     
     // Method to update player references
-    func updatePlayerReferences(for localPlayerId: PlayerId) {
-        // Find the index of the local player in the playOrder
-        guard let localIndex = playOrder.firstIndex(of: localPlayerId) else {
-            logger.fatalErrorAndLog("Error: Local player ID \(localPlayerId.rawValue) not found in playOrder")
-        }
-        
-        // Map tablePosition for each player
-        for (index, playerId) in playOrder.enumerated() {
-            if let player = players.first(where: { $0.id == playerId }) {
-                if index == localIndex {
-                    player.tablePosition = .local
-                } else if index == (localIndex + 1) % playOrder.count {
-                    player.tablePosition = .left
-                } else if index == (localIndex + playOrder.count - 1) % playOrder.count {
-                    player.tablePosition = .right
+    func updatePlayerReferences() {
+        if let localPlayerId = localPlayer?.id,
+           let localIndex = playOrder.firstIndex(of: localPlayerId) {
+            for (index, playerId) in playOrder.enumerated() {
+                if let player = players.first(where: { $0.id == playerId }) {
+                    if index == localIndex {
+                        player.tablePosition = .local
+                    } else if index == (localIndex + 1) % playOrder.count {
+                        player.tablePosition = .left
+                    } else if index == (localIndex + playOrder.count - 1) % playOrder.count {
+                        player.tablePosition = .right
+                    }
                 }
             }
+        } else {
+            logger.fatalErrorAndLog("Error: Local player ID not found in playOrder")
         }
     }
 }
@@ -157,6 +148,13 @@ extension GameState {
             logger.fatalErrorAndLog("Error: Player with ID \(id.rawValue) not found.")
         }
         return player
+    }
+    
+    func getPlayerId(username: String) -> PlayerId {
+        guard let player = players.first(where: { $0.username == username}) else {
+            logger.fatalErrorAndLog( "Error: Player with username \(username) not found.")
+        }
+        return player.id
     }
 }
 
