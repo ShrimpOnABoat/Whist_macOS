@@ -43,11 +43,7 @@ class GameManager: ObservableObject {
     
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
-    @Published var autoPilot: Bool = false {
-        didSet {
-            logger.log("Autopilot is now \(autoPilot ? "on": "off")!")
-        }
-    }
+    @Published var autoPilot: Bool = false
     
     var lastGameWinner: PlayerId?
     var showConfetti: Bool = false
@@ -70,6 +66,10 @@ class GameManager: ObservableObject {
     func updateLocalPlayer(_ playerId: PlayerId, name: String, image: NSImage?) {
         logger.log("updatePlayer: processing \(playerId)")
         let players = gameState.players
+        guard players.first(where: { $0.username == name }) == nil else {
+            logger.log("Player \(name) already exists.")
+            return
+        }
         guard let index = players.firstIndex(where: { $0.id == playerId }) else {
             logger.log("Player with id \(playerId.rawValue) not found.")
             return

@@ -341,7 +341,11 @@ extension GameManager {
                 if match.players.count == 2 { // counts only remote players
                     logger.log("All players connected! Moving to .exchangingIDs")
                     transition(to: .exchangingIDs)
+                } else {
+                    logger.log("Only \(match.players.count) remote players connected. Waiting...")
                 }
+            } else {
+                logger.log("Couldn't get match data. Waiting...")
             }
             
         case .exchangingIDs:

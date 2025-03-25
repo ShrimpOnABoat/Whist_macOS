@@ -235,9 +235,9 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
             DispatchQueue.main.async {
                 viewController.dismiss(nil)
                 self.inviteViewController = nil
+                self.gameManager?.checkAndAdvanceStateIfNeeded()
             }
             
-            gameManager?.checkAndAdvanceStateIfNeeded()
         }
     }
 }
@@ -252,7 +252,6 @@ extension GameKitManager: GKMatchDelegate {
             guard let self = self else { return }
             
             // Forward the received data to ConnectionManager
-//            self.connectionManager?.handleReceivedGameKitData(data, from: player)
             do {
                 let action = try JSONDecoder().decode(GameAction.self, from: data)
                 DispatchQueue.main.async {
