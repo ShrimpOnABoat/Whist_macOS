@@ -27,7 +27,6 @@ extension GameManager {
     struct PlayerIdentification: Codable {
         let id: PlayerId
         let username: String
-        let imageData: Data?
     }
 
     // MARK: - handleReceivedAction
@@ -133,8 +132,8 @@ extension GameManager {
         
         let playerIdentification = PlayerIdentification(
             id: localPlayer.id,
-            username: localPlayer.username,
-            imageData: localPlayer.image?.asNSImage()?.tiffRepresentation
+            username: localPlayer.username //,
+//            imageData: localPlayer.image?.asNSImage()?.tiffRepresentation
         )
         if let idData = try? JSONEncoder().encode(playerIdentification) {
             let action = GameAction(

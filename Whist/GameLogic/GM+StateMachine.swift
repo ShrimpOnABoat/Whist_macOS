@@ -541,6 +541,7 @@ extension GameManager {
     }
     
     func allPlayersIded() -> Bool {
+        logger.log("Players usernames: \(gameState.players.map(\.username))")
         return gameState.players.allSatisfy { !$0.username.isEmpty }
     }
 

@@ -99,7 +99,7 @@ class GameState: ObservableObject, Codable {
             }
 
             // Add the player to the game state
-            let newPlayer = Player(id: playerID, username: playerID.rawValue, image: placeholderImage)
+            let newPlayer = Player(id: playerID, username: "", image: placeholderImage)
             newPlayer.isConnected = false
             players.append(newPlayer)
         }

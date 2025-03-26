@@ -227,17 +227,17 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
             // Store the match and update state
             DispatchQueue.main.async {
                 self.match = match
+                logger.log("Match stored: \(ObjectIdentifier(match))")
             }
             
             match.delegate = self
             
             // Now dismiss the view controller on the main thread
-            DispatchQueue.main.async {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 viewController.dismiss(nil)
                 self.inviteViewController = nil
                 self.gameManager?.checkAndAdvanceStateIfNeeded()
             }
-            
         }
     }
 }
@@ -245,7 +245,7 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
 // MARK: - GKMatchDelegate
 extension GameKitManager: GKMatchDelegate {
     func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
-        logger.log("Received data from \(player.displayName)")
+        logger.log("Received data from \(player.displayName) in match \(ObjectIdentifier(match))")
         
         // Process received data on a background queue to prevent blocking the GameKit thread
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in

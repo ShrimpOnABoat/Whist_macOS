@@ -437,39 +437,74 @@ extension ScoresManager {
     func deleteAllScores(completion: @escaping (Result<Void, Error>) -> Void) {
         let container = CKContainer(identifier: "iCloud.com.Tony.WhistTest")
         let database = container.publicCloudDatabase
-        let query = CKQuery(recordType: "GameScore", predicate: NSPredicate(value: true))
         var recordIDsToDelete: [CKRecord.ID] = []
-        
-        let queryOperation = CKQueryOperation(query: query)
-        queryOperation.recordMatchedBlock = { recordID, result in
-            switch result {
-            case .success(let record):
-                recordIDsToDelete.append(record.recordID)
-            case .failure(let error):
-                // Log per-record error if needed
-                logger.log("Error matching record \(recordID): \(error.localizedDescription)")
+
+        func fetchAllRecords(with cursor: CKQueryOperation.Cursor?) {
+            let operation: CKQueryOperation
+            if let cursor = cursor {
+                operation = CKQueryOperation(cursor: cursor)
+            } else {
+                let query = CKQuery(recordType: "GameScore", predicate: NSPredicate(value: true))
+                operation = CKQueryOperation(query: query)
             }
-        }
-        
-        queryOperation.queryResultBlock = { result in
-            switch result {
-            case .failure(let error):
-                completion(.failure(ScoresManagerError.cloudKitError(error)))
-            case .success:
-                let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsToDelete)
-                deleteOperation.modifyRecordsResultBlock = { result in
-                    switch result {
-                    case .failure(let error):
-                        completion(.failure(ScoresManagerError.cloudKitError(error)))
-                    case .success:
-                        completion(.success(()))
+
+            operation.recordMatchedBlock = { recordID, result in
+                switch result {
+                case .success(let record):
+                    recordIDsToDelete.append(record.recordID)
+                case .failure(let error):
+                    logger.log("Error matching record \(recordID): \(error.localizedDescription)")
+                }
+            }
+
+            operation.queryResultBlock = { result in
+                switch result {
+                case .failure(let error):
+                    completion(.failure(ScoresManagerError.cloudKitError(error)))
+            case .success(let cursor):
+                    if let cursor = cursor {
+                        fetchAllRecords(with: cursor) // Continue fetching
+                    } else {
+                        // All records fetched, proceed to delete in chunks
+                        let chunkSize = 400
+                        let recordChunks = stride(from: 0, to: recordIDsToDelete.count, by: chunkSize).map {
+                            Array(recordIDsToDelete[$0..<min($0 + chunkSize, recordIDsToDelete.count)])
+                        }
+
+                        let dispatchGroup = DispatchGroup()
+                        var encounteredError: Error?
+
+                        for chunk in recordChunks {
+                            dispatchGroup.enter()
+                            let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: chunk)
+                            deleteOperation.modifyRecordsResultBlock = { result in
+                                switch result {
+                                case .failure(let error):
+                                    logger.log("❌ Error deleting chunk: \(error.localizedDescription)")
+                                    encounteredError = error
+                                case .success:
+                                    logger.log("✅ Chunk of records deleted successfully.")
+                                }
+                                dispatchGroup.leave()
+                            }
+                            database.add(deleteOperation)
+                        }
+
+                        dispatchGroup.notify(queue: .main) {
+                            if let error = encounteredError {
+                                completion(.failure(ScoresManagerError.cloudKitError(error)))
+                            } else {
+                                completion(.success(()))
+                            }
+                        }
                     }
                 }
-                database.add(deleteOperation)
             }
+
+            database.add(operation)
         }
-        
-        database.add(queryOperation)
+
+        fetchAllRecords(with: nil)
     }
     
     /// Restores the database from backup files in the given directory by first deleting existing scores.

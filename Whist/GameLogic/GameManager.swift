@@ -438,6 +438,48 @@ class GameManager: ObservableObject {
         return gameState.players.allSatisfy { $0.scores.last == firstScore }
     }
     
+    // MARK: UpdatePlayerCGId
+    
+    func updatePlayerGCId(_ playerId: PlayerId, with identification: PlayerIdentification) {
+        logger.log("Processing GKPlayer identification for player \(playerId)")
+        guard let player = gameState.players.first(where: { $0.id == playerId }) else {
+            logger.log("Could not find player with ID \(playerId)")
+            return
+        }
+
+        player.username = identification.username
+        if let GKPlayer = gameKitManager?.match?.players.first(where: { $0.displayName == identification.username }) {
+           // Load player photo
+            GKPlayer.loadPhoto(for: .normal) { [weak self] image, error in
+                guard self != nil else { return }
+               
+               DispatchQueue.main.async {
+                   if let error = error {
+                       logger.log("Error loading player photo: \(error.localizedDescription)")
+                   }
+                   if let nsImage = image {
+                       player.image = Image(nsImage: nsImage)
+                   } else {
+                       player.image = Image(systemName: "person.crop.circle.fill")
+                   }
+               }
+           }
+        } else {
+            player.image = Image(systemName: "person.crop.circle.fill")
+        }
+
+        player.isConnected = true // Set for GK
+
+        // Replace the updated player in the array
+        if let index = gameState.players.firstIndex(where: { $0.id == playerId }) {
+            gameState.players[index] = player
+            logger.log("Player \(playerId) successfully updated with name: \(player.username)")
+            logger.log("Players connected: \(gameState.players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
+        }
+        
+        displayPlayers()
+    }
+    
     func updateGameStateWithBet(from playerId: PlayerId, with bet: Int) {
         // Check if bet legal
         if !(bet > -1 && bet <= max(gameState.round - 2, 1)) {
