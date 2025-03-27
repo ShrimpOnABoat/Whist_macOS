@@ -26,212 +26,9 @@ struct PlayerView: View {
                 // Main view content
                 VStack {
                     if player.tablePosition != .local {
-                        // Non-local player layout
-                        VStack {
-                            if player.tablePosition == .left {
-                                HStack {
-                                    PlayerInfo(dynamicSize: dynamicSize)
-                                    StateDisplay()
-                                        .offset(y: dynamicSize.sidePlayerStateYOffset)
-                                }
-                                .frame(width: dynamicSize.sidePlayerInfoWidth)
-                                HStack {
-                                    PlayerHand(dynamicSize: dynamicSize)
-                                        .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
-                                    ZStack {
-                                        // Dealer button overlay
-                                        VStack {
-                                            if isDealer {
-                                                Circle()
-                                                    .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
-                                                    .opacity(0)
-                                                    .background(GeometryReader { proxy in
-                                                        Color.clear
-                                                            .onAppear {
-                                                                let frame = proxy.frame(in: .named("contentArea"))
-                                                                gameManager.updateDealerFrame(playerId: player.id, frame: frame)
-                                                            }
-                                                    })
-                                            }
-                                        }
-                                        .frame(maxHeight: .infinity, alignment: .top)
-                                        if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
-                                            Button(action: {
-                                                gameManager.showLastTrick.toggle()
-                                            }) {
-                                                TrickDisplay(dynamicSize: dynamicSize)
-                                            }
-                                            .buttonStyle(PlainButtonStyle())
-                                            .keyboardShortcut(.space, modifiers: [])
-                                        }
-                                    }
-                                    .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
-                                }
-                                .frame(width: dynamicSize.sidePlayerWidth)
-                            } else {
-                                HStack {
-                                    StateDisplay()
-                                        .offset(y: dynamicSize.sidePlayerStateYOffset)
-                                    PlayerInfo(dynamicSize: dynamicSize)
-                                }
-                                .frame(width: dynamicSize.sidePlayerInfoWidth)
-                                HStack {
-                                    ZStack {
-                                        // Dealer button overlay
-                                        VStack {
-                                            if isDealer {
-                                                Circle()
-                                                    .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
-                                                    .opacity(0)
-                                                    .background(GeometryReader { proxy in
-                                                        Color.clear
-                                                            .onAppear {
-                                                                let frame = proxy.frame(in: .named("contentArea"))
-                                                                gameManager.updateDealerFrame(playerId: player.id, frame: frame)
-                                                            }
-                                                    })
-                                            }
-                                        }
-                                        .frame(maxHeight: .infinity, alignment: .top)
-                                        if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
-                                            TrickDisplay(dynamicSize: dynamicSize)
-                                                .onTapGesture {
-                                                    gameManager.showLastTrick.toggle()
-                                                }
-                                        }
-                                    }
-                                    .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
-                                    PlayerHand(dynamicSize: dynamicSize)
-                                        .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
-                                }
-                            }
-                        }
+                        NonLocalPlayerView
                     } else {
-                        // Local player layout
-                        VStack {
-                            ZStack {
-                                VStack {
-                                    StateDisplay()
-                                    TrickDisplay(dynamicSize: dynamicSize)
-                                        .onTapGesture {
-                                            gameManager.showLastTrick.toggle()
-                                        }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                PlayerInfo(dynamicSize: dynamicSize)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                if isDealer {
-                                    HStack {
-                                        Spacer()
-                                        Circle()
-                                            .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
-                                            .opacity(0)
-                                            .overlay(
-                                                GeometryReader { proxy in
-                                                    Color.clear
-                                                        .onAppear {
-                                                            let frame = proxy.frame(in: .named("contentArea"))
-                                                            logger.log("Captured frame: \(frame)")
-                                                            gameManager.updateDealerFrame(playerId: player.id, frame: frame)
-                                                        }
-                                                }
-                                            )
-                                    }
-                                }
-                            }
-                            .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
-                            Spacer()
-                            ZStack {
-                                PlayerHand(dynamicSize: dynamicSize)
-                                    .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
-                                    if [.playingTricks, .grabTrick].contains(gameManager.gameState.currentPhase) {
-                                        HStack {
-                                            Spacer()
-                                            Button(action: {
-                                                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                                                    gameManager.autoPilot.toggle()
-                                                    // Optional: Add haptic feedback for better user experience
-                                                    //                                                NSHapticFeedbackManager.defaultPerformer.performFeedback(.generic, performanceTime: .default)
-                                                }
-                                            }) {
-                                                VStack(spacing: 4) {
-                                                    Image(systemName: gameManager.autoPilot ? "airplane.circle.fill" : "airplane.circle")
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                        .frame(width: 30, height: 30)
-                                                        .foregroundColor(.white)
-                                                    
-                                                    Text(gameManager.autoPilot ? "Auto On" : "Auto Off")
-                                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                                        .foregroundColor(.white)
-                                                }
-                                                .padding(12)
-                                                .frame(width: 70, height: 70)
-                                                .background(
-                                                    ZStack {
-                                                        // Depth layer
-                                                        Circle()
-                                                            .fill(Color.black.opacity(0.2))
-                                                            .offset(x: 0, y: 2)
-                                                            .blur(radius: 2)
-                                                        
-                                                        // Main gradient background
-                                                        Circle()
-                                                            .fill(
-                                                                LinearGradient(
-                                                                    gradient: Gradient(colors: gameManager.autoPilot
-                                                                                       ? [Color(NSColor.systemGreen).opacity(0.9), Color(NSColor.systemBlue)]
-                                                                                       : [Color(NSColor.darkGray), Color(NSColor.gray)]),
-                                                                    startPoint: .topLeading,
-                                                                    endPoint: .bottomTrailing
-                                                                )
-                                                            )
-                                                        
-                                                        // Subtle inner shadow for depth
-                                                        Circle()
-                                                            .stroke(
-                                                                gameManager.autoPilot
-                                                                ? LinearGradient(
-                                                                    gradient: Gradient(colors: [Color.white.opacity(0.6), Color.white.opacity(0)]),
-                                                                    startPoint: .topLeading,
-                                                                    endPoint: .bottomTrailing
-                                                                )
-                                                                : LinearGradient(
-                                                                    gradient: Gradient(colors: [Color.white.opacity(0.3), Color.white.opacity(0)]),
-                                                                    startPoint: .topLeading,
-                                                                    endPoint: .bottomTrailing
-                                                                ),
-                                                                lineWidth: 2
-                                                            )
-                                                    }
-                                                )
-                                                .shadow(color: gameManager.autoPilot ? Color.blue.opacity(0.5) : Color.black.opacity(0.3),
-                                                        radius: 8, x: 0, y: 4)
-                                                .overlay(
-                                                    Circle()
-                                                        .trim(from: 0, to: gameManager.autoPilot ? 1 : 0)
-                                                        .stroke(
-                                                            LinearGradient(
-                                                                gradient: Gradient(colors: [Color.blue, Color.green]),
-                                                                startPoint: .leading,
-                                                                endPoint: .trailing
-                                                            ),
-                                                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                                                        )
-                                                        .rotationEffect(.degrees(-90))
-                                                        .animation(.easeInOut(duration: 0.5), value: gameManager.autoPilot)
-                                                )
-                                            }
-                                            .buttonStyle(PlainButtonStyle())
-                                            .scaleEffect(gameManager.autoPilot ? 1.05 : 1.0)
-                                            .accessibility(label: Text(gameManager.autoPilot ? "Disable Autopilot" : "Enable Autopilot"))
-                                            .help(gameManager.autoPilot ? "Disable autopilot mode" : "Enable autopilot mode")
-                                            .padding(.trailing, 20)
-                                            .padding(.bottom, 20)
-                                        }
-                                    }
-                            }
-                        }
+                        LocalPlayerView
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -259,6 +56,162 @@ struct PlayerView: View {
                 }
             )
         }
+    }
+    
+    private var LocalPlayerView: some View {
+            // Local player layout
+            VStack {
+                ZStack {
+                    VStack {
+                        StateDisplay()
+                        TrickDisplay(dynamicSize: dynamicSize)
+                            .onTapGesture {
+                                gameManager.showLastTrick.toggle()
+                            }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    PlayerInfo(dynamicSize: dynamicSize)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if isDealer {
+                        HStack {
+                            Spacer()
+                            Circle()
+                                .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                .opacity(0)
+                                .overlay(
+                                    GeometryReader { proxy in
+                                        Color.clear
+                                            .onAppear {
+                                                let frame = proxy.frame(in: .named("contentArea"))
+                                                logger.log("Captured frame: \(frame)")
+                                                gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                            }
+                                    }
+                                )
+                        }
+                    }
+                }
+                .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
+                Spacer()
+                ZStack {
+                    PlayerHand(dynamicSize: dynamicSize)
+                        .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
+                        if [.playingTricks, .grabTrick].contains(gameManager.gameState.currentPhase) {
+                            HStack {
+                                Spacer()
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.1)) {
+                                        gameManager.autoPilot.toggle()
+                                    }
+                                }) {
+                                    HStack(spacing: 8) {
+                                        Text("Autoplay")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundColor(.white)
+
+                                        Circle()
+                                            .fill(gameManager.autoPilot ? Color.green : Color.red)
+                                            .frame(width: 10, height: 10)
+                                            .shadow(color: (gameManager.autoPilot ? Color.green : Color.red).opacity(0.8), radius: (gameManager.autoPilot ? 6 : 0))
+                                            .animation(.easeInOut(duration: 0.1), value: gameManager.autoPilot)
+                                    }
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 12)
+                                    .background(Color(nsColor: .darkGray))
+                                    .cornerRadius(8)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .accessibility(label: Text(gameManager.autoPilot ? "Disable Autopilot" : "Enable Autopilot"))
+                                .help(gameManager.autoPilot ? "Disable autopilot mode" : "Enable autopilot mode")
+                                .padding(.trailing, 16)
+                                .padding(.bottom, 16)
+                            }
+                        }
+                }
+            }
+    }
+    
+    private var NonLocalPlayerView: some View {
+            // Non-local player layout
+            VStack {
+                if player.tablePosition == .left {
+                    HStack {
+                        PlayerInfo(dynamicSize: dynamicSize)
+                        StateDisplay()
+                            .offset(y: dynamicSize.sidePlayerStateYOffset)
+                    }
+                    .frame(width: dynamicSize.sidePlayerInfoWidth)
+                    HStack {
+                        PlayerHand(dynamicSize: dynamicSize)
+                            .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                        ZStack {
+                            // Dealer button overlay
+                            VStack {
+                                if isDealer {
+                                    Circle()
+                                        .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                        .opacity(0)
+                                        .background(GeometryReader { proxy in
+                                            Color.clear
+                                                .onAppear {
+                                                    let frame = proxy.frame(in: .named("contentArea"))
+                                                    gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                                }
+                                        })
+                                }
+                            }
+                            .frame(maxHeight: .infinity, alignment: .top)
+                            if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
+                                Button(action: {
+                                    gameManager.showLastTrick.toggle()
+                                }) {
+                                    TrickDisplay(dynamicSize: dynamicSize)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .keyboardShortcut(.space, modifiers: [])
+                            }
+                        }
+                        .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                    }
+                    .frame(width: dynamicSize.sidePlayerWidth)
+                } else {
+                    HStack {
+                        StateDisplay()
+                            .offset(y: dynamicSize.sidePlayerStateYOffset)
+                        PlayerInfo(dynamicSize: dynamicSize)
+                    }
+                    .frame(width: dynamicSize.sidePlayerInfoWidth)
+                    HStack {
+                        ZStack {
+                            // Dealer button overlay
+                            VStack {
+                                if isDealer {
+                                    Circle()
+                                        .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                                        .opacity(0)
+                                        .background(GeometryReader { proxy in
+                                            Color.clear
+                                                .onAppear {
+                                                    let frame = proxy.frame(in: .named("contentArea"))
+                                                    gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                                }
+                                        })
+                                }
+                            }
+                            .frame(maxHeight: .infinity, alignment: .top)
+                            if gameManager.allPlayersBet() || gameManager.gameState.round < 4 {
+                                TrickDisplay(dynamicSize: dynamicSize)
+                                    .onTapGesture {
+                                        gameManager.showLastTrick.toggle()
+                                    }
+                            }
+                        }
+                        .frame(width: dynamicSize.sidePlayerWidth - dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                        PlayerHand(dynamicSize: dynamicSize)
+                            .frame(width: dynamicSize.sidePlayerHandWidth, height: dynamicSize.sidePlayerHandHeight)
+                    }
+                }
+            }
     }
     
     // MARK: - Player Info
@@ -455,75 +408,6 @@ struct PlayerView: View {
             }
         }
     }
-//        } else {
-//            let newMessage: String = {
-//                if player.tablePosition != .local {
-//                    switch player.state {
-//                    case .idle: return ""
-//                    case .choosingTrump: return "Choisit l'atout"
-//                    case .bidding: return "Choisit sa mise"
-//                    case .discarding: return "Défausse sa carte"
-//                    case .playing: return "Joue une carte"
-//                    case .waiting: return "Attend les autres"
-//                    default: return ""
-//                    }
-//                } else {
-//                    switch player.state {
-//                    case .idle: return ""
-//                    case .choosingTrump: return "Choisis l'atout"
-//                    case .bidding: return "Choisis une mise"
-//                    case .discarding: return "Défausse tes cartes"
-//                    case .playing: return "Joue une carte"
-//                    case .waiting: return ""
-//                    default: return ""
-//                    }
-//                }
-//            }()
-//            
-//            VStack {
-//                if !displayedMessage.isEmpty {
-//                    Text(displayedMessage)
-//                        .font(.system(size: dynamicSize.stateTextSize))
-//                        .padding(.vertical, 5)
-//                        .padding(.horizontal, 10)
-//                        .background(Color.white.opacity(0.5))
-//                        .cornerRadius(5)
-//                        .shadow(radius: 5)
-//                        .overlay(
-//                            RoundedRectangle(cornerRadius: 5)
-//                                .stroke(Color.white, lineWidth: 2)
-//                        )
-//                        .transition(.opacity.combined(with: .scale))
-//                        .animation(.easeInOut(duration: 0.3), value: displayedMessage)
-//                } else {
-//                    Text(displayedMessage)
-//                        .font(.system(size: dynamicSize.stateTextSize))
-//                        .padding(.vertical, 5)
-//                        .padding(.horizontal, 10)
-//                        .background(Color.white.opacity(0.5))
-//                        .cornerRadius(5)
-//                        .shadow(radius: 5)
-//                        .overlay(
-//                            RoundedRectangle(cornerRadius: 5)
-//                                .stroke(Color.white, lineWidth: 2)
-//                        )
-//                        .transition(.opacity.combined(with: .scale))
-//                        .animation(.easeInOut(duration: 0.3), value: displayedMessage)
-//                        .opacity(0)
-//                }
-//            }
-//            .onAppear {
-//                displayedMessage = newMessage
-//                logger.log("\(player)'s state should now be \(displayedMessage)")
-//            }
-//            .onChange(of: player.state) { _ in
-//                withAnimation {
-//                    displayedMessage = newMessage
-//                    logger.log("\(player)'s state should now be \(displayedMessage)")
-//                }
-//            }
-//        }
-//    }
     
     // MARK: - Player Hand
     @ViewBuilder
