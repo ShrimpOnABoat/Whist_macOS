@@ -5,7 +5,6 @@
 //  Created by Tony Buffard on 2024-11-18.
 //  Defines the card model.
 
-// Card.swift
 import Foundation
 import SwiftUI
 
