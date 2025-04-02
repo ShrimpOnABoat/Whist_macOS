@@ -120,19 +120,3 @@ struct ScoreBoardView: View {
         }
     }
 }
-
-struct ScoreBoardView_Previews: PreviewProvider {
-    static var previews: some View {
-        let gameManager = GameManager()
-        gameManager.setupPreviewGameState()
-        
-        return GeometryReader { geometry in
-            let dynamicSize: DynamicSize = DynamicSize(from: geometry)
-            ScoreBoardView(dynamicSize: dynamicSize)
-                .environmentObject(gameManager)
-                .previewDisplayName("Scoreboard Preview")
-                .previewLayout(.fixed(width: 400, height: 300))
-                .padding()
-        }
-    }
-}

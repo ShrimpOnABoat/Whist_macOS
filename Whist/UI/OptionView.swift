@@ -192,22 +192,3 @@ struct OptionsView: View {
         }
     }
 }
-
-// MARK: - Preview
-
-struct OptionsView_Previews: PreviewProvider {
-    static var previews: some View {
-        let gameManager = GameManager()
-        gameManager.setupPreviewGameState()
-        
-        gameManager.gameState.round = 12
-        
-        return GeometryReader { geometry in
-            let dynamicSize: DynamicSize = DynamicSize(from: geometry)
-            OptionsView(dynamicSize: dynamicSize)
-                .environmentObject(gameManager)
-                .previewDisplayName("Options View Preview")
-                .previewLayout(.sizeThatFits)
-        }
-    }
-}

@@ -217,27 +217,21 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
     }
     
     func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFind match: GKMatch) {
-        /// This function is invoked at the same time in all 3 apps, once the last player joins the match
         logger.log("🫑 GameKitManager: matchmakerViewController:didFind: called with players: \(match.players.map { $0.displayName })")
         
-        // Process initial match setup on a background queue
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            // Store the match and update state
-            DispatchQueue.main.async {
-                self.match = match
-                logger.log("Match stored: \(ObjectIdentifier(match))")
-            }
-            
+            logger.log("Assigning found match (\(ObjectIdentifier(match))) and delegate.")
+            self.match = match
             match.delegate = self
             
-            // Now dismiss the view controller on the main thread
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                viewController.dismiss(nil)
-                self.inviteViewController = nil
-                self.gameManager?.checkAndAdvanceStateIfNeeded()
-            }
+            // Dismiss the matchmaking UI
+            viewController.dismiss(nil)
+            self.inviteViewController = nil
+            
+            logger.log("Caling prepareGameAfterMatchConnection()")
+            self.gameManager?.prepareGameAfterMatchConnection()
         }
     }
 }

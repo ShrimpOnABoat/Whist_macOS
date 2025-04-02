@@ -67,12 +67,3 @@ struct InvitingButtonStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
     }
 }
-
-//struct MatchMakingView_Previews: PreviewProvider {
-//    static var previews: some View {
-//        MatchMakingView()
-//            .environmentObject(GameManager())
-//            .environmentObject(ConnectionManager())
-//            .environmentObject(GameKitManager())
-//    }
-//}

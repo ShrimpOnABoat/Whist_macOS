@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import CryptoKit
 import SwiftUI
+import CloudKit
 
 enum PlayerId: String, Codable, CaseIterable {
     case dd = "dd"
@@ -16,6 +17,7 @@ enum PlayerId: String, Codable, CaseIterable {
     case toto = "toto"
 }
 
+@MainActor
 class GameManager: ObservableObject {
     @Published var gameState: GameState = GameState()
     @Published var showOptions: Bool = false
@@ -24,7 +26,6 @@ class GameManager: ObservableObject {
     @Published var movingCards: [MovingCard] = []
     @Published var hoveredSuit: Suit? = nil
     private var timerCancellable: AnyCancellable?
-    var randomSeed: UInt64 = 0
     var isDeckReady: Bool = false
     var isDeckReceived: Bool = false
     var pendingActions: [GameAction] = []
@@ -39,7 +40,7 @@ class GameManager: ObservableObject {
     var gameKitManager: GameKitManager?
     let soundManager = SoundManager()
     static let SM = ScoresManager.shared
-    var persistence: GamePersistence = GamePersistence(playerID: .dd) // default value
+    var persistence: GamePersistence = GamePersistence() // No longer needs playerID
     
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
@@ -52,42 +53,42 @@ class GameManager: ObservableObject {
     @Published var cameraShakeOffset: CGSize = .zero
     @Published var showImpactEffect: Bool = false
     @Published var showSubtleFailureEffect: Bool = false
-    @Published var effectPosition: CGPoint = .zero // Add this line
-
+    @Published var effectPosition: CGPoint = .zero
+    
     @Published var dealerPosition: CGPoint = .zero
     @Published var playersScoresUpdated: Bool = false
     
     var logCounter: Int = 0
-
-    init() {}
+    
+    init() {
+    }
     
     // MARK: - Game State Initialization
     
-    func updateLocalPlayer(_ playerId: PlayerId, name: String, image: NSImage?) {
-        logger.log("updatePlayer: processing \(playerId)")
-        let players = gameState.players
-        guard players.first(where: { $0.username == name }) == nil else {
-            logger.log("Player \(name) already exists.")
+    func updateLocalPlayer(_ playerId: PlayerId, name: String, image: Image) {
+        guard let playerIndex = gameState.players.firstIndex(where: { $0.id == playerId }) else {
+            logger.log("Error: Player with ID \(playerId) not found in gameState during update.")
             return
         }
-        guard let index = players.firstIndex(where: { $0.id == playerId }) else {
-            logger.log("Player with id \(playerId.rawValue) not found.")
-            return
-        }
-        players[index].username = name
         
-        if let unwrappedImage = image {
-            players[index].image = Image(nsImage: unwrappedImage)
-        } else {
-            players[index].image = Image(systemName: "person.crop.circle.fill")
+        let player = gameState.players[playerIndex]
+        player.username = name
+        player.image = image
+        player.isConnected = true
+        player.tablePosition = .local // Assume local initially, updatePlayerReferences will adjust
+        
+        logger.log("Player \(playerId) updated successfully with name: \(name)")
+        
+        // Log connected players
+        let connectedUsernames = gameState.players.filter { $0.isConnected }.map { $0.username }
+        logger.log("Players connected: \(connectedUsernames.joined(separator: ", "))")
+        displayPlayers() // Log detailed player status
+        
+        if !gameState.playOrder.isEmpty {
+            gameState.updatePlayerReferences()
         }
-        players[index].tablePosition = .local
-        players[index].isConnected = true // Set for GK
-        logger.log("Player \(playerId.rawValue) updated successfully with name: \(name)")
-        logger.log("Players connected: \(players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
-        displayPlayers()
     }
-
+    
     func setupGame() {
         logger.log("--> SetupGame()")
         let totalPlayers = gameState.players.count
@@ -101,7 +102,7 @@ class GameManager: ObservableObject {
         }
         
         // Update the game state
-        var generator = SeededGenerator(seed: randomSeed)
+        var generator = SeededGenerator(seed: gameState.randomSeed)
         gameState.playOrder = [.gg, .dd, .toto]
         gameState.playOrder.shuffle(using: &generator)
         gameState.dealer = gameState.playOrder.first
@@ -127,24 +128,21 @@ class GameManager: ObservableObject {
         } else {
             logger.fatalErrorAndLog("Players could not be assigned correctly.")
         }
-
+        
         isGameSetup = true
-
+        
         // Create the cards
         initializeCards()
-}
+    }
     
     func setPersistencePlayerID(with playerId: PlayerId) {
-        persistence = GamePersistence(playerID: playerId)
-//        if playerId != .toto {
-//            isAIPlaying = true
-//        }
+        logger.log("SetPersistencePlayerID called, but GamePersistence now uses shared CloudKit state. PlayerID \(playerId) noted if needed for logic elsewhere.")
     }
     
     func generateAndSendSeed() { // Only if local player is toto
-        randomSeed = UInt64.random(in: 1...UInt64.max)
+        gameState.randomSeed = UInt64.random(in: 1...UInt64.max)
         logger.log("Sending seed to other players!")
-        sendSeedToPlayers(randomSeed)
+        sendSeedToPlayers(gameState.randomSeed)
         checkAndAdvanceStateIfNeeded()
     }
     
@@ -164,7 +162,7 @@ class GameManager: ObservableObject {
     }
     
     // MARK: Connection/Deconnection
-
+    
     func updatePlayerConnectionStatus(username: String, isConnected: Bool) {
         // Find the player by ID
         guard let index = gameState.players.firstIndex(where: { $0.username == username }) else {
@@ -181,59 +179,78 @@ class GameManager: ObservableObject {
         // Display current players for debugging
         displayPlayers()
     }
-
+    
     // MARK: resumeGameState
     
-    func resumeGameState() {
-        guard let savedState = persistence.loadGameState() else {
-            newGame()
-            return
-        }
-        gameState = savedState
-
-        // Identify localPlayer, leftPlayer, and rightPlayer
-        gameState.updatePlayerReferences()
-        
-        for player in gameState.players {
-            let isLocalPlayer = (player.tablePosition == .local)
-
-            if isLocalPlayer {
-                let shouldRevealCards = gameState.round >= 4 || gameState.currentPhase.isPlayingPhase
-                player.hand.indices.forEach { player.hand[$0].isFaceDown = !shouldRevealCards }
-            } else {  // left and right players
-                let shouldHideCards = gameState.round >= 4
-                player.hand.indices.forEach { player.hand[$0].isFaceDown = shouldHideCards }
+    func saveGameState(_ state: GameState) {
+        if ![.waitingForPlayers, .exchangingIDs, .exchangingSeed, .setupGame, .waitingToStart].contains(gameState.currentPhase) {
+            Task {
+                await persistence.saveGameState(state)
             }
         }
-        
-        // Show the trump card
-        logger.log("Trump suit: \(String(describing: gameState.trumpSuit ?? nil))")
-        if gameState.trumpSuit != nil {
-            logger.log("Local player's place: \(gameState.localPlayer?.place ?? -1)")
-            logger.log("All scores equal: \(allScoresEqual())")
-            if gameState.localPlayer?.place != 1 || gameState.currentPhase.isPlayingPhase || allScoresEqual() { // I can see the trump card
-                if gameState.round < 4 || allScoresEqual() {
-                    gameState.deck.last?.isFaceDown = false
-                } else {
-                    gameState.trumpCards.last?.isFaceDown = false
-                }
-            }
-        }
-        
-        // show the cards on the table
-        if gameState.currentPhase.isPlayingPhase {
-            gameState.table.indices.forEach { gameState.table[$0].isFaceDown = false }
-        }
-        
-        // Set the players' places
-        updatePlayersPositions()
-        
-        isDeckReady = true
-        
-        logger.log("Current phase: \(gameState.currentPhase)")
-        checkAndAdvanceStateIfNeeded()
-        
     }
+    
+    func loadGameState(completion: @escaping (GameState?) -> Void) {
+        Task {
+            let state = await persistence.loadGameState()
+            completion(state)
+        }
+    }
+    
+    func clearSavedGameState() {
+        Task {
+            await persistence.clearSavedGameState()
+        }
+    }
+    
+//    func resumeGameState()  {
+//        loadGameState { savedState in
+//            if let savedState = savedState {
+//                DispatchQueue.main.async {
+//                    self.gameState = savedState
+//                    self.gameState.updatePlayerReferences()
+//                    
+//                    for player in self.gameState.players {
+//                        let isLocalPlayer = (player.tablePosition == .local)
+//                        if isLocalPlayer {
+//                            let shouldRevealCards = self.gameState.round >= 4 || self.gameState.currentPhase.isPlayingPhase
+//                            player.hand.indices.forEach { player.hand[$0].isFaceDown = !shouldRevealCards }
+//                        } else {
+//                            let shouldHideCards = self.gameState.round >= 4
+//                            player.hand.indices.forEach { player.hand[$0].isFaceDown = shouldHideCards }
+//                        }
+//                    }
+//                    
+//                    logger.log("Loaded Trump suit: \(String(describing: self.gameState.trumpSuit))")
+//                    if self.gameState.trumpSuit != nil {
+//                        if self.gameState.localPlayer?.place != 1 || self.gameState.currentPhase.isPlayingPhase || self.allScoresEqual() {
+//                            if self.gameState.round < 4 || self.allScoresEqual() {
+//                                self.gameState.deck.last?.isFaceDown = false
+//                            } else {
+//                                self.gameState.trumpCards.last?.isFaceDown = false
+//                            }
+//                        }
+//                    }
+//                    
+//                    if self.gameState.currentPhase.isPlayingPhase {
+//                        self.gameState.table.indices.forEach { self.gameState.table[$0].isFaceDown = false }
+//                    }
+//                    
+//                    self.updatePlayersPositions()
+//                    self.isDeckReady = true
+//                    
+//                    logger.log("Successfully resumed game state from CloudKit. Current phase: \(self.gameState.currentPhase)")
+//                    self.checkAndAdvanceStateIfNeeded()
+//                }
+//            } else {
+//                logger.log("No saved state found or error loading. Starting new game.")
+//                DispatchQueue.main.async {
+//                    self.newGame()
+//                    self.checkAndAdvanceStateIfNeeded()
+//                }
+//            }
+//        }
+//    }
     
     // MARK: startNewGame
     func startNewGameAction() {
@@ -254,7 +271,7 @@ class GameManager: ObservableObject {
             $0.trickCards.removeAll()
             $0.state = .idle
         }
-
+        
         // Move to the next dealer in playOrder so that another player starts the game
         guard let dealer = gameState.dealer,
               let currentIndex = gameState.playOrder.firstIndex(of: dealer) else {
@@ -277,7 +294,7 @@ class GameManager: ObservableObject {
             logger.log(formattedMessage)
             logger.log(borderLine)
         }
-
+        
         gameState.round += 1
         gameState.trumpSuit = nil
         gameState.tricksGrabbed = Array(repeating: false, count: max(gameState.round - 2, 1))
@@ -288,7 +305,7 @@ class GameManager: ObservableObject {
             $0.hasDiscarded = false
         }
         autoPilot = false // Resets the autoPilot
-
+        
         // Move to the next dealer in playOrder
         guard let dealer = gameState.dealer,
               let currentIndex = gameState.playOrder.firstIndex(of: dealer) else {
@@ -300,7 +317,7 @@ class GameManager: ObservableObject {
         
         // Set the first player to play
         updatePlayerPlayOrder(startingWith: .dealer(gameState.dealer!))
-
+        
         // Update the players' positions
         if gameState.round > 1 {
             updatePlayersPositions()
@@ -347,48 +364,48 @@ class GameManager: ObservableObject {
     }
     
     // MARK: - Game Utility Functions
-
+    
     func updatePlayersPositions() {
         gameState.players.forEach { player in
             player.place = determinePosition(for: player.id)
         }
     }
-
+    
     private func determinePosition(for playerId: PlayerId) -> Int {
         /// returns 1 if the player has the highest score, even if there's a tie
         /// returns 2 for the second player
         /// returns 3 for the last player
-
+        
         // TODO: check that this function works as intended
         let player = gameState.getPlayer(by: playerId)
         let currentRound = gameState.round
         let currentScores = gameState.players.map { $0.scores.last ?? 0 }
         let highestScore = currentScores.max() ?? 0
         let lowestScore = currentScores.min() ?? 0
-
+        
         // Step 1: Player has the highest score
         if player.scores.last == highestScore {
             return 1
         }
-
+        
         // Step 2: Player has the lowest score
         if player.scores.last == lowestScore {
             let sortedByScore = gameState.players.sorted {
                 ($0.scores.last ?? 0) < ($1.scores.last ?? 0)
             }
-
+            
             let playersWithLowestScore = sortedByScore.filter {
                 $0.scores.last == lowestScore
             }
-
+            
             if playersWithLowestScore.count > 1 {
                 // Break tie based on historical scores
                 let otherPlayer = playersWithLowestScore.first { $0.username != player.username }
-
+                
                 for round in stride(from: currentRound - 1, through: 0, by: -1) {
                     let playerScore = player.scores[safe: round] ?? Int.min
                     let otherPlayerScore = otherPlayer?.scores[safe: round] ?? Int.min
-
+                    
                     if playerScore != otherPlayerScore {
                         if playerScore < otherPlayerScore {
                             return 3
@@ -397,24 +414,24 @@ class GameManager: ObservableObject {
                         }
                     }
                 }
-
+                
                 // Fallback to dealer-based play order
                 if let dealer = gameState.dealer,
                    let dealerIndex = gameState.playOrder.firstIndex(of: dealer),
                    let usernameIndex = gameState.playOrder.firstIndex(of: playerId) {
                     // Calculate the index of the player to the left of the dealer
                     let leftOfDealerIndex = (dealerIndex + 1) % gameState.playOrder.count
-
+                    
                     // If the current player is the dealer
                     if usernameIndex == dealerIndex {
                         return 3 // Dealer gets rank 3
                     }
-
+                    
                     // If the other player is the dealer
                     if otherPlayer?.id == gameState.dealer {
                         return 2
                     }
-
+                    
                     // If the current player is the first player to the left of the dealer
                     if usernameIndex == leftOfDealerIndex {
                         return 3 // Real last place
@@ -426,7 +443,7 @@ class GameManager: ObservableObject {
                 return 3
             }
         }
-
+        
         // Step 3: Player is neither the highest nor the lowest
         return 2
     }
@@ -446,30 +463,30 @@ class GameManager: ObservableObject {
             logger.log("Could not find player with ID \(playerId)")
             return
         }
-
+        
         player.username = identification.username
         if let GKPlayer = gameKitManager?.match?.players.first(where: { $0.displayName == identification.username }) {
-           // Load player photo
+            // Load player photo
             GKPlayer.loadPhoto(for: .normal) { [weak self] image, error in
                 guard self != nil else { return }
-               
-               DispatchQueue.main.async {
-                   if let error = error {
-                       logger.log("Error loading player photo: \(error.localizedDescription)")
-                   }
-                   if let nsImage = image {
-                       player.image = Image(nsImage: nsImage)
-                   } else {
-                       player.image = Image(systemName: "person.crop.circle.fill")
-                   }
-               }
-           }
+                
+                DispatchQueue.main.async {
+                    if let error = error {
+                        logger.log("Error loading player photo: \(error.localizedDescription)")
+                    }
+                    if let nsImage = image {
+                        player.image = Image(nsImage: nsImage)
+                    } else {
+                        player.image = Image(systemName: "person.crop.circle.fill")
+                    }
+                }
+            }
         } else {
             player.image = Image(systemName: "person.crop.circle.fill")
         }
-
+        
         player.isConnected = true // Set for GK
-
+        
         // Replace the updated player in the array
         if let index = gameState.players.firstIndex(where: { $0.id == playerId }) {
             gameState.players[index] = player
@@ -494,9 +511,11 @@ class GameManager: ObservableObject {
         } else {
             player.announcedTricks[gameState.round - 1] = bet
         }
-        persistence.saveGameState(gameState)
+        Task {
+            saveGameState(gameState)
+        }
         logger.log("Player \(playerId) announced tricks: \(player.announcedTricks)")
-//        checkAndAdvanceStateIfNeeded()
+        //        checkAndAdvanceStateIfNeeded()
     }
     
     func updateGameStateWithTrump(from playerId: PlayerId, with card: Card) {
@@ -505,9 +524,9 @@ class GameManager: ObservableObject {
             logger.log("Card \(card) not found in trumpCards.")
             return
         }
-
+        
         let removedCard = gameState.trumpCards.remove(at: index)
-
+        
         // Put the card face up if second player
         if gameState.localPlayer?.place == 2 {
             removedCard.isFaceDown = false
@@ -520,9 +539,10 @@ class GameManager: ObservableObject {
         
         self.objectWillChange.send() // To force a refresh for the 2nd player
         
-        persistence.saveGameState(gameState)
-        
-//        checkAndAdvanceStateIfNeeded()
+        Task {
+            saveGameState(gameState)
+        }
+        //        checkAndAdvanceStateIfNeeded()
     }
     
     func updateGameStateWithTrumpCancellation() {
@@ -534,12 +554,15 @@ class GameManager: ObservableObject {
         logger.log("Trump choice cancelled by second player.")
         
         transition(to: .choosingTrump)
+        Task {
+            saveGameState(gameState) // Save the cancelled state
+        }
     }
     
     func updateGameStateWithDiscardedCards(from playerId: PlayerId, with cards: [Card], completion: @escaping () -> Void) {
         // Validate the player
         let player = gameState.getPlayer(by: playerId)
- 
+        
         // Ensure the cards are part of the player's hand
         for card in cards {
             guard player.hand.firstIndex(of: card) != nil else {
@@ -552,7 +575,7 @@ class GameManager: ObservableObject {
             let origin: CardPlace = player.tablePosition == .left ? .leftPlayer: .rightPlayer
             var destination: CardPlace = .deck
             var message: String = "Player \(player) discarded \(card)"
-
+            
             if player.place == 2 && gameState.round == 12 {
                 if Double(gameState.lastPlayer?.scores[safe: gameState.round - 2] ?? 0) <= 0.5 * Double(player.scores[safe: gameState.round - 2] ?? 0) || gameState.lastPlayer?.monthlyLosses ?? 0 > 0 {
                     switch gameState.lastPlayer?.tablePosition {
@@ -580,13 +603,17 @@ class GameManager: ObservableObject {
                 completion() }
             moveCard(card, from: origin, to: destination)
         }
-        persistence.saveGameState(gameState)
+        Task {
+            saveGameState(gameState)
+        }
     }
     
     func updatePlayerWithState(from playerId: PlayerId, with state: PlayerState) {
         let player = gameState.getPlayer(by: playerId)
         player.state = state
-        persistence.saveGameState(gameState)
+        Task {
+            saveGameState(gameState)
+        }
         logger.log("\(playerId) updated their state to \(state).")
     }
     
@@ -613,8 +640,10 @@ class GameManager: ObservableObject {
         
         // Notify other players about the action
         sendBetToPlayers(bet)
-        persistence.saveGameState(gameState)
-//        checkAndAdvanceStateIfNeeded()
+        Task {
+            saveGameState(gameState)
+        }
+        //        checkAndAdvanceStateIfNeeded()
     }
     
     // MARK: Cancel Trump Choice
@@ -649,7 +678,7 @@ class GameManager: ObservableObject {
             let ggScore = ggPlayer.scores.last ?? 0
             let ddScore = ddPlayer.scores.last ?? 0
             let totoScore = totoPlayer.scores.last ?? 0
-
+            
             // Create a new GameScore instance with current date, scores, and positions.
             let newScore = GameScore(
                 date: Date(),
@@ -682,7 +711,7 @@ class GameManager: ObservableObject {
     func consecutiveWins(by playerId: PlayerId) -> Int {
         let player = gameState.getPlayer(by: playerId)
         var count = 0
-
+        
         for round in 0..<player.announcedTricks.count {
             if player.announcedTricks[round] == player.madeTricks[round] {
                 count += 1
@@ -696,14 +725,96 @@ class GameManager: ObservableObject {
     
     func displayPlayers() {
         logger.log("🔍 Displaying all players:")
-
+        
         for player in gameState.players {
             let username = player.username
             let playerId = player.id.rawValue
             let tablePosition = player.tablePosition?.rawValue ?? "unknown"
             let isConnected = player.isConnected
-
+            
             logger.log("\(isConnected ? "✅": "❌") Player: \(username), PlayerId: \(playerId), TablePosition: \(tablePosition), Connected: \(isConnected)")
         }
     }
+    
+    // MARK: - Post-Matchmaking Logic
+    func prepareGameAfterMatchConnection() {
+        // This is called by GameKitManager AFTER a new GKMatch is established.
+        Task {
+            logger.log("Match connected. Checking CloudKit for saved game...")
+            if let savedState = await persistence.loadGameState() {
+                logger.log("Saved game found in CloudKit. Resuming...")
+                // Directly assign the loaded state
+                self.gameState = savedState
+                // Now configure the game based on this loaded state
+                self.configureGameFromLoadedState()
+            } else {
+                logger.log("No saved game found or error loading. Starting new game...")
+                // Reset to a fresh game state (keeping player info if possible, but newGame handles resets)
+                self.startNewGameFlow()
+            }
+            // Ensure UI updates after state change
+            self.objectWillChange.send()
+        }
+    }
+
+    // MARK: - Game Flow Initialization Helpers (NEW/MODIFIED)
+
+    private func configureGameFromLoadedState() {
+        logger.log("Configuring game UI and state from loaded data...")
+
+        // Ensure player references and UI elements reflect the loaded state
+        self.gameState.updatePlayerReferences() // Essential
+
+        // Update card visibility based on loaded state
+        for player in self.gameState.players {
+            let isLocalPlayer = (player.tablePosition == .local)
+            if isLocalPlayer {
+                let shouldRevealCards = self.gameState.round > 3 || self.gameState.currentPhase.isPlayingPhase
+                player.hand.indices.forEach { player.hand[$0].isFaceDown = !shouldRevealCards }
+            } else {
+                 let shouldHideCards = self.gameState.round > 3
+                 player.hand.indices.forEach { player.hand[$0].isFaceDown = shouldHideCards }
+            }
+        }
+
+        // Update trump card visibility (Simplified logic, adjust if needed)
+        if self.gameState.trumpSuit != nil {
+            let trumpCardShouldBeVisible = gameState.currentPhase.isPlayingPhase || gameState.round < 4 || allScoresEqual()
+            if self.gameState.round < 4 || allScoresEqual() {
+                 self.gameState.deck.last?.isFaceDown = !trumpCardShouldBeVisible
+            } else if let trumpCard = self.gameState.trumpCards.last {
+                 trumpCard.isFaceDown = !trumpCardShouldBeVisible
+            }
+        }
+
+        // Update table card visibility
+        if self.gameState.currentPhase.isPlayingPhase {
+            self.gameState.table.indices.forEach { self.gameState.table[$0].isFaceDown = false }
+        }
+
+        self.updatePlayersPositions() // Ensure places are correct
+        self.isDeckReady = true // Assume deck is ready based on loaded state
+
+        logger.log("Game configured from loaded state. Current phase: \(self.gameState.currentPhase). Advancing state machine...")
+
+        // CRUCIAL: Trigger state machine to continue from the loaded phase
+        self.checkAndAdvanceStateIfNeeded()
+    }
+
+    private func startNewGameFlow() {
+        logger.log("Initiating new game flow...")
+        // Clear any potentially loaded (but now unwanted) saved state from CloudKit
+        clearSavedGameState()
+
+        // Perform actions needed for a completely new game session
+        if !isGameSetup { // Perform initial setup if it hasn't happened yet this session
+            setupGame() // Sets initial play order, dealer, etc.
+        }
+        newGame() // Resets scores, round, hands, determines *next* dealer for round 1
+
+        // Transition to the start of the first round's logic
+        logger.log("Transitioning to setupNewRound for the first round.")
+        transition(to: .setupNewRound)
+    }
+    
 }

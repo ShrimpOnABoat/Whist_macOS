@@ -14,32 +14,44 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if ![.waitingForPlayers, .exchangingIDs, .exchangingSeed, .setupGame].contains(gameManager.gameState.currentPhase) {
-                GameView()
-                    .environmentObject(gameManager)
-                    .environmentObject(preferences)
-            } else if gameKitManager.isAuthenticated {
-                MatchMakingView()
-            } else {
+            // ----- Authenticated -----
+            if gameKitManager.isAuthenticated {
+                 // Player ID must be selected (Handled by sheet in WhistApp)
+                 // If ID is empty, the sheet forces selection.
+
+                 // Show Matchmaking if waiting for players, otherwise show GameView
+                 if gameManager.gameState.currentPhase == .waitingForPlayers {
+                    MatchMakingView()
+                        .environmentObject(gameManager)
+                        .environmentObject(gameKitManager)
+                 } else {
+                    // Game is in progress (or just finished setting up post-match)
+                    GameView()
+                        .environmentObject(gameManager)
+                        .environmentObject(gameKitManager)
+                        .environmentObject(preferences)
+                 }
+            }
+            // ----- Not Authenticated / Error -----
+            else {
                 VStack(spacing: 20) {
-                    Text("Authentification avec Game Center en cours…")
-                        .font(.headline)
                     if let errorMessage = gameKitManager.authenticationErrorMessage {
-                        Text("Error: \(errorMessage)")
-                            .foregroundColor(.red)
+                         Image(systemName: "exclamationmark.triangle.fill") // ...
+                         Text("Erreur d'authentification Game Center :") // ...
+                         Text(errorMessage) // ...
                     } else {
-                        EmptyView()
+                        // Still authenticating
+                        ProgressView().scaleEffect(1.5)
+                        Text("Authentification Game Center...")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                            .padding(.top)
                     }
                 }
+                .padding()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+
     }
 }
-
-//#Preview {
-//    ContentView()
-//        .environmentObject(GameManager())
-//        .environmentObject(GameKitManager())
-//        .environmentObject(ConnectionManager())
-//}

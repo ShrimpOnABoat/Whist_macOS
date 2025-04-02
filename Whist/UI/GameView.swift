@@ -33,36 +33,42 @@ struct GameView: View {
     @State private var showRoundHistory: Bool = false
     @State private var didMeasureDeck: Bool = false
     @State private var background: AnyView = AnyView(EmptyView())
-
+    
     func refreshBackground() {
-        // Récupérer les indices des couleurs activées
-        let enabledIndices = preferences.enabledRandomColors.enumerated().compactMap { (index, isEnabled) in
-            isEnabled ? index : nil
-        }
-        
-        // Choisir aléatoirement une couleur parmi celles cochées, avec une valeur de secours
-        let selectedColor: Color = {
-            if let randomIndex = enabledIndices.randomElement() {
-                // Mise à jour dans les préférences (optionnel)
-                preferences.selectedFeltIndex = randomIndex
-                return GameConstants.feltColors[randomIndex]
-            } else {
-                return .gray
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Compute enabled indices off the main thread
+            let enabledIndices = self.preferences.enabledRandomColors.enumerated().compactMap { (index, isEnabled) in
+                isEnabled ? index : nil
             }
-        }()
-        
-        // Déterminer l'intensité d'usure : aléatoire si activée, sinon 0
-        let wear: CGFloat = preferences.wearIntensity ? CGFloat.random(in: 0...1) : 0
-        
-        // Créer le background en passant la couleur sélectionnée
-        background = AnyView(FeltBackgroundView(
-            baseColor: selectedColor,
-            radialShadingStrength: 0.5,
-            wearIntensity: wear,
-            motifVisibility: CGFloat.random(in: 0...0.5),
-            motifScale: CGFloat.random(in: 0...1),
-            showScratches: Bool.random()
-        ))
+            // Pick a random index from enabled indices
+            let randomIndex = enabledIndices.randomElement()
+            // Determine the selected color based on the random index
+            let selectedColor: Color = {
+                if let randomIndex = randomIndex {
+                    return GameConstants.feltColors[randomIndex]
+                } else {
+                    return .gray
+                }
+            }()
+            // Determine wear intensity
+            let wear: CGFloat = self.preferences.wearIntensity ? CGFloat.random(in: 0...1) : 0
+            // Create the background view
+            let newBackground = AnyView(FeltBackgroundView(
+                baseColor: selectedColor,
+                radialShadingStrength: 0.5,
+                wearIntensity: wear,
+                motifVisibility: CGFloat.random(in: 0...0.5),
+                motifScale: CGFloat.random(in: 0...1),
+                showScratches: Bool.random()
+            ))
+            // Update UI on the main thread
+            DispatchQueue.main.async {
+                if let randomIndex = randomIndex {
+                    self.preferences.selectedFeltIndex = randomIndex
+                }
+                self.background = newBackground
+            }
+        }
     }
     
     var body: some View {
@@ -125,12 +131,12 @@ struct GameView: View {
                                         }
                                         .buttonStyle(PlainButtonStyle())
                                         .keyboardShortcut(KeyEquivalent("s"), modifiers: [])
-
+                                        
                                         DeckView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
                                     }
                                 }
                                 .frame(width: dynamicSize.scoreboardWidth, height: dynamicSize.scoreboardHeight)
-
+                                
                                 ZStack {
                                     if !(gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks) {
                                         if gameManager.gameState.currentPhase != .choosingTrump {
@@ -157,7 +163,7 @@ struct GameView: View {
                                                         .stroke(Color.white, lineWidth: 2) // Add a white border
                                                 )
                                         }
-
+                                        
                                     }
                                 }
                                 .frame(width: dynamicSize.tableWidth, height: dynamicSize.tableHeight)
@@ -209,7 +215,7 @@ struct GameView: View {
             DealerButton(size: dynamicSize.dealerButtonSize)
                 .position(gameManager.dealerPosition)
                 .animation(.easeOut, value: gameManager.dealerPosition)
-
+            
             // MARK: Show last trick
             if gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks {
                 ZStack {
@@ -289,61 +295,14 @@ struct GameView: View {
                 }
             }
         )
-        .alert("Reprendre ou Commencer une Nouvelle Partie ?", isPresented: $showAlert) {
-            Button("Reprendre") {
-                resumeGame()
-            }
-            Button("Effacer", role: .destructive) {
-                showConfirmation = true
-            }
-            Button("Annuler", role: .cancel) { }
-        } message: {
-            Text("Une partie sauvegardée a été trouvée. Voulez-vous la reprendre ou en commencer une nouvelle ?")
-        }
-        .alert("Attention", isPresented: $showConfirmation) {
-            Button("Supprimer", role: .destructive) {
-                eraseGameState()
-            }
-            Button("Annuler", role: .cancel) { }
-        } message: {
-            Text("Êtes-vous sûr de vouloir supprimer la partie sauvegardée ? Cette action est irréversible.")
-        }
         .onAppear() {
-            refreshBackground()
-//            checkSavedGame()
-        }
-        .onChange(of: preferences.selectedFeltIndex) { _ in
+            logger.log("onAppear: Refreshing background")
             refreshBackground()
         }
-    }
-    
-    private func checkSavedGame() {
-        savedGameExists = gameManager.persistence.loadGameState() != nil
-        if savedGameExists {
-            showAlert = true
-            showMatchmaking = true
-        } else {
-            startNewGame()
-        }
-    }
-    
-    private func resumeGame() {
-        gameManager.resumeGameState()
-        showMatchmaking = false
-        logger.log("Game resumed for player: \(playerID)")
-    }
-    
-    private func eraseGameState() {
-        gameManager.persistence.clearSavedGameState()
-        savedGameExists = false
-        showMatchmaking = false
-        startNewGame()
-        logger.log("Saved game erased for player: \(playerID)")
-    }
-    
-    private func startNewGame() {
-        showMatchmaking = false
-        logger.log("New game started for player: \(playerID)")
+//        .onChange(of: preferences.selectedFeltIndex) { _ in
+//            logger.log("onChange: Refreshing background")
+//            refreshBackground()
+//        }
     }
 }
 
@@ -402,27 +361,5 @@ struct GridOverlay: View {
             }
             .stroke(Color.gray.opacity(0.8), lineWidth: 3) // Boldest lines for every 500px
         }
-    }
-}
-
-// MARK: - Preview
-
-struct GameView_Previews: PreviewProvider {
-    static var previews: some View {
-        // Initialize GameManager and set up the preview game state
-        let gameManager = GameManager()
-        gameManager.setupPreviewGameState()
-        gameManager.showTrumps = false
-        gameManager.showLastTrick = false
-        gameManager.gameState.currentPhase = .playingTricks
-        gameManager.gameState.dealer = .gg
-//        gameManager.gameState.localPlayer?.hand.removeAll()
-//        gameManager.gameState.leftPlayer?.hand.removeAll()
-//        gameManager.gameState.rightPlayer?.hand.removeAll()
-
-        return GameView()
-            .environmentObject(gameManager)
-            .previewDisplayName("Game View Preview")
-            .previewLayout(.fixed(width: 800, height: 600))
     }
 }

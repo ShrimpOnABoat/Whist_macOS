@@ -18,6 +18,10 @@
 			<true/>
 		</dict>
 	</dict>
+	<key>com.apple.developer.nearby-interaction</key>
+	<true/>
+	<key>com.apple.developer.networking.localNetworkUsageDescription</key>
+	<string>This app needs to access your local network to enable multiplayer functionality.</string>
 	<key>NSUbiquitousContainerIdentifiers</key>
 	<string>iCloud.com.Tony.Whist</string>
 </dict>

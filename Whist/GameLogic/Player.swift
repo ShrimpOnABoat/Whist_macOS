@@ -49,10 +49,10 @@ class Player: Identifiable, ObservableObject, Codable {
     @Published var monthlyLosses: Int = 0
     @Published var bonusCards: Int = 0
     @Published var isConnected: Bool = false
-    @Published var place: Int = -1
+    @Published var place: Int = -1 // Player's rank (1, 2, or 3)
     @Published var hand: [Card] = []
     @Published var trickCards: [Card] = []
-    @Published var tablePosition: TablePosition? //= .local
+    @Published var tablePosition: TablePosition? //= .local - Transient, recalculated
     @Published var state: PlayerState = .idle
     var hasDiscarded: Bool = false
     
@@ -63,6 +63,7 @@ class Player: Identifiable, ObservableObject, Codable {
         self.id = id
         self.username = username ?? id.rawValue
         self.image = image
+        // Default values for other properties are handled by their declarations
     }
     
     // MARK: - Codable Conformance
@@ -75,12 +76,13 @@ class Player: Identifiable, ObservableObject, Codable {
         case madeTricks
         case monthlyLosses
         case bonusCards
-        case connected
+        case connected // Maps to isConnected
+        case place // ADD: Added place key
         case state
         case hand
         case trickCards
         case hasDiscarded
-        // Exclude 'image' as it cannot be directly serialized
+        // Exclude 'image' and 'tablePosition' as they are transient or recalculated
     }
     
     required init(from decoder: Decoder) throws {
@@ -95,13 +97,15 @@ class Player: Identifiable, ObservableObject, Codable {
         monthlyLosses = try container.decode(Int.self, forKey: .monthlyLosses)
         bonusCards = try container.decode(Int.self, forKey: .bonusCards)
         isConnected = try container.decode(Bool.self, forKey: .connected)
+        place = try container.decode(Int.self, forKey: .place) // ADD: Decode place
         hand = try container.decode([Card].self, forKey: .hand)
         trickCards = try container.decode([Card].self, forKey: .trickCards)
         state = try container.decode(PlayerState.self, forKey: .state)
         hasDiscarded = try container.decode(Bool.self, forKey: .hasDiscarded)
         
-        // 'image' remains nil upon decoding; handle image loading separately if needed
-        image = nil
+        // Transient properties are not decoded; handle image loading/table position/connection separately if needed post-load
+        image = nil // Image is always nil after decoding
+        tablePosition = nil // tablePosition recalculated later
     }
     
     func encode(to encoder: Encoder) throws {
@@ -116,12 +120,13 @@ class Player: Identifiable, ObservableObject, Codable {
         try container.encode(monthlyLosses, forKey: .monthlyLosses)
         try container.encode(bonusCards, forKey: .bonusCards)
         try container.encode(isConnected, forKey: .connected)
+        try container.encode(place, forKey: .place) // ADD: Encode place
         try container.encode(hand, forKey: .hand)
         try container.encode(trickCards, forKey: .trickCards)
         try container.encode(state, forKey: .state)
         try container.encode(hasDiscarded, forKey: .hasDiscarded)
         
-        // 'image' is not encoded
+        // 'image' and 'tablePosition' are not encoded
     }
 }
 

@@ -8,27 +8,30 @@
 import Foundation
 import SwiftUI
 
-class GameState: ObservableObject, Codable {
+class GameState: ObservableObject, Codable, @unchecked Sendable {
     @Published var round: Int = 0 // 1 is the first round, 12 is the last (12th) one
     @Published var deck: [Card] = []
-    var newDeck: [Card] = [] // Used to store the deck from the dealer
-    @Published var trumpCards: [Card] = [Card(suit: .clubs, rank: .two), Card(suit: .spades, rank: .two), Card(suit: .diamonds, rank: .two), Card(suit: .hearts, rank: .two)]
+    var newDeck: [Card] = [] // Used to store the deck from the dealer - DO NOT SAVE
+    @Published var trumpCards: [Card] = []
     @Published var table: [Card] = [] // Must be [] after each trick grab. It follows the same order as in playOrder
     @Published var lastTrick: [PlayerId: Card] = [:]
-    @Published var lastTrickCardStates: [PlayerId: CardState] = [:]
+    @Published var lastTrickCardStates: [PlayerId: CardState] = [:] // UI State - DO NOT SAVE
     @Published var players: [Player] = []
     @Published var trumpSuit: Suit? = nil
     @Published var playOrder: [PlayerId] = [] // should be reset after each trick grab
     @Published var dealer: PlayerId? = nil
     @Published var currentPhase: GamePhase = .waitingForPlayers
-    var tricksGrabbed: [Bool] = []
-    var currentTrick: Int = 0
+    // ADD: Add properties to be saved
+    @Published var tricksGrabbed: [Bool] = []
+    @Published var currentTrick: Int = 0
+    @Published var randomSeed: UInt64 = 0 // Added from GameManager
 
 
     // MARK: - Codable Conformance
     enum CodingKeys: String, CodingKey {
         case round
         case deck
+        case trumpCards // ADD: Added trumpCards
         case table
         case lastTrick
         case players
@@ -36,52 +39,73 @@ class GameState: ObservableObject, Codable {
         case playOrder
         case dealer
         case currentPhase
-        // Include other properties here
+        // ADD: Add new keys
+        case tricksGrabbed
+        case currentTrick
+        case randomSeed
     }
-    
-    // Custom initializer
-    init(round: Int = 0, deck: [Card] = [], trumpCards: [Card] = [], table: [Card] = [], players: [Player] = [], trumpSuit: Suit? = nil, playOrder: [PlayerId] = [], dealer: PlayerId? = nil) {
+
+    // Custom initializer (ensure it initializes new properties)
+    init(round: Int = 0, deck: [Card] = [], trumpCards: [Card] = [Card(suit: .clubs, rank: .two), Card(suit: .spades, rank: .two), Card(suit: .diamonds, rank: .two), Card(suit: .hearts, rank: .two)], table: [Card] = [], players: [Player] = [], trumpSuit: Suit? = nil, playOrder: [PlayerId] = [], dealer: PlayerId? = nil, currentPhase: GamePhase = .waitingForPlayers, tricksGrabbed: [Bool] = [], currentTrick: Int = 0, randomSeed: UInt64 = 0) { // ADD: Added new properties
         self.round = round
         self.deck = deck
+        self.trumpCards = trumpCards // Ensure this is set
         self.table = table
-        self.lastTrick = lastTrick
+        // self.lastTrick = lastTrick // lastTrick initialized inline
         self.players = players
         self.trumpSuit = trumpSuit
         self.playOrder = playOrder
         self.dealer = dealer
-        self.createDefaultPlayers()
+        self.currentPhase = currentPhase // Ensure this is set
+        // ADD: Initialize new properties
+        self.tricksGrabbed = tricksGrabbed
+        self.currentTrick = currentTrick
+        self.randomSeed = randomSeed
+        if players.isEmpty { self.createDefaultPlayers() }
     }
-    
+
     // Decodable
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         round = try container.decode(Int.self, forKey: .round)
         deck = try container.decode([Card].self, forKey: .deck)
+        trumpCards = try container.decode([Card].self, forKey: .trumpCards) // ADD: Decode trumpCards
         table = try container.decode([Card].self, forKey: .table)
         lastTrick = try container.decode([PlayerId: Card].self, forKey: .lastTrick)
-        players = try container.decode([Player].self, forKey: .players)
+        players = try container.decode([Player].self, forKey: .players) // Assumes Player is Codable
         trumpSuit = try container.decodeIfPresent(Suit.self, forKey: .trumpSuit)
         playOrder = try container.decode([PlayerId].self, forKey: .playOrder)
         dealer = try container.decodeIfPresent(PlayerId.self, forKey: .dealer)
         currentPhase = try container.decode(GamePhase.self, forKey: .currentPhase)
+        // ADD: Decode new properties
+        tricksGrabbed = try container.decode([Bool].self, forKey: .tricksGrabbed)
+        currentTrick = try container.decode(Int.self, forKey: .currentTrick)
+        randomSeed = try container.decode(UInt64.self, forKey: .randomSeed)
+
         if players.isEmpty { self.createDefaultPlayers() }
+        // Note: lastTrickCardStates and newDeck are not decoded as they are transient/UI state
     }
-    
+
     // Encodable
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(round, forKey: .round)
         try container.encode(deck, forKey: .deck)
+        try container.encode(trumpCards, forKey: .trumpCards) // ADD: Encode trumpCards
         try container.encode(table, forKey: .table)
         try container.encode(lastTrick, forKey: .lastTrick)
-        try container.encode(players, forKey: .players)
+        try container.encode(players, forKey: .players) // Assumes Player is Codable
         try container.encodeIfPresent(trumpSuit, forKey: .trumpSuit)
         try container.encode(playOrder, forKey: .playOrder)
         try container.encodeIfPresent(dealer, forKey: .dealer)
         try container.encode(currentPhase, forKey: .currentPhase)
-        // Encode other properties as needed
+        // ADD: Encode new properties
+        try container.encode(tricksGrabbed, forKey: .tricksGrabbed)
+        try container.encode(currentTrick, forKey: .currentTrick)
+        try container.encode(randomSeed, forKey: .randomSeed)
+        // Note: lastTrickCardStates and newDeck are not encoded
     }
-    
+
     // MARK: - Player Creation
     private func createDefaultPlayers() {
         let allPossiblePlayers: [PlayerId] = [.dd, .gg, .toto]
@@ -126,19 +150,21 @@ class GameState: ObservableObject, Codable {
                     } else if index == (localIndex + playOrder.count - 1) % playOrder.count {
                         player.tablePosition = .right
                     }
+                    // ADD: Ensure other players don't have conflicting table positions if not in playOrder?
+                    // Or handle the 'unknown' position explicitly if needed.
                 }
             }
         } else {
-            logger.fatalErrorAndLog("Error: Local player ID not found in playOrder")
+            // CHANGE: Log a warning instead of crashing.
+            // This could happen temporarily during state loading before playOrder is fully set.
+            if let localPlayerId = localPlayer?.id {
+                logger.log("Warning: Local player ID \(localPlayerId) found but not present in playOrder \(playOrder). Table positions might be incorrect temporarily.")
+            } else {
+                logger.log("Warning: Could not find local player (tablePosition == .local) to update references.")
+            }
+            // Consider resetting all positions to unknown if this state is invalid.
+            // players.forEach { $0.tablePosition = .unknown }
         }
-    }
-}
-
-extension GameState {
-    static var preview: GameState {
-        let gameManager = GameManager()
-        gameManager.setupPreviewGameState()
-        return gameManager.gameState
     }
 }
 

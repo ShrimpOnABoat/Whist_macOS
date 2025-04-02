@@ -6,19 +6,22 @@
 //  Entry point of the application.
 
 import SwiftUI
+import GameKit
 
 @main
 struct WhistApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate // to quickly catch an invitation if the app wasn't launched already
-    
-    @StateObject private var gameManager = GameManager()
-    @StateObject var preferences: Preferences
-    @StateObject private var gameKitManager: GameKitManager
+    @StateObject var gameManager = GameManager()
+    @StateObject var gameKitManager: GameKitManager
+    @StateObject var preferences = Preferences()
+
+    // ADD: AppDelegate needed for GameKit listener on macOS
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
         let prefs = Preferences()
+        let gkManager = GameKitManager(preferences: prefs)
         _preferences = StateObject(wrappedValue: prefs)
-        _gameKitManager = StateObject(wrappedValue: GameKitManager(preferences: prefs))
+        _gameKitManager = StateObject(wrappedValue: gkManager)
     }
     
     var body: some Scene {
@@ -29,13 +32,15 @@ struct WhistApp: App {
                 .environmentObject(preferences)
                 .sheet(isPresented: .constant(preferences.playerId.isEmpty)) {
                     IdentityPromptView(playerId: $preferences.playerId)
+                        .environmentObject(preferences)
                 }
                 .onAppear {
+                    // Assign managers immediately
                     gameManager.gameKitManager = gameKitManager
                     gameKitManager.gameManager = gameManager
-                    
-                    gameKitManager.authenticateLocalPlayer() { playerID, name, image in
-                        gameManager.updateLocalPlayer(playerID, name: name, image: image)
+
+                    gameKitManager.authenticateLocalPlayer() { playerId, name, image in
+                        gameManager.updateLocalPlayer(playerId, name: name, image: Image(nsImage: image))
                     }
                     
                     if let window = NSApplication.shared.windows.first {
@@ -49,7 +54,9 @@ struct WhistApp: App {
             CommandGroup(replacing: .newItem) { }
             Group {
                 ScoresMenuCommands()
-                DatabaseMenuCommands()
+                if preferences.playerId == "toto" {
+                    DatabaseMenuCommands()
+                }
             }
         }
 
@@ -84,23 +91,29 @@ struct ScoresMenuCommands: Commands {
 }
 
 struct DatabaseMenuCommands: Commands {
+    @EnvironmentObject var preferences: Preferences
+    
     var body: some Commands {
-        CommandMenu("Database") {
-            Button("Restore Database from Backup") {
-                let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
-                
-                let scoresManager = ScoresManager()
-                
-                scoresManager.restoreBackup(from: backupDirectory) { restoreResult in
-                    switch restoreResult {
-                    case .failure(let error):
-                        logger.log("Error restoring backup: \(error.localizedDescription)")
-                    case .success:
-                        logger.log("Database restored successfully.")
+            CommandMenu("Database") {
+                Button("Restore Database from Backup") {
+                    let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
+                    
+                    let scoresManager = ScoresManager()
+                    
+                    scoresManager.restoreBackup(from: backupDirectory) { restoreResult in
+                        switch restoreResult {
+                        case .failure(let error):
+                            logger.log("Error restoring backup: \(error.localizedDescription)")
+                        case .success:
+                            logger.log("Database restored successfully.")
+                        }
                     }
                 }
+                
+                Button("Clear Saved Game") {
+                    let gameManager = GameManager()
+                    gameManager.clearSavedGameState()
             }
-            .keyboardShortcut("r", modifiers: [.command, .shift])
         }
     }
 }

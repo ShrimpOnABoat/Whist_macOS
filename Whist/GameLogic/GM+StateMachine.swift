@@ -65,7 +65,7 @@ extension GameManager {
             gameState.localPlayer?.state = newState
             logger.log("My state is now \(newState)")
             sendStateToPlayers()
-            persistence.saveGameState(gameState)
+            saveGameState(gameState)
         }
     }
 
@@ -140,7 +140,7 @@ extension GameManager {
 
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
             func afterDealing() {
-                persistence.saveGameState(gameState)
+                saveGameState(gameState)
                 // After dealing, decide what’s next:
                 if gameState.round < 4 {
                     transition(to: .bidding)
@@ -162,7 +162,7 @@ extension GameManager {
                 if isDealer {
                     self.gatherCards {
                         self.shuffleCards() {
-                            self.persistence.saveGameState(self.gameState)
+                            self.saveGameState(self.gameState)
                             self.sendDeckToPlayers()
                             
                             // 3) Call dealCards, then call our afterDealing function
@@ -320,7 +320,7 @@ extension GameManager {
             playSound(named: "applaud")
             playSound(named: "Confetti")
             // Show final results, store the score, transition to .newGame ...
-            persistence.clearSavedGameState()
+            clearSavedGameState()
             // save the game
             saveScore() //Sets the winner too
             transition(to: .waitingToStart)
@@ -355,7 +355,7 @@ extension GameManager {
             }
             
         case .exchangingSeed:
-            if randomSeed == 0 {
+            if gameState.randomSeed == 0 {
                 logger.log("Seed not set yet. Waiting in .exchangingSeed...")
             } else {
                 logger.log("Seed initialized! Moving to .setupGame")

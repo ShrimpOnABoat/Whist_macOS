@@ -95,18 +95,3 @@ struct RoundHistoryView: View {
         .cornerRadius(5)
     }
 }
-
-struct RoundHistoryView_Previews: PreviewProvider {
-    static var previews: some View {
-        let gameManager = GameManager()
-        gameManager.setupPreviewGameState()
-        
-        return Group {
-            RoundHistoryView(isPresented: .constant(true))
-                .environmentObject(gameManager)
-                .previewDisplayName("Round History Preview")
-                .previewLayout(.sizeThatFits)
-                .padding()
-        }
-    }
-}

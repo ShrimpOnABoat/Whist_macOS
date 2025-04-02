@@ -676,7 +676,7 @@ struct StainsOverlay: View {
             
             // Step 2. The color shift
             //    Some wear is lighter, some is darker, so pick one randomly
-            let lighten = true //Bool.random()
+            let lighten = Bool.random()
             // Worn color offset
             let colorStrength = Double.random(in: 0.1...0.4) * intensity
             // For a "beer ring," I'd have gone with browns. But for wear, we can do

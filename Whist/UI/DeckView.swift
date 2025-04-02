@@ -109,22 +109,3 @@ struct DeckView: View {
         }
     }
 }
-
-// MARK: - Preview
-
-struct DeckView_Previews: PreviewProvider {
-    static var previews: some View {
-        let gameManager = GameManager()
-        gameManager.setupPreviewGameState()
-        
-        return
-            GeometryReader { geometry in
-            let dynamicSize: DynamicSize = DynamicSize(from: geometry)
-            
-            DeckView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
-                .environmentObject(gameManager)
-                .previewDisplayName("Deck View Preview")
-                .previewLayout(.sizeThatFits)
-        }
-    }
-}

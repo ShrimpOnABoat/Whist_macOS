@@ -111,16 +111,3 @@ struct DynamicSize {
     var optionsVerticalSpacing : CGFloat { 20 * proportion }
     var optionsButtonSize: CGFloat { 40 * proportion }
 }
-
-//var GCPlayerIdAssociation: [String: PlayerId] = [
-//    "Wh1stM4st3r": .toto,
-//    "OddestEagle3329": .gg,
-//    "DABRUK5122": .gg,
-//    "Dabruk 5122": .gg
-//]
-
-var namePlayerIdAssociation: [String: PlayerId] = [
-    "toto": .toto,
-    "dd": .dd,
-    "gg": .gg
-]

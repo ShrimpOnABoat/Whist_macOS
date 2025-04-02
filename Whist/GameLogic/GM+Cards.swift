@@ -24,6 +24,7 @@ extension GameManager {
             }
         }
         if gameState.deck.count != 32 || gameState.trumpCards.count != 4 {
+            logger.log("Number of cards: \(gameState.deck.count), number of trump cards: \(gameState.trumpCards.count)")
             logger.fatalErrorAndLog("Something went wrong creating the deck")
         }
     }
@@ -295,7 +296,7 @@ extension GameManager {
             card.isPlayable = false
         }
         
-        persistence.saveGameState(gameState)
+        saveGameState(gameState)
 
         logger.log("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
         
@@ -330,7 +331,7 @@ extension GameManager {
             logger.log("Error: Card not found in player's hand.")
             return
         }
-        persistence.saveGameState(gameState)
+        saveGameState(gameState)
         logger.log("Card \(card) played by \(playerId.rawValue). Updated gameState.table: \(gameState.table)")
     }
     
@@ -501,7 +502,7 @@ extension GameManager {
         
         // Send other players the chosen trump suit
         sendTrumpToPlayers(trumpCard)
-        persistence.saveGameState(gameState)
+        saveGameState(gameState)
     }
     
     // MARK: discard
@@ -530,7 +531,7 @@ extension GameManager {
         
         // Send the information to other players
         sendDiscardedCards(cardsToDiscard)
-        persistence.saveGameState(gameState)
+        saveGameState(gameState)
         
         logger.log("Discarded cards: \(cardsToDiscard)")
 

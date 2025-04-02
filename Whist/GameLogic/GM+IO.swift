@@ -64,7 +64,7 @@ extension GameManager {
                 logger.log("Failed to decode random seed.")
                 return
             }
-            randomSeed = seed
+            gameState.randomSeed = seed
 
         case .playCard:
             guard let card = try? JSONDecoder().decode(Card.self, from: action.payload) else {
@@ -151,7 +151,7 @@ extension GameManager {
     func sendSeedToPlayers(_ seed: UInt64) {
         guard let localPlayerID = gameState.localPlayer?.id, localPlayerID == .toto else { return }
 
-        if let seedData = try? JSONEncoder().encode(randomSeed) {
+        if let seedData = try? JSONEncoder().encode(gameState.randomSeed) {
             let action = GameAction(
                 playerId: localPlayerID,
                 type: .seed,

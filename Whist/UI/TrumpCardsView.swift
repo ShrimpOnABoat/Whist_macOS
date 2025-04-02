@@ -34,22 +34,3 @@ struct TrumpView: View {
         .padding() // Add padding for layout spacing
     }
 }
-
-// MARK: - Preview
-
-struct TrumpView_Previews: PreviewProvider {
-    static var previews: some View {
-        let gameManager = GameManager()
-        gameManager.setupPreviewGameState()
-        gameManager.gameState.trumpCards.last?.isFaceDown = false
-        
-        return GeometryReader { geometry in
-            let dynamicSize: DynamicSize = DynamicSize(from: geometry)
-            
-            TrumpView(dynamicSize: dynamicSize)
-                .environmentObject(gameManager)
-                .previewDisplayName("Trump cards Preview")
-                .previewLayout(.sizeThatFits)
-        }
-    }
-}

@@ -146,33 +146,33 @@ class ScoresManager {
     }
     
     // MARK: Save Scores
-    func saveScores(_ scores: [GameScore]) throws {
-        let fileManager = FileManager.default
-        guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
-            .appendingPathComponent("Documents")
-            .appendingPathComponent("scores_\(currentYear).json") else {
-            logger.log("❌ iCloud Drive is not available")
-            throw ScoresManagerError.fileWriteFailed
-        }
-        
-        do {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted]
-            
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            encoder.dateEncodingStrategy = .formatted(formatter)
-            
-            let data = try encoder.encode(scores)
-            try data.write(to: iCloudURL, options: .atomic)
-            logger.log("✅ Scores for \(currentYear) saved to iCloud Drive at \(iCloudURL.path)")
-        } catch {
-            logger.log("❌ Error saving to iCloud Drive: \(error.localizedDescription)")
-            throw ScoresManagerError.fileWriteFailed
-        }
-    }
-    
+//    func saveScores(_ scores: [GameScore]) throws {
+//        let fileManager = FileManager.default
+//        guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
+//            .appendingPathComponent("Documents")
+//            .appendingPathComponent("scores_\(currentYear).json") else {
+//            logger.log("❌ iCloud Drive is not available")
+//            throw ScoresManagerError.fileWriteFailed
+//        }
+//        
+//        do {
+//            let encoder = JSONEncoder()
+//            encoder.outputFormatting = [.prettyPrinted]
+//            
+//            let formatter = DateFormatter()
+//            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+//            formatter.locale = Locale(identifier: "en_US_POSIX")
+//            encoder.dateEncodingStrategy = .formatted(formatter)
+//            
+//            let data = try encoder.encode(scores)
+//            try data.write(to: iCloudURL, options: .atomic)
+//            logger.log("✅ Scores for \(currentYear) saved to iCloud Drive at \(iCloudURL.path)")
+//        } catch {
+//            logger.log("❌ Error saving to iCloud Drive: \(error.localizedDescription)")
+//            throw ScoresManagerError.fileWriteFailed
+//        }
+//    }
+//    
     // MARK: Save Score
     
     /// Saves a GameScore to CloudKit.
@@ -329,7 +329,7 @@ class ScoresManager {
                 }
             }
             
-            guard let loser = loserName, let loserId = namePlayerIdAssociation[loser] else {
+            guard let loser = loserName, let loserId = PlayerId(rawValue: loser) else {
                 completion(nil)
                 return
             }
