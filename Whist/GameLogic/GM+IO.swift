@@ -125,6 +125,7 @@ extension GameManager {
     // MARK: - Send data
     
     func sendGCIdToPlayers() {
+        logger.log("Trying to send PlayerIdentification to other players.")
         guard let localPlayer = gameState.localPlayer else {
             logger.log("Local player not defined. Can't send PlayerIdentification.")
             return
@@ -132,9 +133,9 @@ extension GameManager {
         
         let playerIdentification = PlayerIdentification(
             id: localPlayer.id,
-            username: localPlayer.username //,
-//            imageData: localPlayer.image?.asNSImage()?.tiffRepresentation
+            username: localPlayer.username
         )
+        logger.log("playerIdentification: \(playerIdentification)")
         if let idData = try? JSONEncoder().encode(playerIdentification) {
             let action = GameAction(
                 playerId: localPlayer.id,
@@ -142,6 +143,7 @@ extension GameManager {
                 payload: idData,
                 timestamp: Date().timeIntervalSince1970
             )
+            logger.log("About to execute sendAction")
             sendAction(action)
         } else {
             logger.log("Failed to encode PlayerIdentification.")

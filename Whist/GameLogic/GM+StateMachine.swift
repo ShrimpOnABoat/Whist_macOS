@@ -79,6 +79,7 @@ extension GameManager {
             setPlayerState(to: .idle)
             
         case .exchangingIDs:
+            logger.log("Sending my ID to other players...")
             sendGCIdToPlayers()
             
         case .exchangingSeed:

@@ -749,15 +749,14 @@ class GameManager: ObservableObject {
                 self.configureGameFromLoadedState()
             } else {
                 logger.log("No saved game found or error loading. Starting new game...")
-                // Reset to a fresh game state (keeping player info if possible, but newGame handles resets)
-                self.startNewGameFlow()
+                self.checkAndAdvanceStateIfNeeded()
             }
             // Ensure UI updates after state change
             self.objectWillChange.send()
         }
     }
 
-    // MARK: - Game Flow Initialization Helpers (NEW/MODIFIED)
+    // MARK: - Game Flow Initialization Helpers
 
     private func configureGameFromLoadedState() {
         logger.log("Configuring game UI and state from loaded data...")
@@ -800,21 +799,4 @@ class GameManager: ObservableObject {
         // CRUCIAL: Trigger state machine to continue from the loaded phase
         self.checkAndAdvanceStateIfNeeded()
     }
-
-    private func startNewGameFlow() {
-        logger.log("Initiating new game flow...")
-        // Clear any potentially loaded (but now unwanted) saved state from CloudKit
-        clearSavedGameState()
-
-        // Perform actions needed for a completely new game session
-        if !isGameSetup { // Perform initial setup if it hasn't happened yet this session
-            setupGame() // Sets initial play order, dealer, etc.
-        }
-        newGame() // Resets scores, round, hands, determines *next* dealer for round 1
-
-        // Transition to the start of the first round's logic
-        logger.log("Transitioning to setupNewRound for the first round.")
-        transition(to: .setupNewRound)
-    }
-    
 }
