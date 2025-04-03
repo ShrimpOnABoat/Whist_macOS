@@ -9,7 +9,8 @@ import SwiftUI
 
 enum GamePhase: Encodable, Decodable {
     case waitingForPlayers      // Before the game starts, waiting for all players to connect
-    case exchangingIDs          // Ensuring everybody knows who's who
+    case sendingIDs             // Ensuring everybody knows who's who
+    case receivingIDs           // Ensuring everybody knows who's who
     case exchangingSeed         // Ensuring seed is distributed before setup
     case setupGame              // Setup the game for the evening!
     case waitingToStart         // Display a "New game" button and the last game's winner
@@ -78,9 +79,13 @@ extension GameManager {
         case .waitingForPlayers:
             setPlayerState(to: .idle)
             
-        case .exchangingIDs:
+        case .sendingIDs:
             logger.log("Sending my ID to other players...")
             sendGCIdToPlayers()
+            
+        case .receivingIDs:
+            // Nothing to do but wait for other players' ids
+            logger.log("Waiting for other players' IDs...")
             
         case .exchangingSeed:
             if gameState.localPlayer?.id == .toto {
@@ -341,7 +346,7 @@ extension GameManager {
             if let match = gameKitManager?.match {
                 if match.players.count == 2 { // counts only remote players
                     logger.log("All players connected! Moving to .exchangingIDs")
-                    transition(to: .exchangingIDs)
+                    transition(to: .sendingIDs)
                 } else {
                     logger.log("Only \(match.players.count) remote players connected. Waiting...")
                 }
@@ -349,7 +354,14 @@ extension GameManager {
                 logger.log("Couldn't get match data. Waiting...")
             }
             
-        case .exchangingIDs:
+        case .sendingIDs:
+            if myIDWasSent {
+                transition(to: .receivingIDs)
+            } else {
+                transition(to: .sendingIDs)
+            }
+            
+        case .receivingIDs:
             if allPlayersIded() {
                 logger.log("All players identified, proceeding to exchanging seed")
                 transition(to: .exchangingSeed)

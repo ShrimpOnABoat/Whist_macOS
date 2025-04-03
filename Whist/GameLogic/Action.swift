@@ -22,7 +22,7 @@ struct GameAction: Codable {
         
         var associatedPhases: [GamePhase] {
             switch self {
-            case .id: return [.exchangingIDs]
+            case .id: return [.receivingIDs]
             case .seed: return [.exchangingSeed]
             case .playCard: return [.playingTricks]
             case .sendDeck: return [.waitingForDeck]

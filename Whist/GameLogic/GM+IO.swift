@@ -145,6 +145,8 @@ extension GameManager {
             )
             logger.log("About to execute sendAction")
             sendAction(action)
+            myIDWasSent = true
+            checkAndAdvanceStateIfNeeded()
         } else {
             logger.log("Failed to encode PlayerIdentification.")
         }

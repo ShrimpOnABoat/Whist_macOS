@@ -35,7 +35,7 @@ struct GameView: View {
     @State private var background: AnyView = AnyView(EmptyView())
     
     func refreshBackground() {
-        DispatchQueue.global(qos: .userInitiated).async {
+        logger.log("Refreshing backgroung")
             // Compute enabled indices off the main thread
             let enabledIndices = self.preferences.enabledRandomColors.enumerated().compactMap { (index, isEnabled) in
                 isEnabled ? index : nil
@@ -52,7 +52,9 @@ struct GameView: View {
             }()
             // Determine wear intensity
             let wear: CGFloat = self.preferences.wearIntensity ? CGFloat.random(in: 0...1) : 0
+        DispatchQueue.global(qos: .userInitiated).async {
             // Create the background view
+            logger.log("Executing background refresh")
             let newBackground = AnyView(FeltBackgroundView(
                 baseColor: selectedColor,
                 radialShadingStrength: 0.5,

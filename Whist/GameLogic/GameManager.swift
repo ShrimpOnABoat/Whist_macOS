@@ -58,6 +58,8 @@ class GameManager: ObservableObject {
     @Published var dealerPosition: CGPoint = .zero
     @Published var playersScoresUpdated: Bool = false
     
+    var myIDWasSent: Bool = false
+    
     var logCounter: Int = 0
     
     init() {
@@ -183,7 +185,7 @@ class GameManager: ObservableObject {
     // MARK: resumeGameState
     
     func saveGameState(_ state: GameState) {
-        if ![.waitingForPlayers, .exchangingIDs, .exchangingSeed, .setupGame, .waitingToStart].contains(gameState.currentPhase) {
+        if ![.waitingForPlayers, .sendingIDs, .receivingIDs, .exchangingSeed, .setupGame, .waitingToStart].contains(gameState.currentPhase) {
             Task {
                 await persistence.saveGameState(state)
             }
