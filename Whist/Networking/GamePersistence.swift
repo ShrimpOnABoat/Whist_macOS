@@ -12,8 +12,8 @@ class GamePersistence {
     private let container = CKContainer(identifier: "iCloud.com.Tony.WhistTest") //CKContainer.default()
     private var publicDatabase: CKDatabase { container.publicCloudDatabase }
     private let recordType = "SavedGameState"
-    private let recordID = CKRecord.ID(recordName: "sharedGameStateRecordID")
     private let gameStateDataKey = "gameStateData"
+    private var saveWorkItem: DispatchWorkItem?
 
     init() {
         logger.log("GamePersistence initialized for CloudKit.")
@@ -21,20 +21,24 @@ class GamePersistence {
 
     func saveGameState(_ state: GameState) async {
         do {
+            let predicate = NSPredicate(value: true)
+            let query = CKQuery(recordType: recordType, predicate: predicate)
+            let (matchResults, _) = try await publicDatabase.records(matching: query, resultsLimit: 50)
+            for (recordID, result) in matchResults {
+                if case .success = result {
+                    try await publicDatabase.deleteRecord(withID: recordID)
+                    logger.log("Deleted previous saved game record with ID: \(recordID.recordName)")
+                }
+            }
+        } catch {
+            logger.log("Warning: Failed to clear old saved game records before saving: \(error.localizedDescription)")
+        }
+
+        do {
             let encodedData = try JSONEncoder().encode(state)
 
-            let record: CKRecord
-            do {
-                record = try await publicDatabase.record(for: recordID)
-                logger.log("Found existing CloudKit record to update.")
-            } catch let error as CKError where error.code == .unknownItem {
-                record = CKRecord(recordType: recordType, recordID: recordID)
-                logger.log("Creating new CloudKit record.")
-            } catch {
-                logger.log("Error fetching CloudKit record: \(error.localizedDescription). Cannot save state.")
-                return
-            }
-
+            let record = CKRecord(recordType: recordType)
+            record["createdAt"] = Date() as CKRecordValue
             record[gameStateDataKey] = encodedData as CKRecordValue
 
             try await publicDatabase.save(record)
@@ -54,9 +58,29 @@ class GamePersistence {
         }
     }
 
+    func scheduleSave(state: GameState) {
+        saveWorkItem?.cancel()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            Task {
+                await self?.saveGameState(state)
+            }
+        }
+
+        saveWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
+    }
+
     func loadGameState() async -> GameState? {
         do {
-            let record = try await publicDatabase.record(for: recordID)
+            let predicate = NSPredicate(value: true)
+            let query = CKQuery(recordType: recordType, predicate: predicate)
+            query.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+            let (matchResults, _) = try await publicDatabase.records(matching: query, resultsLimit: 1)
+            guard let record = matchResults.compactMap({ (_, result) in try? result.get() }).first else {
+                logger.log("No saved game state found in CloudKit.")
+                return nil
+            }
             logger.log("CloudKit record fetched successfully.")
 
             guard let data = record[gameStateDataKey] as? Data else {
@@ -69,7 +93,7 @@ class GamePersistence {
             return decodedState
 
         } catch let error as CKError where error.code == .unknownItem {
-            logger.log("No saved game state found in CloudKit (RecordID: \(recordID.recordName)).")
+            logger.log("No saved game state found in CloudKit.")
             return nil
         } catch let error as CKError {
             logger.log("CloudKit Error loading game state: \(error.localizedDescription) (\(error.code.rawValue))")
@@ -87,10 +111,15 @@ class GamePersistence {
 
     func clearSavedGameState() async {
         do {
-            let deletedRecordID = try await publicDatabase.deleteRecord(withID: recordID)
-            logger.log("Saved game state cleared successfully from CloudKit (RecordID: \(deletedRecordID.recordName)).")
-        } catch let error as CKError where error.code == .unknownItem {
-            logger.log("No saved game state found in CloudKit to clear.")
+            let predicate = NSPredicate(value: true)
+            let query = CKQuery(recordType: recordType, predicate: predicate)
+            let (matchResults, _) = try await publicDatabase.records(matching: query, resultsLimit: 50)
+            for (recordID, result) in matchResults {
+                if case .success = result {
+                    try await publicDatabase.deleteRecord(withID: recordID)
+                    logger.log("Deleted saved game record with ID: \(recordID.recordName)")
+                }
+            }
         } catch let error as CKError {
             logger.log("CloudKit Error clearing saved game state: \(error.localizedDescription) (\(error.code.rawValue))")
             if error.code == .networkUnavailable || error.code == .networkFailure {

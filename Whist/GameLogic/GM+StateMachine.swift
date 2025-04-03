@@ -11,6 +11,7 @@ enum GamePhase: Encodable, Decodable {
     case waitingForPlayers      // Before the game starts, waiting for all players to connect
     case sendingIDs             // Ensuring everybody knows who's who
     case receivingIDs           // Ensuring everybody knows who's who
+    case resumeSavedGame        // In case a game was saved, resume
     case exchangingSeed         // Ensuring seed is distributed before setup
     case setupGame              // Setup the game for the evening!
     case waitingToStart         // Display a "New game" button and the last game's winner
@@ -86,6 +87,14 @@ extension GameManager {
         case .receivingIDs:
             // Nothing to do but wait for other players' ids
             logger.log("Waiting for other players' IDs...")
+            
+        case .resumeSavedGame:
+            Task {
+                let isSavedGame = await checkAndRestoreSavedGame()
+                if !isSavedGame {
+                    transition(to: .exchangingSeed)
+                }
+            }
             
         case .exchangingSeed:
             if gameState.localPlayer?.id == .toto {
@@ -363,9 +372,12 @@ extension GameManager {
             
         case .receivingIDs:
             if allPlayersIded() {
-                logger.log("All players identified, proceeding to exchanging seed")
-                transition(to: .exchangingSeed)
+                logger.log("All players identified, proceeding to resumeSavedGame...")
+                transition(to: .resumeSavedGame)
             }
+            
+        case .resumeSavedGame:
+            logger.log("Not doing anything")
             
         case .exchangingSeed:
             if gameState.randomSeed == 0 {

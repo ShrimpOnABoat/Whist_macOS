@@ -185,10 +185,8 @@ class GameManager: ObservableObject {
     // MARK: resumeGameState
     
     func saveGameState(_ state: GameState) {
-        if ![.waitingForPlayers, .sendingIDs, .receivingIDs, .exchangingSeed, .setupGame, .waitingToStart].contains(gameState.currentPhase) {
-            Task {
-                await persistence.saveGameState(state)
-            }
+        if ![.waitingForPlayers, .sendingIDs, .receivingIDs, .exchangingSeed, .setupGame, .waitingToStart].contains(gameState.currentPhase) && gameState.localPlayer?.id == .toto {
+            persistence.scheduleSave(state: state)
         }
     }
     
@@ -211,7 +209,7 @@ class GameManager: ObservableObject {
 //                DispatchQueue.main.async {
 //                    self.gameState = savedState
 //                    self.gameState.updatePlayerReferences()
-//                    
+//
 //                    for player in self.gameState.players {
 //                        let isLocalPlayer = (player.tablePosition == .local)
 //                        if isLocalPlayer {
@@ -222,7 +220,7 @@ class GameManager: ObservableObject {
 //                            player.hand.indices.forEach { player.hand[$0].isFaceDown = shouldHideCards }
 //                        }
 //                    }
-//                    
+//
 //                    logger.log("Loaded Trump suit: \(String(describing: self.gameState.trumpSuit))")
 //                    if self.gameState.trumpSuit != nil {
 //                        if self.gameState.localPlayer?.place != 1 || self.gameState.currentPhase.isPlayingPhase || self.allScoresEqual() {
@@ -233,14 +231,14 @@ class GameManager: ObservableObject {
 //                            }
 //                        }
 //                    }
-//                    
+//
 //                    if self.gameState.currentPhase.isPlayingPhase {
 //                        self.gameState.table.indices.forEach { self.gameState.table[$0].isFaceDown = false }
 //                    }
-//                    
+//
 //                    self.updatePlayersPositions()
 //                    self.isDeckReady = true
-//                    
+//
 //                    logger.log("Successfully resumed game state from CloudKit. Current phase: \(self.gameState.currentPhase)")
 //                    self.checkAndAdvanceStateIfNeeded()
 //                }
@@ -739,22 +737,29 @@ class GameManager: ObservableObject {
     }
     
     // MARK: - Post-Matchmaking Logic
-    func prepareGameAfterMatchConnection() {
-        // This is called by GameKitManager AFTER a new GKMatch is established.
-        Task {
-            logger.log("Match connected. Checking CloudKit for saved game...")
-            if let savedState = await persistence.loadGameState() {
-                logger.log("Saved game found in CloudKit. Resuming...")
-                // Directly assign the loaded state
-                self.gameState = savedState
-                // Now configure the game based on this loaded state
-                self.configureGameFromLoadedState()
-            } else {
-                logger.log("No saved game found or error loading. Starting new game...")
-                self.checkAndAdvanceStateIfNeeded()
+    func checkAndRestoreSavedGame() async -> Bool {
+        logger.log("Match connected. Checking CloudKit for saved game...")
+        if let savedState = await persistence.loadGameState() {
+            logger.log("Saved game found in CloudKit:\n\(savedState)")
+            let localPlayerId = self.gameState.localPlayer?.id
+            let playerImages = Dictionary(uniqueKeysWithValues: self.gameState.players.map { ($0.id, $0.image) })
+            self.gameState = savedState
+            for index in self.gameState.players.indices {
+                let playerId = self.gameState.players[index].id
+                if let savedImage = playerImages[playerId] {
+                    self.gameState.players[index].image = savedImage
+                }
             }
-            // Ensure UI updates after state change
+            if let localId = localPlayerId,
+               let index = self.gameState.players.firstIndex(where: { $0.id == localId }) {
+                self.gameState.players[index].tablePosition = .local
+            }
+            self.configureGameFromLoadedState()
             self.objectWillChange.send()
+            return true
+        } else {
+            logger.log("No saved game found or error loading. Starting new game...")
+            return false
         }
     }
 

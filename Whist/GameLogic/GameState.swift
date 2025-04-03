@@ -184,20 +184,20 @@ extension GameState {
     }
 }
 
-extension GameState {
-    func moveCardPreview(from source: inout [Card], to destination: inout [Card], card: Card) {
-        // Ensure the card exists in the source array
-        guard let cardIndex = source.firstIndex(of: card) else {
-            logger.fatalErrorAndLog("Card \(card) not found in \(source)")
-        }
-
-        // Remove the card from the source
-        let cardToMove = source.remove(at: cardIndex)
-
-        // Add the card to the destination
-        destination.append(cardToMove)
-    }
-}
+//extension GameState {
+//    func moveCardPreview(from source: inout [Card], to destination: inout [Card], card: Card) {
+//        // Ensure the card exists in the source array
+//        guard let cardIndex = source.firstIndex(of: card) else {
+//            logger.fatalErrorAndLog("Card \(card) not found in \(source)")
+//        }
+//
+//        // Remove the card from the source
+//        let cardToMove = source.remove(at: cardIndex)
+//
+//        // Add the card to the destination
+//        destination.append(cardToMove)
+//    }
+//}
 
 extension GameState {
     var localPlayer: Player? {
@@ -218,5 +218,19 @@ extension GameState {
     
     var allPlayersConnected: Bool {
         players.allSatisfy(\.isConnected)
+    }
+}
+
+extension GameState: CustomDebugStringConvertible {
+    var debugDescription: String {
+        var desc = "📦 GameState Snapshot:\n"
+        desc += "- Phase: \(currentPhase)\n"
+        desc += "- Round: \(round)\n"
+        desc += "- Trump Suit: \(String(describing: trumpSuit))\n"
+        desc += "- Players:\n"
+        for player in players {
+            desc += "  • \(player.username) (\(player.id)) - place: \(player.place), scores: \(player.scores), tablePosition: \(String(describing: player.tablePosition)), isConnected: \(player.isConnected)\n"
+        }
+        return desc
     }
 }

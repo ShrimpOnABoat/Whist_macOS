@@ -231,7 +231,8 @@ extension GameKitManager: GKMatchmakerViewControllerDelegate {
             self.inviteViewController = nil
             
             logger.log("Caling prepareGameAfterMatchConnection()")
-            self.gameManager?.prepareGameAfterMatchConnection()
+//            self.gameManager?.prepareGameAfterMatchConnection()
+            self.gameManager?.checkAndAdvanceStateIfNeeded()
         }
     }
 }
