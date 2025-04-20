@@ -352,16 +352,17 @@ extension GameManager {
         logger.log("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
-            if let match = gameKitManager?.match {
-                if match.players.count == 2 { // counts only remote players
-                    logger.log("All players connected! Moving to .exchangingIDs")
-                    transition(to: .sendingIDs)
-                } else {
-                    logger.log("Only \(match.players.count) remote players connected. Waiting...")
-                }
-            } else {
+            //TODO: rewrite for P2P
+//            if let match = gameKitManager?.match {
+//                if match.players.count == 2 { // counts only remote players
+//                    logger.log("All players connected! Moving to .exchangingIDs")
+//                    transition(to: .sendingIDs)
+//                } else {
+//                    logger.log("Only \(match.players.count) remote players connected. Waiting...")
+//                }
+//            } else {
                 logger.log("Couldn't get match data. Waiting...")
-            }
+//            }
             
         case .sendingIDs:
             if myIDWasSent {

@@ -57,7 +57,7 @@ extension GameManager {
                 logger.log("Failed to decode player ID.")
                 return
             }
-            self.updatePlayerGCId(action.playerId, with: playerIdentification)
+//            self.updatePlayerGCId(action.playerId, with: playerIdentification)
             
         case .seed:
             guard let seed = try? JSONDecoder().decode(UInt64.self, from: action.payload) else {
@@ -324,7 +324,8 @@ extension GameManager {
     
     func sendAction(_ action: GameAction) {
         if let actionData = try? JSONEncoder().encode(action) {
-            gameKitManager?.sendData(actionData)
+            //TODO: redirect to P2P
+//            gameKitManager?.sendData(actionData)
             logger.log("Sent action \(action.type) to other players")
         } else {
             logger.log("Failed to encode action")

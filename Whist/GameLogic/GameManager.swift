@@ -10,6 +10,8 @@ import Combine
 import CryptoKit
 import SwiftUI
 import CloudKit
+import WebRTC
+import FirebaseFirestore
 
 enum PlayerId: String, Codable, CaseIterable {
     case dd = "dd"
@@ -36,8 +38,11 @@ class GameManager: ObservableObject {
     @Published var cardStates: [String: CardState] = [:]
     @Published var isShuffling: Bool = false
     var shuffleCallback: ((_ deck: [Card], _ completion: @escaping () -> Void) -> Void)?
-    // Injected dependencies
-    var gameKitManager: GameKitManager?
+    // MARK: - WebRTC Signaling Dependencies
+    private let connectionManager: P2PConnectionManager
+    private let signalingManager: FirebaseSignalingManager
+    private let preferences: Preferences
+    private var listenerRegistrations: [ListenerRegistration] = []
     let soundManager = SoundManager()
     static let SM = ScoresManager.shared
     var persistence: GamePersistence = GamePersistence() // No longer needs playerID
@@ -62,7 +67,14 @@ class GameManager: ObservableObject {
     
     var logCounter: Int = 0
     
-    init() {
+    /// Dependency‐injecting initializer
+    init(connectionManager: P2PConnectionManager,
+         signalingManager: FirebaseSignalingManager,
+         preferences: Preferences) {
+        self.connectionManager = connectionManager
+        self.signalingManager = signalingManager
+        self.preferences = preferences
+//        setupSignaling()
     }
     
     // MARK: - Game State Initialization
@@ -457,45 +469,45 @@ class GameManager: ObservableObject {
     
     // MARK: UpdatePlayerCGId
     
-    func updatePlayerGCId(_ playerId: PlayerId, with identification: PlayerIdentification) {
-        logger.log("Processing GKPlayer identification for player \(playerId)")
-        guard let player = gameState.players.first(where: { $0.id == playerId }) else {
-            logger.log("Could not find player with ID \(playerId)")
-            return
-        }
-        
-        player.username = identification.username
-        if let GKPlayer = gameKitManager?.match?.players.first(where: { $0.displayName == identification.username }) {
-            // Load player photo
-            GKPlayer.loadPhoto(for: .normal) { [weak self] image, error in
-                guard self != nil else { return }
-                
-                DispatchQueue.main.async {
-                    if let error = error {
-                        logger.log("Error loading player photo: \(error.localizedDescription)")
-                    }
-                    if let nsImage = image {
-                        player.image = Image(nsImage: nsImage)
-                    } else {
-                        player.image = Image(systemName: "person.crop.circle.fill")
-                    }
-                }
-            }
-        } else {
-            player.image = Image(systemName: "person.crop.circle.fill")
-        }
-        
-        player.isConnected = true // Set for GK
-        
-        // Replace the updated player in the array
-        if let index = gameState.players.firstIndex(where: { $0.id == playerId }) {
-            gameState.players[index] = player
-            logger.log("Player \(playerId) successfully updated with name: \(player.username)")
-            logger.log("Players connected: \(gameState.players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
-        }
-        
-        displayPlayers()
-    }
+//    func updatePlayerGCId(_ playerId: PlayerId, with identification: PlayerIdentification) {
+//        logger.log("Processing GKPlayer identification for player \(playerId)")
+//        guard let player = gameState.players.first(where: { $0.id == playerId }) else {
+//            logger.log("Could not find player with ID \(playerId)")
+//            return
+//        }
+//        
+//        player.username = identification.username
+//        if let GKPlayer = gameKitManager?.match?.players.first(where: { $0.displayName == identification.username }) {
+//            // Load player photo
+//            GKPlayer.loadPhoto(for: .normal) { [weak self] image, error in
+//                guard self != nil else { return }
+//                
+//                DispatchQueue.main.async {
+//                    if let error = error {
+//                        logger.log("Error loading player photo: \(error.localizedDescription)")
+//                    }
+//                    if let nsImage = image {
+//                        player.image = Image(nsImage: nsImage)
+//                    } else {
+//                        player.image = Image(systemName: "person.crop.circle.fill")
+//                    }
+//                }
+//            }
+//        } else {
+//            player.image = Image(systemName: "person.crop.circle.fill")
+//        }
+//        
+//        player.isConnected = true // Set for GK
+//        
+//        // Replace the updated player in the array
+//        if let index = gameState.players.firstIndex(where: { $0.id == playerId }) {
+//            gameState.players[index] = player
+//            logger.log("Player \(playerId) successfully updated with name: \(player.username)")
+//            logger.log("Players connected: \(gameState.players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
+//        }
+//        
+//        displayPlayers()
+//    }
     
     func updateGameStateWithBet(from playerId: PlayerId, with bet: Int) {
         // Check if bet legal
@@ -805,5 +817,101 @@ class GameManager: ObservableObject {
 
         // CRUCIAL: Trigger state machine to continue from the loaded phase
         self.checkAndAdvanceStateIfNeeded()
+    }
+    
+    // MARK: - Signaling Setup
+    func startNetworkingIfNeeded() {
+        guard !preferences.playerId.isEmpty else {
+            print("🚫 Cannot start networking: playerId is empty.")
+            return
+        }
+        setupSignaling()
+    }
+    
+    private func setupSignaling() {
+        // 1) Listen for incoming SDP offers (when someone hosts)
+        let offerListener = signalingManager.listenForOffer(from: preferences.playerId) { [weak self] sdpString in
+            guard let self = self, let sdpText = sdpString else { return }
+            let remoteSdp = RTCSessionDescription(type: .offer, sdp: sdpText)
+            Task { await self.handleReceivedOffer(remoteSdp) }
+        }
+        listenerRegistrations.append(offerListener)
+
+        // 2) Listen for answers to our offers
+        for player in gameState.players where player.id.rawValue != preferences.playerId {
+            let answerListener = signalingManager.listenForAnswer(from: player.id.rawValue) { [weak self] sdpString in
+                guard let self = self, let sdpText = sdpString else { return }
+                let remoteSdp = RTCSessionDescription(type: .answer, sdp: sdpText)
+                self.connectionManager.setRemoteDescription(remoteSdp) { error in
+                    if let error = error { logger.log("Remote‐answer error: \(error)") }
+                }
+            }
+            listenerRegistrations.append(answerListener)
+        }
+
+        // 3) Listen for ICE candidates from others
+        for player in gameState.players where player.id.rawValue != preferences.playerId {
+            let iceListener = signalingManager.listenForIceCandidates(from: player.id.rawValue) { [weak self] candidate in
+                self?.connectionManager.addIceCandidate(candidate)
+            }
+            listenerRegistrations.append(iceListener)
+        }
+
+        // 4) Broadcast our own ICE candidates
+        connectionManager.onIceCandidateGenerated = { [weak self] candidate in
+            guard let self = self else { return }
+            for p in self.gameState.players where p.id.rawValue != self.preferences.playerId {
+                Task { try await self.signalingManager.sendIceCandidate(to: p.id.rawValue, candidate: candidate) }
+            }
+        }
+
+        // 5) When P2P connection is up…
+        connectionManager.onConnectionEstablished = { [weak self] in
+            guard let self = self else { return }
+            if let local = self.gameState.localPlayer {
+                self.updatePlayerConnectionStatus(username: local.username, isConnected: true)
+            }
+            self.setupGame()
+        }
+
+        // 6) Handle incoming data‐channel messages
+        connectionManager.onMessageReceived = { [weak self] msg in
+            logger.log("Received P2P msg: \(msg)")
+            // TODO: decode JSON → GameAction and apply
+        }
+    }
+
+    // Respond to an incoming SDP offer by generating & sending an answer
+    private func handleReceivedOffer(_ sdp: RTCSessionDescription) async {
+        connectionManager.createAnswer(from: sdp) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let answerSdp):
+                for p in self.gameState.players where p.id.rawValue != self.preferences.playerId {
+                    Task { try await self.signalingManager.sendAnswer(to: p.id.rawValue, sdp: answerSdp) }
+                }
+            case .failure(let err):
+                logger.log("Answer‐creation failed: \(err)")
+            }
+        }
+    }
+
+    /// Call this when the local player wants to host a new match
+    func startHosting() {
+        for p in gameState.players where p.id.rawValue != preferences.playerId {
+            connectionManager.createOffer { [weak self] result in
+                guard let self = self else { return }
+                switch result {
+                case .success(let sdp):
+                    Task { try await self.signalingManager.sendOffer(to: p.id.rawValue, sdp: sdp) }
+                case .failure(let err):
+                    logger.log("Offer creation error: \(err)")
+                }
+            }
+        }
+    }
+
+    deinit {
+        listenerRegistrations.forEach { $0.remove() }
     }
 }

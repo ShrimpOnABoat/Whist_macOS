@@ -425,9 +425,9 @@ let dateFormatter: DateFormatter = {
 
 // MARK: - Preview
 
-struct ScoresView_Previews: PreviewProvider {
-    static var previews: some View {
-        ScoresView()
-            .environmentObject(GameManager())
-    }
-}
+//struct ScoresView_Previews: PreviewProvider {
+//    static var previews: some View {
+//        ScoresView()
+//            .environmentObject(GameManager())
+//    }
+//}

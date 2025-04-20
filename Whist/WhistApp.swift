@@ -6,48 +6,59 @@
 //  Entry point of the application.
 
 import SwiftUI
-import GameKit
+import Firebase
+import FirebaseAppCheck
 
 @main
 struct WhistApp: App {
-    @StateObject var gameManager = GameManager()
-    @StateObject var gameKitManager: GameKitManager
-    @StateObject var preferences = Preferences()
+    @StateObject var preferences: Preferences
+    @StateObject var gameManager: GameManager
 
     // ADD: AppDelegate needed for GameKit listener on macOS
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
+        // Configure Firebase
+        AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
+        FirebaseApp.configure()
+
+        // Debug: reset stored playerId so identity prompt shows every launch
+        UserDefaults.standard.removeObject(forKey: "playerId")
+
+        // Initialize preferences
         let prefs = Preferences()
-        let gkManager = GameKitManager(preferences: prefs)
+
+        // Use singleton instances for signaling and P2P
+        let signaling = FirebaseSignalingManager.shared
+        let connection = P2PConnectionManager.shared
+
+        // Initialize the core game manager with our custom matchmaking
+        let manager = GameManager(connectionManager: connection,
+                                  signalingManager: signaling,
+                                  preferences: prefs)
+
+        // Wire up state objects
         _preferences = StateObject(wrappedValue: prefs)
-        _gameKitManager = StateObject(wrappedValue: gkManager)
+        _gameManager = StateObject(wrappedValue: manager)
     }
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(gameManager)
-                .environmentObject(gameKitManager)
-                .environmentObject(preferences)
-                .sheet(isPresented: .constant(preferences.playerId.isEmpty)) {
-                    IdentityPromptView(playerId: $preferences.playerId)
-                        .environmentObject(preferences)
-                }
-                .onAppear {
-                    // Assign managers immediately
-                    gameManager.gameKitManager = gameKitManager
-                    gameKitManager.gameManager = gameManager
+            if preferences.playerId.isEmpty {
+                IdentityPromptView(playerId: $preferences.playerId)
+                    .environmentObject(preferences)
+            } else {
+                ContentView()
+                    .environmentObject(gameManager)
+                    .environmentObject(preferences)
+                    .onAppear {
+                        if let window = NSApplication.shared.windows.first {
+                            window.contentAspectRatio = NSSize(width: 4, height: 3)
+                            gameManager.startNetworkingIfNeeded()
 
-                    gameKitManager.authenticateLocalPlayer() { playerId, name, image in
-                        gameManager.updateLocalPlayer(playerId, name: name, image: Image(nsImage: image))
+                        }
                     }
-                    
-                    if let window = NSApplication.shared.windows.first {
-                        window.contentAspectRatio = NSSize(width: 4, height: 3)
-                    }
-                    
-                }
+            }
         }
         .defaultSize(width: 800, height: 600)
         .commands {
@@ -92,6 +103,7 @@ struct ScoresMenuCommands: Commands {
 
 struct DatabaseMenuCommands: Commands {
     @EnvironmentObject var preferences: Preferences
+    @EnvironmentObject var gameManager: GameManager
     
     var body: some Commands {
             CommandMenu("Database") {
@@ -111,9 +123,8 @@ struct DatabaseMenuCommands: Commands {
                 }
                 
                 Button("Clear Saved Game") {
-                    let gameManager = GameManager()
                     gameManager.clearSavedGameState()
-            }
+                }
         }
     }
 }

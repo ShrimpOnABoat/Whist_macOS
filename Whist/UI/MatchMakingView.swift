@@ -7,49 +7,68 @@
 
 import SwiftUI
 
-import AppKit
-import GameKit
+
+//TODO: Redo this view to show pertinent information for P2P
 
 struct MatchMakingView: View {
     @EnvironmentObject var gameManager: GameManager
-    @EnvironmentObject var gameKitManager: GameKitManager
+    @State private var hasInvited = false
     
     var body: some View {
-        NavigationStack {
-            VStack {
-                if GKLocalPlayer.local.isAuthenticated {
-                    // Player's profile image
-                    Image(nsImage: gameKitManager.localImage)
-                        .resizable()
-                        .frame(width: 60, height: 60)
-                        .clipShape(Circle())
-                        .padding(.bottom, 8)
-                    
-                    // Player's display name
-                    Text(gameKitManager.localUsername)
+        VStack(spacing: 16) {
+            Text("Matchmaking")
+                .font(.largeTitle)
+
+            // List all players with their connection status
+            ForEach(gameManager.gameState.players, id: \.id) { player in
+                HStack {
+                    // Player avatar or placeholder
+                    if let img = player.image {
+                        img
+                            .resizable()
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 40, height: 40)
+                    }
+
+                    Text(player.username)
                         .font(.headline)
-                        .padding(.bottom, 20)
-                    
-                    // Status text to show connection state
-                    if gameManager.gameState.allPlayersConnected {
-                        Text("Tout le monde est là, c'est parti !")
-                            .foregroundColor(.green)
-                            .padding(.bottom, 10)
-                    }
-                    
-                    // Invite Friends button
-                    Button("Invite les autres") {
-                        gameKitManager.inviteFriends()
-                    }
-                    .buttonStyle(InvitingButtonStyle())
-                    .padding()
-                    
-                } else {
-                    // Fallback if the local player is not authenticated
-                    Text("Connecte toi à Game Center.")
+                    Spacer()
+                    // Connection indicator
+                    Circle()
+                        .fill(player.isConnected ? Color.green : Color.red)
+                        .frame(width: 12, height: 12)
                 }
+                .padding(.horizontal)
             }
+
+            Spacer()
+
+            // Host button / waiting status / ready status
+            let total = gameManager.gameState.players.count
+            let connected = gameManager.gameState.players.filter { $0.isConnected }.count
+
+            if !hasInvited {
+                Button("Host Game") {
+                    gameManager.startHosting()
+                    hasInvited = true
+                }
+                .buttonStyle(InvitingButtonStyle())
+                .padding(.horizontal)
+            } else if connected < total {
+                Text("Waiting for others to connect (\(connected)/\(total))...")
+                    .foregroundColor(.gray)
+            } else {
+                Text("All players connected!")
+                    .foregroundColor(.green)
+            }
+
+            Spacer()
         }
+        .padding()
     }
 }
 
