@@ -13,30 +13,34 @@ import FirebaseAppCheck
 struct WhistApp: App {
     @StateObject var preferences: Preferences
     @StateObject var gameManager: GameManager
-
+    
     // ADD: AppDelegate needed for GameKit listener on macOS
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
+    
     init() {
         // Configure Firebase
         AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
         FirebaseApp.configure()
-
-        // Debug: reset stored playerId so identity prompt shows every launch
+        
+        let settings = FirestoreSettings()
+        settings.cacheSettings = MemoryCacheSettings() // Use in-memory cache
+        Firestore.firestore().settings = settings
+        #if DEBUG // So that I can assign a player for each app
         UserDefaults.standard.removeObject(forKey: "playerId")
-
+        #endif
+        
         // Initialize preferences
         let prefs = Preferences()
-
+        
         // Use singleton instances for signaling and P2P
         let signaling = FirebaseSignalingManager.shared
         let connection = P2PConnectionManager.shared
-
+        
         // Initialize the core game manager with our custom matchmaking
         let manager = GameManager(connectionManager: connection,
                                   signalingManager: signaling,
                                   preferences: prefs)
-
+        
         // Wire up state objects
         _preferences = StateObject(wrappedValue: prefs)
         _gameManager = StateObject(wrappedValue: manager)
@@ -54,9 +58,9 @@ struct WhistApp: App {
                     .onAppear {
                         if let window = NSApplication.shared.windows.first {
                             window.contentAspectRatio = NSSize(width: 4, height: 3)
-                            gameManager.startNetworkingIfNeeded()
-
                         }
+                        PresenceManager.shared.configure(with: preferences.playerId)
+                        PresenceManager.shared.startTracking()
                     }
             }
         }
@@ -70,7 +74,7 @@ struct WhistApp: App {
                 }
             }
         }
-
+        
         
         Settings {
             PreferencesView()
@@ -106,25 +110,25 @@ struct DatabaseMenuCommands: Commands {
     @EnvironmentObject var gameManager: GameManager
     
     var body: some Commands {
-            CommandMenu("Database") {
-                Button("Restore Database from Backup") {
-                    let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
-                    
-                    let scoresManager = ScoresManager()
-                    
-                    scoresManager.restoreBackup(from: backupDirectory) { restoreResult in
-                        switch restoreResult {
-                        case .failure(let error):
-                            logger.log("Error restoring backup: \(error.localizedDescription)")
-                        case .success:
-                            logger.log("Database restored successfully.")
-                        }
+        CommandMenu("Database") {
+            Button("Restore Database from Backup") {
+                let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
+                
+                let scoresManager = ScoresManager()
+                
+                scoresManager.restoreBackup(from: backupDirectory) { restoreResult in
+                    switch restoreResult {
+                    case .failure(let error):
+                        logger.log("Error restoring backup: \(error.localizedDescription)")
+                    case .success:
+                        logger.log("Database restored successfully.")
                     }
                 }
-                
-                Button("Clear Saved Game") {
-                    gameManager.clearSavedGameState()
-                }
+            }
+            
+            Button("Clear Saved Game") {
+                gameManager.clearSavedGameState()
+            }
         }
     }
 }
@@ -136,7 +140,12 @@ class Preferences: ObservableObject {
     @AppStorage("motifVisibility") var motifVisibility: Double = 0.5
     @AppStorage("patternOpacity") var patternOpacity: Double = 0.5
     @AppStorage("patternScale") private var patternScaleStorage: Double = 0.5
+    @AppStorage("enabledRandomColors") private var enabledRandomColorsData: Data?
+    #if DEBUG
+    @Published var playerId: String = ""
+    #else
     @AppStorage("playerId") var playerId: String = ""
+    #endif
     
     var patternScale: CGFloat {
         get { CGFloat(patternScaleStorage) }
@@ -148,8 +157,6 @@ class Preferences: ObservableObject {
     }
     
     // Sauvegarde des couleurs activables pour le tirage aléatoire
-    @AppStorage("enabledRandomColors") private var enabledRandomColorsData: Data?
-    
     var enabledRandomColors: [Bool] {
         get {
             if let data = enabledRandomColorsData,
@@ -226,20 +233,20 @@ struct PreferencesView: View {
             
             Form {
                 Section(header: Text("Identité du joueur")
-                            .font(.headline)
-                            .padding(.vertical, 4)) {
-                    if preferences.playerId.isEmpty {
-                        Text("Veuillez choisir votre identité")
-                            .foregroundColor(.red)
-                            .font(.caption)
-                    }
-                    Picker("", selection: $preferences.playerId) {
-                        ForEach(["dd", "gg", "toto"], id: \.self) { id in
-                            Text(id).tag(id)
+                    .font(.headline)
+                    .padding(.vertical, 4)) {
+                        if preferences.playerId.isEmpty {
+                            Text("Veuillez choisir votre identité")
+                                .foregroundColor(.red)
+                                .font(.caption)
                         }
+                        Picker("", selection: $preferences.playerId) {
+                            ForEach(["dd", "gg", "toto"], id: \.self) { id in
+                                Text(id).tag(id)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
                     }
-                    .pickerStyle(SegmentedPickerStyle())
-                }
             }
         }
         .padding()

@@ -323,12 +323,17 @@ extension GameManager {
     }
     
     func sendAction(_ action: GameAction) {
-        if let actionData = try? JSONEncoder().encode(action) {
-            //TODO: redirect to P2P
-//            gameKitManager?.sendData(actionData)
-            logger.log("Sent action \(action.type) to other players")
+        if let actionData = try? JSONEncoder().encode(action),
+           let messageString = String(data: actionData, encoding: .utf8) { // Convert Data to String
+            // CHANGE: Send message via P2PConnectionManager
+            let sent = connectionManager.sendMessage(messageString)
+            if sent {
+                 logger.log("Sent P2P action \(action.type) to other players")
+            } else {
+                 logger.log("Failed to send P2P action \(action.type) (some channels might not be open)")
+            }
         } else {
-            logger.log("Failed to encode action")
+            logger.log("Failed to encode action or convert to string")
         }
     }
 

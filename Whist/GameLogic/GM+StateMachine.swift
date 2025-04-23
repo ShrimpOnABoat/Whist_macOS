@@ -352,17 +352,20 @@ extension GameManager {
         logger.log("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
-            //TODO: rewrite for P2P
-//            if let match = gameKitManager?.match {
-//                if match.players.count == 2 { // counts only remote players
-//                    logger.log("All players connected! Moving to .exchangingIDs")
-//                    transition(to: .sendingIDs)
-//                } else {
-//                    logger.log("Only \(match.players.count) remote players connected. Waiting...")
-//                }
-//            } else {
-                logger.log("Couldn't get match data. Waiting...")
-//            }
+            // Check if ALL players in the gameState are now marked as connected
+            // This relies on the local player being marked connected initially,
+            // and remote players being marked connected by onConnectionEstablished.
+            if gameState.allPlayersConnected { // Use the existing computed property
+                 logger.log("All players connected! Transitioning from .waitingForPlayers...")
+                 // Decide the next step. Exchanging seed seems logical before setup.
+                 // The sendingIDs/receivingIDs phases seem less relevant now identity is known via PlayerId.
+                 transition(to: .exchangingSeed)
+            } else {
+                 // Still waiting, log status
+                 let connectedCount = gameState.players.filter { $0.isConnected }.count
+                 let totalCount = gameState.players.count
+                 logger.log("Waiting for players: \(connectedCount)/\(totalCount) connected.")
+            }
             
         case .sendingIDs:
             if myIDWasSent {

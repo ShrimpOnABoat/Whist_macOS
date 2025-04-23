@@ -15,6 +15,8 @@
 		9502AEA62DB3ECE800990C9E /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = 9502AEA52DB3ECE800990C9E /* FirebaseAppDistribution-Beta */; };
 		9502AEAA2DB3F21300990C9E /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 9502AEA92DB3F21300990C9E /* FirebaseFirestore */; };
 		9502AEAF2DB3F42A00990C9E /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 9502AEAE2DB3F42A00990C9E /* WebRTC */; };
+		959D7D6D2DB805D4006E6AF7 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 959D7D6C2DB805D4006E6AF7 /* FirebaseAuth */; };
+		959D7D6F2DB805DC006E6AF7 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 959D7D6E2DB805DC006E6AF7 /* FirebaseDatabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,7 +63,9 @@
 				9502AEAF2DB3F42A00990C9E /* WebRTC in Frameworks */,
 				9502AEA22DB3ECE800990C9E /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
 				9502AEA02DB3ECE800990C9E /* FirebaseAnalyticsOnDeviceConversion in Frameworks */,
+				959D7D6F2DB805DC006E6AF7 /* FirebaseDatabase in Frameworks */,
 				9502AEAA2DB3F21300990C9E /* FirebaseFirestore in Frameworks */,
+				959D7D6D2DB805D4006E6AF7 /* FirebaseAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -123,6 +127,8 @@
 				9502AEA52DB3ECE800990C9E /* FirebaseAppDistribution-Beta */,
 				9502AEA92DB3F21300990C9E /* FirebaseFirestore */,
 				9502AEAE2DB3F42A00990C9E /* WebRTC */,
+				959D7D6C2DB805D4006E6AF7 /* FirebaseAuth */,
+				959D7D6E2DB805DC006E6AF7 /* FirebaseDatabase */,
 			);
 			productName = Whist;
 			productReference = 95A0C6AA2CEB85EB00EA513A /* Whist.app */;
@@ -458,6 +464,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9502AEAD2DB3F42A00990C9E /* XCRemoteSwiftPackageReference "WebRTC" */;
 			productName = WebRTC;
+		};
+		959D7D6C2DB805D4006E6AF7 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9502AE9A2DB3E8B800990C9E /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		959D7D6E2DB805DC006E6AF7 /* FirebaseDatabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9502AE9A2DB3E8B800990C9E /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseDatabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

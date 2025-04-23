@@ -7,16 +7,13 @@
 
 import SwiftUI
 
-
-//TODO: Redo this view to show pertinent information for P2P
-
 struct MatchMakingView: View {
     @EnvironmentObject var gameManager: GameManager
-    @State private var hasInvited = false
-    
+    @EnvironmentObject var preferences: Preferences // Added environment object
+
     var body: some View {
         VStack(spacing: 16) {
-            Text("Matchmaking")
+            Text("Matchmaking for \(preferences.playerId)")
                 .font(.largeTitle)
 
             // List all players with their connection status
@@ -51,14 +48,7 @@ struct MatchMakingView: View {
             let total = gameManager.gameState.players.count
             let connected = gameManager.gameState.players.filter { $0.isConnected }.count
 
-            if !hasInvited {
-                Button("Host Game") {
-                    gameManager.startHosting()
-                    hasInvited = true
-                }
-                .buttonStyle(InvitingButtonStyle())
-                .padding(.horizontal)
-            } else if connected < total {
+            if !gameManager.gameState.allPlayersConnected {
                 Text("Waiting for others to connect (\(connected)/\(total))...")
                     .foregroundColor(.gray)
             } else {
@@ -68,6 +58,24 @@ struct MatchMakingView: View {
 
             Spacer()
         }
+        .onAppear {
+            // Ensure networking listeners are set up (ContentView also does this, safe redundancy)
+//            gameManager.startNetworkingIfNeeded()      
+            
+            // If we know who we are, start trying to connect to others
+//            if !preferences.playerId.isEmpty {
+//                logger.log("MatchMakingView appeared, calling startHosting()")
+//                gameManager.startHosting()
+//            } else {
+//                logger.log("MatchMakingView appeared, but playerId is empty. Waiting for selection.")
+//            }
+        }
+//        .onChange(of: gameManager.gameState.players.count) { count in
+//            if count > 1 {
+//                gameManager.startHosting()
+//                gameManager.startNetworkingIfNeeded()
+//            }
+//        }
         .padding()
     }
 }

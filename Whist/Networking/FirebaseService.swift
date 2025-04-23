@@ -7,7 +7,7 @@
 
 
 // FirebaseService.swift
-// Handles all Firebase read/write operations for game state, score history, and signaling.
+// Handles all Firebase read/write operations for game state and score history.
 
 import Foundation
 import FirebaseFirestore
@@ -45,32 +45,5 @@ class FirebaseService {
             .order(by: "date", descending: true)
             .getDocuments()
         return try snapshot.documents.compactMap { try $0.data(as: GameScore.self) }
-    }
-
-    // MARK: - Signaling
-
-    struct SignalData: Codable {
-        var status: String
-        var offer: String?
-        var answer: String?
-        var iceCandidates: [String]
-    }
-
-    func updateSignal(for playerId: String, signal: SignalData) async throws {
-        try db.collection("signaling")
-            .document(playerId)
-            .setData(from: signal)
-    }
-
-    func listenToSignal(for playerId: String, onUpdate: @escaping (SignalData) -> Void) -> ListenerRegistration {
-        db.collection("signaling")
-            .document(playerId)
-            .addSnapshotListener { snapshot, error in
-                guard let snapshot = snapshot, snapshot.exists,
-                      let data = try? snapshot.data(as: SignalData.self) else {
-                    return
-                }
-                onUpdate(data)
-            }
     }
 }
