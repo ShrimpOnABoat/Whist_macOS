@@ -115,9 +115,6 @@ class GameManager: ObservableObject {
         }
         
         // Update the game state
-        var generator = SeededGenerator(seed: gameState.randomSeed)
-        gameState.playOrder = [.gg, .dd, .toto]
-        gameState.playOrder.shuffle(using: &generator)
         gameState.dealer = gameState.playOrder.first
         logger.log("Dealer is \(String(describing: gameState.dealer))")
         
@@ -152,26 +149,11 @@ class GameManager: ObservableObject {
         logger.log("SetPersistencePlayerID called, but GamePersistence now uses shared CloudKit state. PlayerID \(playerId) noted if needed for logic elsewhere.")
     }
     
-    func generateAndSendSeed() { // Only if local player is toto
-        gameState.randomSeed = UInt64.random(in: 1...UInt64.max)
-        logger.log("Sending seed to other players!")
-        sendSeedToPlayers(gameState.randomSeed)
+    func setAndSendPlayOrder() { // Only if local player is toto
+        gameState.playOrder = [.gg, .dd, .toto].shuffled()
+        logger.log("Sending playOrder to other players!")
+        sendPlayOrderToPlayers(gameState.playOrder)
         checkAndAdvanceStateIfNeeded()
-    }
-    
-    struct SeededGenerator: RandomNumberGenerator {
-        private var state: UInt64
-        
-        init(seed: UInt64) {
-            self.state = seed
-        }
-        
-        mutating func next() -> UInt64 {
-            self.state ^= self.state >> 12
-            self.state ^= self.state << 25
-            self.state ^= self.state >> 27
-            return self.state &* 2685821657736338717
-        }
     }
     
     // MARK: Connection/Deconnection
@@ -201,8 +183,10 @@ class GameManager: ObservableObject {
     // MARK: resumeGameState
     
     func saveGameState(_ state: GameState) {
-        if ![.waitingForPlayers, .sendingIDs, .receivingIDs, .exchangingSeed, .setupGame, .waitingToStart].contains(gameState.currentPhase) && gameState.localPlayer?.id == .toto {
-            persistence.scheduleSave(state: state)
+        if ![.waitingForPlayers, .setPlayOrder, .setupGame, .waitingToStart].contains(gameState.currentPhase) && gameState.localPlayer?.id == .toto {
+            Task {
+                await persistence.saveGameState(state)
+            }
         }
     }
     
@@ -663,9 +647,9 @@ class GameManager: ObservableObject {
     
     // MARK: - Post-Matchmaking Logic
     func checkAndRestoreSavedGame() async -> Bool {
-        logger.log("Match connected. Checking CloudKit for saved game...")
+        logger.log("Match connected. Checking database for saved game...")
         if let savedState = await persistence.loadGameState() {
-            logger.log("Saved game found in CloudKit:\n\(savedState)")
+            logger.log("Saved game found in db:\n\(savedState)")
             let localPlayerId = self.gameState.localPlayer?.id
             let playerImages = Dictionary(uniqueKeysWithValues: self.gameState.players.map { ($0.id, $0.image) })
             self.gameState = savedState
@@ -728,7 +712,6 @@ class GameManager: ObservableObject {
 
         logger.log("Game configured from loaded state. Current phase: \(self.gameState.currentPhase). Advancing state machine...")
 
-        // CRUCIAL: Trigger state machine to continue from the loaded phase
         self.checkAndAdvanceStateIfNeeded()
     }
     
@@ -807,29 +790,27 @@ class GameManager: ObservableObject {
                     let remoteSdp = RTCSessionDescription(type: .offer, sdp: offerText)
                     let connection = connectionManager.makePeerConnection(for: peerId)
 
-                    connection.setRemoteDescription(remoteSdp) { error in
-                        if let error = error {
-                            logger.log("Error setting remote offer for \(peerId): \(error)")
-                            return
-                        }
-
-                        self.connectionManager.createAnswer(to: peerId, from: remoteSdp) { _, result in
-                            switch result {
-                            case .success(let answerSdp):
-                                Task {
-                                    do {
-                                        try await self.signalingManager.sendAnswer(from: localPlayerId, to: peerId, sdp: answerSdp)
-                                        logger.debug("Successfully sent answer to \(peerId)")
-
-                                        // Send ICE candidates after answer
-                                        self.connectionManager.flushPendingIce(for: peerId)
-                                    } catch {
-                                        logger.debug("Error sending answer to \(peerId): \(error)")
-                                    }
+                    do {
+                        try await connection.setRemoteDescription(remoteSdp)
+                    } catch {
+                        logger.log("Error setting remote offer for \(peerId): \(error)")
+                        return
+                    }
+                    self.connectionManager.createAnswer(to: peerId, from: remoteSdp) { _, result in
+                        switch result {
+                        case .success(let answerSdp):
+                            Task {
+                                do {
+                                    try await self.signalingManager.sendAnswer(from: localPlayerId, to: peerId, sdp: answerSdp)
+                                    logger.debug("Successfully sent answer to \(peerId)")
+                                    // Send ICE candidates after answer
+                                    self.connectionManager.flushPendingIce(for: peerId)
+                                } catch {
+                                    logger.debug("Error sending answer to \(peerId): \(error)")
                                 }
-                            case .failure(let err):
-                                logger.log("Failed to create answer for \(peerId): \(err)")
                             }
+                        case .failure(let err):
+                            logger.log("Failed to create answer for \(peerId): \(err)")
                         }
                     }
                 } else {

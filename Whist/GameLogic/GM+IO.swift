@@ -52,19 +52,12 @@ extension GameManager {
         logger.log("Processing action \(action.type) from player \(action.playerId)...")
         switch action.type {
             
-        case .id:
-            guard let playerIdentification = try? JSONDecoder().decode(PlayerIdentification.self, from: action.payload) else {
-                logger.log("Failed to decode player ID.")
+        case .playOrder:
+            guard let playOrder = try? JSONDecoder().decode([PlayerId].self, from: action.payload) else {
+                logger.log("Failed to decode playOrder.")
                 return
             }
-//            self.updatePlayerGCId(action.playerId, with: playerIdentification)
-            
-        case .seed:
-            guard let seed = try? JSONDecoder().decode(UInt64.self, from: action.payload) else {
-                logger.log("Failed to decode random seed.")
-                return
-            }
-            gameState.randomSeed = seed
+            gameState.playOrder = playOrder
 
         case .playCard:
             guard let card = try? JSONDecoder().decode(Card.self, from: action.payload) else {
@@ -123,43 +116,14 @@ extension GameManager {
     }
     
     // MARK: - Send data
-    
-    func sendGCIdToPlayers() {
-        logger.log("Trying to send PlayerIdentification to other players.")
-        guard let localPlayer = gameState.localPlayer else {
-            logger.log("Local player not defined. Can't send PlayerIdentification.")
-            return
-        }
-        
-        let playerIdentification = PlayerIdentification(
-            id: localPlayer.id,
-            username: localPlayer.username
-        )
-        logger.log("playerIdentification: \(playerIdentification)")
-        if let idData = try? JSONEncoder().encode(playerIdentification) {
-            let action = GameAction(
-                playerId: localPlayer.id,
-                type: .id,
-                payload: idData,
-                timestamp: Date().timeIntervalSince1970
-            )
-            logger.log("About to execute sendAction")
-            sendAction(action)
-            myIDWasSent = true
-            checkAndAdvanceStateIfNeeded()
-        } else {
-            logger.log("Failed to encode PlayerIdentification.")
-        }
-    }
-    
-    func sendSeedToPlayers(_ seed: UInt64) {
+    func sendPlayOrderToPlayers(_ playOrder: [PlayerId]) {
         guard let localPlayerID = gameState.localPlayer?.id, localPlayerID == .toto else { return }
 
-        if let seedData = try? JSONEncoder().encode(gameState.randomSeed) {
+        if let playOrderData = try? JSONEncoder().encode(playOrder) {
             let action = GameAction(
                 playerId: localPlayerID,
-                type: .seed,
-                payload: seedData,
+                type: .playOrder,
+                payload: playOrderData,
                 timestamp: Date().timeIntervalSince1970
             )
             sendAction(action)

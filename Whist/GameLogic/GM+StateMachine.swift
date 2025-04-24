@@ -9,10 +9,8 @@ import SwiftUI
 
 enum GamePhase: Encodable, Decodable {
     case waitingForPlayers      // Before the game starts, waiting for all players to connect
-    case sendingIDs             // Ensuring everybody knows who's who
-    case receivingIDs           // Ensuring everybody knows who's who
     case resumeSavedGame        // In case a game was saved, resume
-    case exchangingSeed         // Ensuring seed is distributed before setup
+    case setPlayOrder         // Ensuring seed is distributed before setup
     case setupGame              // Setup the game for the evening!
     case waitingToStart         // Display a "New game" button and the last game's winner
     case newGame                // Setup a new game
@@ -80,25 +78,17 @@ extension GameManager {
         case .waitingForPlayers:
             setPlayerState(to: .idle)
             
-        case .sendingIDs:
-            logger.log("Sending my ID to other players...")
-            sendGCIdToPlayers()
-            
-        case .receivingIDs:
-            // Nothing to do but wait for other players' ids
-            logger.log("Waiting for other players' IDs...")
-            
         case .resumeSavedGame:
             Task {
                 let isSavedGame = await checkAndRestoreSavedGame()
                 if !isSavedGame {
-                    transition(to: .exchangingSeed)
+                    transition(to: .setPlayOrder)
                 }
             }
             
-        case .exchangingSeed:
+        case .setPlayOrder:
             if gameState.localPlayer?.id == .toto {
-                generateAndSendSeed()
+                setAndSendPlayOrder()
             } else {
                 logger.log("Waiting for seed from Toto...")
             }
@@ -352,14 +342,9 @@ extension GameManager {
         logger.log("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
-            // Check if ALL players in the gameState are now marked as connected
-            // This relies on the local player being marked connected initially,
-            // and remote players being marked connected by onConnectionEstablished.
             if gameState.allPlayersConnected { // Use the existing computed property
                  logger.log("All players connected! Transitioning from .waitingForPlayers...")
-                 // Decide the next step. Exchanging seed seems logical before setup.
-                 // The sendingIDs/receivingIDs phases seem less relevant now identity is known via PlayerId.
-                 transition(to: .exchangingSeed)
+                 transition(to: .resumeSavedGame)
             } else {
                  // Still waiting, log status
                  let connectedCount = gameState.players.filter { $0.isConnected }.count
@@ -367,27 +352,14 @@ extension GameManager {
                  logger.log("Waiting for players: \(connectedCount)/\(totalCount) connected.")
             }
             
-        case .sendingIDs:
-            if myIDWasSent {
-                transition(to: .receivingIDs)
-            } else {
-                transition(to: .sendingIDs)
-            }
-            
-        case .receivingIDs:
-            if allPlayersIded() {
-                logger.log("All players identified, proceeding to resumeSavedGame...")
-                transition(to: .resumeSavedGame)
-            }
-            
         case .resumeSavedGame:
             logger.log("Not doing anything")
             
-        case .exchangingSeed:
-            if gameState.randomSeed == 0 {
-                logger.log("Seed not set yet. Waiting in .exchangingSeed...")
+        case .setPlayOrder:
+            if gameState.playOrder == [] {
+                logger.log("PlayOrder not set yet. Waiting in .setPlayOrder...")
             } else {
-                logger.log("Seed initialized! Moving to .setupGame")
+                logger.log("PlayOrder initialized! Moving to .setupGame")
                 transition(to: .setupGame)
             }
             

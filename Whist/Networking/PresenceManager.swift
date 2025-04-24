@@ -35,7 +35,7 @@ class PresenceManager: ObservableObject {
         }
 
         connectedRef.observe(.value) { [weak self] snapshot in
-            guard let self = self else { return }
+            guard self != nil else { return }
 
             if let connected = snapshot.value as? Bool, connected {
                 let onlineData: [String: Any] = [

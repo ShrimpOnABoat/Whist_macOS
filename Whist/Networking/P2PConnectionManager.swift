@@ -218,7 +218,7 @@ class P2PConnectionManager: NSObject {
     }
 
      func flushPendingIce(for peerId: PlayerId) {
-         guard let pc = peerConnections[peerId], let pending = pendingIceCandidates[peerId], !pending.isEmpty else { return }
+         guard let _ = peerConnections[peerId], let pending = pendingIceCandidates[peerId], !pending.isEmpty else { return }
          logger.debug("Flushing \(pending.count) pending *local* ICE candidates for \(peerId).")
          for candidate in pending {
              // Send pending local candidates via signaling
@@ -237,7 +237,7 @@ class P2PConnectionManager: NSObject {
                     logger.log("Failed to send message to \(peerId)")
                     allSent = false
                 } else {
-                    logger.log("Message sent to \(peerId) on channel \(channel)")
+                    logger.debug("Message sent to \(peerId) on channel \(channel)")
                 }
             } else {
                 logger.log("Data channel to \(peerId) not open")
@@ -318,10 +318,10 @@ extension P2PConnectionManager: RTCPeerConnectionDelegate {
         }
         
         for peerConnection in peerConnections {
-            logger.log("🍐 Peer \(peerConnection.key) connected to \(peerConnection.value)")
+            logger.debug("🍐 Peer \(peerConnection.key) connected to \(peerConnection.value)")
         }
         for dataChannel in outgoingDataChannels {
-            logger.log("🏁 Peer \(dataChannel.key) connected to \(dataChannel.value)")
+            logger.debug("🏁 Peer \(dataChannel.key) connected to \(dataChannel.value)")
         }
     }
 }
@@ -352,7 +352,7 @@ extension P2PConnectionManager: RTCDataChannelDelegate {
     func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
         if !buffer.isBinary, let message = String(data: buffer.data, encoding: .utf8),
            let peerId = incomingDataChannelsMap[dataChannel] {
-            logger.log("Received message from \(peerId): \(message)")
+            logger.debug("Received message from \(peerId): \(message)")
             onMessageReceived?(peerId, message)
         } else if buffer.isBinary {
             logger.log("Received binary data of size: \(buffer.data.count) bytes")

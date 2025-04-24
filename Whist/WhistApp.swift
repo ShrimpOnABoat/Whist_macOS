@@ -48,22 +48,23 @@ struct WhistApp: App {
     
     var body: some Scene {
         WindowGroup {
-            if preferences.playerId.isEmpty {
-                IdentityPromptView(playerId: $preferences.playerId)
-                    .environmentObject(preferences)
-            } else {
-                ContentView()
-                    .environmentObject(gameManager)
-                    .environmentObject(preferences)
-                    .onAppear {
-                        if let window = NSApplication.shared.windows.first {
-                            window.contentAspectRatio = NSSize(width: 4, height: 3)
+            Group {
+                if preferences.playerId.isEmpty {
+                    IdentityPromptView(playerId: $preferences.playerId)
+                } else {
+                    ContentView()
+                        .onAppear {
+                            if let window = NSApplication.shared.windows.first {
+                                window.contentAspectRatio = NSSize(width: 4, height: 3)
+                            }
+                            logger.setLocalPlayer(with: preferences.playerId)
+                            PresenceManager.shared.configure(with: preferences.playerId)
+                            PresenceManager.shared.startTracking()
                         }
-                        logger.setLocalPlayer(with: preferences.playerId)
-                        PresenceManager.shared.configure(with: preferences.playerId)
-                        PresenceManager.shared.startTracking()
-                    }
+                }
             }
+            .environmentObject(preferences)
+            .environmentObject(gameManager)
         }
         .defaultSize(width: 800, height: 600)
         .commands {
@@ -71,21 +72,22 @@ struct WhistApp: App {
             Group {
                 ScoresMenuCommands()
                 if preferences.playerId == "toto" {
-                    DatabaseMenuCommands()
+                    DatabaseMenuCommands(preferences: preferences, gameManager: gameManager)
                 }
             }
         }
         
-        
         Settings {
             PreferencesView()
                 .environmentObject(preferences)
+                .environmentObject(gameManager)
         }
         
         // Secondary window for ScoresView with an identifier.
         Window("Scores", id: "ScoresWindow") {
             ScoresView()
                 .environmentObject(gameManager)
+                .environmentObject(preferences)
         }
         .commandsRemoved()
     }
@@ -107,8 +109,13 @@ struct ScoresMenuCommands: Commands {
 }
 
 struct DatabaseMenuCommands: Commands {
-    @EnvironmentObject var preferences: Preferences
-    @EnvironmentObject var gameManager: GameManager
+    let preferences: Preferences
+    let gameManager: GameManager
+
+    init(preferences: Preferences, gameManager: GameManager) {
+        self.preferences = preferences
+        self.gameManager = gameManager
+    }
     
     var body: some Commands {
         CommandMenu("Database") {

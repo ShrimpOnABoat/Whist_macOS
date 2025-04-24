@@ -59,7 +59,7 @@ class Player: Identifiable, ObservableObject, Codable {
     // Image is not codable; handle separately if needed
     @Published var image: Image?
     
-    init(id: PlayerId, username: String? = "", image: Image? = nil) {
+    init(id: PlayerId, username: String? = nil, image: Image? = nil) {
         self.id = id
         self.username = username ?? id.rawValue
         self.image = image
