@@ -27,7 +27,7 @@ class FirebaseSignalingManager {
         let offerData: [String: Any] = [
             "offer": sdp.sdp
         ]
-        logger.log("Firebase [\(docId)]: Sending offer")
+        logger.debug("Firebase [\(docId)]: Sending offer")
         try await db.collection("signaling").document(docId).setData(offerData, merge: true)
     }
 
@@ -36,7 +36,7 @@ class FirebaseSignalingManager {
         let answerData: [String: Any] = [
             "answer": sdp.sdp
         ]
-        logger.log("Firebase [\(docId)]: Sending answer")
+        logger.debug("Firebase [\(docId)]: Sending answer")
         try await db.collection("signaling").document(docId).setData(answerData, merge: true)
     }
 
@@ -56,7 +56,7 @@ class FirebaseSignalingManager {
         let candidateDataForFirestore: [String: Any] = [
             "iceCandidates": FieldValue.arrayUnion([candidateString])
         ]
-        logger.log("Firebase [\(docId)]: Sending ICE candidate")
+        logger.debug("Firebase [\(docId)]: Sending ICE candidate")
         try await db.collection("signaling").document(docId).updateData(candidateDataForFirestore)
     }
 
@@ -71,7 +71,7 @@ class FirebaseSignalingManager {
     }
     
     func setupFirebaseListeners(localPlayerId: PlayerId) {
-        logger.log(" Firebase Listeners: Setting up for \(localPlayerId.rawValue)")
+        logger.debug(" Firebase Listeners: Setting up for \(localPlayerId.rawValue)")
         
         // Ensure we don't add duplicate listeners if called multiple times
         listenerRegistrations.forEach { $0.remove() }
@@ -80,7 +80,7 @@ class FirebaseSignalingManager {
         // Listen for Offers sent TO me
         let offerListener = listenForOffer(for: localPlayerId) { [weak self] (fromId, sdp) in
             guard let self = self else { return }
-            logger.log(" GM Listener: Received OFFER from \(fromId.rawValue).")
+            logger.debug(" GM Listener: Received OFFER from \(fromId.rawValue).")
             let remoteSdp = RTCSessionDescription(type: .offer, sdp: sdp)
             let connection = P2PConnectionManager.shared.makePeerConnection(for: fromId) // Ensure PC exists
             
@@ -89,13 +89,13 @@ class FirebaseSignalingManager {
                     logger.log(" P2P: Error setting remote offer from \(fromId.rawValue): \(error)")
                     return
                 }
-                logger.log(" P2P: Remote offer set from \(fromId.rawValue). Creating answer...")
+                logger.debug(" P2P: Remote offer set from \(fromId.rawValue). Creating answer...")
                 
                 P2PConnectionManager.shared.createAnswer(to: fromId, from: remoteSdp) { _, result in
                     // Use weak self again inside async task if needed
                     switch result {
                     case .success(let answerSdp):
-                        logger.log(" P2P: Created answer for \(fromId.rawValue). Sending...")
+                        logger.debug(" P2P: Created answer for \(fromId.rawValue). Sending...")
                         Task {
                             do {
                                 try await self.sendAnswer(from: localPlayerId, to: fromId, sdp: answerSdp)
@@ -105,7 +105,7 @@ class FirebaseSignalingManager {
                                 let offerPath = "offer"
                                 let docId = self.documentName(from: fromId, to: localPlayerId)
                                 try? await Firestore.firestore().collection("signaling").document(docId).updateData([offerPath: FieldValue.delete()])
-                                logger.log(" Firebase: Cleared offer field in \(docId)")
+                                logger.debug(" Firebase: Cleared offer field in \(docId)")
                             } catch {
                                 logger.log(" Firebase: Error sending answer to \(fromId.rawValue): \(error)")
                             }
@@ -121,7 +121,7 @@ class FirebaseSignalingManager {
         // Listen for Answers sent TO me
         let answerListener = listenForAnswer(for: localPlayerId) { [weak self] (fromId, sdp) in
             guard let self = self else { return }
-            logger.log(" GM Listener: Received ANSWER from \(fromId.rawValue).")
+            logger.debug(" GM Listener: Received ANSWER from \(fromId.rawValue).")
             let remoteSdp = RTCSessionDescription(type: .answer, sdp: sdp)
             
             guard let connection = P2PConnectionManager.shared.peerConnections[fromId] else {
@@ -134,14 +134,14 @@ class FirebaseSignalingManager {
                 if let error = error {
                     logger.log(" P2P: Failed to set remote answer from \(fromId.rawValue): \(error)")
                 } else {
-                    logger.log(" P2P: Remote answer set from \(fromId.rawValue).")
+                    logger.debug(" P2P: Remote answer set from \(fromId.rawValue).")
                     P2PConnectionManager.shared.flushPendingIce(for: fromId) // Important after setting answer
                     // Optional: Clear the processed answer field
                     let answerPath = "answer"
                     let docId = self.documentName(from: fromId, to: localPlayerId)
                     Task {
                         try? await Firestore.firestore().collection("signaling").document(docId).updateData([answerPath: FieldValue.delete()])
-                        logger.log(" Firebase: Cleared answer field in \(docId)")
+                        logger.debug(" Firebase: Cleared answer field in \(docId)")
                     }
                 }
             }
@@ -150,8 +150,8 @@ class FirebaseSignalingManager {
         
         // Listen for ICE Candidates sent TO me
         let candidateListener = listenForIceCandidates(for: localPlayerId) { [weak self] (fromId, candidate) in
-            guard let self = self else { return }
-            logger.log(" GM Listener: Received ICE candidate from \(fromId.rawValue). Attempting to add...")
+            guard self != nil else { return }
+            logger.debug(" GM Listener: Received ICE candidate from \(fromId.rawValue). Attempting to add...")
             P2PConnectionManager.shared.addIceCandidate(candidate, for: fromId) { error in
                 if let error = error {
                     logger.log(" P2P: Error adding received ICE candidate from \(fromId.rawValue): \(error)")
@@ -160,7 +160,7 @@ class FirebaseSignalingManager {
         }
         listenerRegistrations.append(candidateListener)
 
-        logger.log(" Firebase Listeners: Setup complete for \(localPlayerId.rawValue)")
+        logger.debug(" Firebase Listeners: Setup complete for \(localPlayerId.rawValue)")
     }
 
     func listenForOffer(for localPlayerId: PlayerId, handler: @escaping (_ fromId: PlayerId, _ sdp: String) -> Void) -> ListenerRegistration {
@@ -186,7 +186,7 @@ class FirebaseSignalingManager {
     }
 
     func listenForAnswer(for localPlayerId: PlayerId, handler: @escaping (_ fromId: PlayerId, _ sdp: String) -> Void) -> ListenerRegistration {
-        logger.log(" FSM listenForAnswer: Registering listener for \(localPlayerId.rawValue)")
+        logger.debug(" FSM listenForAnswer: Registering listener for \(localPlayerId.rawValue)")
         return db.collection("signaling")
             .addSnapshotListener { querySnapshot, error in
                 guard let snapshot = querySnapshot else {
@@ -194,7 +194,7 @@ class FirebaseSignalingManager {
                     return
                 }
 
-                logger.log(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Received snapshot with \(snapshot.documentChanges.count) changes.")
+                logger.debug(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Received snapshot with \(snapshot.documentChanges.count) changes.")
 
                 snapshot.documentChanges.forEach { diff in
                     let docId = diff.document.documentID
@@ -204,7 +204,7 @@ class FirebaseSignalingManager {
                         case .modified: changeType = "Modified"
                         case .removed: changeType = "Removed"
                     }
-                    logger.log(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Processing change type '\(changeType)' for doc '\(docId)'")
+                    logger.debug(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Processing change type '\(changeType)' for doc '\(docId)'")
 
                     guard diff.type == .added || diff.type == .modified else {
                         return
@@ -215,23 +215,23 @@ class FirebaseSignalingManager {
                         return
                     }
 
-                    logger.log(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Extracted IDs for '\(docId)': from=\(ids.from.rawValue), to=\(ids.to.rawValue)")
+                    logger.debug(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Extracted IDs for '\(docId)': from=\(ids.from.rawValue), to=\(ids.to.rawValue)")
 
                     guard ids.to == localPlayerId else {
-                        logger.log(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Skipping doc '\(docId)' (intended for \(ids.to.rawValue))")
+                        logger.debug(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Skipping doc '\(docId)' (intended for \(ids.to.rawValue))")
                         return
                     }
 
-                    logger.log(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Doc '\(docId)' IS relevant.")
+                    logger.debug(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Doc '\(docId)' IS relevant.")
 
                     if let answerSdp = diff.document.data()["answer"] as? String {
-                        logger.log(" FSM listenForAnswer [\(localPlayerId.rawValue)]: FOUND 'answer' field in '\(docId)'. Calling handler.")
+                        logger.debug(" FSM listenForAnswer [\(localPlayerId.rawValue)]: FOUND 'answer' field in '\(docId)'. Calling handler.")
                         handler(ids.from, answerSdp)
                     } else {
-                        logger.log(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Did NOT find 'answer' field in '\(docId)'. Data: \(diff.document.data())")
+                        logger.debug(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Did NOT find 'answer' field in '\(docId)'. Data: \(diff.document.data())")
                     }
                 }
-                logger.log(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Finished processing snapshot changes.")
+                logger.debug(" FSM listenForAnswer [\(localPlayerId.rawValue)]: Finished processing snapshot changes.")
             }
     }
 
@@ -262,7 +262,7 @@ class FirebaseSignalingManager {
                             }
 
                             let senderId = ids.from
-                            logger.log("Firebase [\(docId)]: Processing \(candidateStrings.count) candidates for \(localPlayerId.rawValue)")
+                            logger.debug("Firebase [\(docId)]: Processing \(candidateStrings.count) candidates for \(localPlayerId.rawValue)")
 
                             for candidateString in candidateStrings {
                                 // Safely check if candidate was already processed for this document
@@ -274,7 +274,7 @@ class FirebaseSignalingManager {
                                        let idxStr = json["sdpMLineIndex"],
                                        let idx = Int32(idxStr) {
                                         let candidate = RTCIceCandidate(sdp: sdp, sdpMLineIndex: idx, sdpMid: sdpMid)
-                                        logger.log("Firebase [\(docId)]: Decoded ICE candidate from \(senderId.rawValue)")
+                                        logger.debug("Firebase [\(docId)]: Decoded ICE candidate from \(senderId.rawValue)")
                                         handler(senderId, candidate)
                                         // Safely insert the processed candidate string
                                         processedCandidatesByDocId[docId]?.insert(candidateString)
@@ -301,15 +301,15 @@ class FirebaseSignalingManager {
             for document in outgoingDocs.documents {
                 batch.deleteDocument(document.reference)
                 docsToDeleteCount += 1
-                logger.log("Firebase: Queued deletion for outgoing doc: \(document.documentID)")
+                logger.debug("Firebase: Queued deletion for outgoing doc: \(document.documentID)")
             }
 
             if docsToDeleteCount > 0 {
-                logger.log("Firebase: Committing batch delete for \(docsToDeleteCount) signaling documents related to \(playerId).")
+                logger.debug("Firebase: Committing batch delete for \(docsToDeleteCount) signaling documents related to \(playerId).")
                 try await batch.commit()
-                logger.log("Firebase: Successfully cleared signaling data for \(playerId).")
+                logger.debug("Firebase: Successfully cleared signaling data for \(playerId).")
             } else {
-                logger.log("Firebase: No signaling documents found to clear for \(playerId).")
+                logger.debug("Firebase: No signaling documents found to clear for \(playerId).")
             }
         } catch {
             logger.log("Firebase: Error clearing signaling data for \(playerId): \(error.localizedDescription)")

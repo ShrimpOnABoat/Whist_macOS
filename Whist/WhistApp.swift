@@ -59,6 +59,7 @@ struct WhistApp: App {
                         if let window = NSApplication.shared.windows.first {
                             window.contentAspectRatio = NSSize(width: 4, height: 3)
                         }
+                        logger.setLocalPlayer(with: preferences.playerId)
                         PresenceManager.shared.configure(with: preferences.playerId)
                         PresenceManager.shared.startTracking()
                     }

@@ -187,11 +187,12 @@ class GameManager: ObservableObject {
         if gameState.players[index].isConnected != isConnected {
             gameState.players[index].isConnected = isConnected
             logger.log("Updated \(playerId) connection status to \(isConnected)")
+
+            // Display current players for debugging
+            displayPlayers()
             
             checkAndAdvanceStateIfNeeded() // Might pause the game while the player reconnects
             
-            // Display current players for debugging
-            displayPlayers()
         } else {
             logger.log("Player \(playerId) connection status did not change: \(isConnected)")
         }
@@ -420,48 +421,6 @@ class GameManager: ObservableObject {
         }
         return gameState.players.allSatisfy { $0.scores.last == firstScore }
     }
-    
-    // MARK: UpdatePlayerCGId
-    
-//    func updatePlayerGCId(_ playerId: PlayerId, with identification: PlayerIdentification) {
-//        logger.log("Processing GKPlayer identification for player \(playerId)")
-//        guard let player = gameState.players.first(where: { $0.id == playerId }) else {
-//            logger.log("Could not find player with ID \(playerId)")
-//            return
-//        }
-//
-//        player.username = identification.username
-//        if let GKPlayer = gameKitManager?.match?.players.first(where: { $0.displayName == identification.username }) {
-//            // Load player photo
-//            GKPlayer.loadPhoto(for: .normal) { [weak self] image, error in
-//                guard self != nil else { return }
-//
-//                DispatchQueue.main.async {
-//                    if let error = error {
-//                        logger.log("Error loading player photo: \(error.localizedDescription)")
-//                    }
-//                    if let nsImage = image {
-//                        player.image = Image(nsImage: nsImage)
-//                    } else {
-//                        player.image = Image(systemName: "person.crop.circle.fill")
-//                    }
-//                }
-//            }
-//        } else {
-//            player.image = Image(systemName: "person.crop.circle.fill")
-//        }
-//
-//        player.isConnected = true // Set for GK
-//
-//        // Replace the updated player in the array
-//        if let index = gameState.players.firstIndex(where: { $0.id == playerId }) {
-//            gameState.players[index] = player
-//            logger.log("Player \(playerId) successfully updated with name: \(player.username)")
-//            logger.log("Players connected: \(gameState.players.filter { $0.isConnected }.map(\.username).joined(separator: ", "))")
-//        }
-//
-//        displayPlayers()
-//    }
     
     func updateGameStateWithBet(from playerId: PlayerId, with bet: Int) {
         // Check if bet legal
@@ -800,7 +759,7 @@ class GameManager: ObservableObject {
             await withCheckedContinuation { continuation in
                 PresenceManager.shared.checkPresence(of: playerId) { isOnline in
                     if let isOnline = isOnline, (!isOnline || playerId == self.gameState.localPlayer?.id.rawValue) {
-                        logger.log("Player \(playerId) is offline or myself. Clearing their signaling data.")
+//                        logger.log("Player \(playerId) is offline or myself. Clearing their signaling data.")
                         Task {
                             do {
                                 try await self.signalingManager.clearSignalingData(for: playerId)
@@ -810,7 +769,7 @@ class GameManager: ObservableObject {
                             continuation.resume()
                         }
                     } else {
-                        logger.log("Player \(playerId) is \(isOnline == true ? "online" : "unknown"). Skipping cleanup.")
+//                        logger.log("Player \(playerId) is \(isOnline == true ? "online" : "unknown"). Skipping cleanup.")
                         continuation.resume()
                     }
                 }
@@ -827,7 +786,7 @@ class GameManager: ObservableObject {
         let localPlayerId = PlayerId(rawValue: preferences.playerId)!
         let otherPlayerIds = PlayerId.allCases.filter { $0 != localPlayerId }
 
-        logger.log("Setting up signaling for \(localPlayerId) without listeners.")
+        logger.debug("Setting up signaling for \(localPlayerId).")
 
         Task {
             for peerId in otherPlayerIds {
@@ -843,7 +802,7 @@ class GameManager: ObservableObject {
 
                 if isPeerOnline, let offerText = offerText {
 
-                    logger.log("Found offer from \(peerId). Processing...")
+                    logger.debug("Found offer from \(peerId). Processing...")
 
                     let remoteSdp = RTCSessionDescription(type: .offer, sdp: offerText)
                     let connection = connectionManager.makePeerConnection(for: peerId)
@@ -860,12 +819,12 @@ class GameManager: ObservableObject {
                                 Task {
                                     do {
                                         try await self.signalingManager.sendAnswer(from: localPlayerId, to: peerId, sdp: answerSdp)
-                                        logger.log("Successfully sent answer to \(peerId)")
+                                        logger.debug("Successfully sent answer to \(peerId)")
 
                                         // Send ICE candidates after answer
                                         self.connectionManager.flushPendingIce(for: peerId)
                                     } catch {
-                                        logger.log("Error sending answer to \(peerId): \(error)")
+                                        logger.debug("Error sending answer to \(peerId): \(error)")
                                     }
                                 }
                             case .failure(let err):
@@ -874,7 +833,7 @@ class GameManager: ObservableObject {
                         }
                     }
                 } else {
-                    logger.log("\(peerId) is offline or has no offer. Creating an offer...")
+                    logger.debug("\(peerId) is offline or has no offer. Creating an offer...")
 
                     connectionManager.createOffer(to: peerId) { _, result in
                         switch result {
@@ -882,11 +841,11 @@ class GameManager: ObservableObject {
                             Task {
                                 do {
                                     try await self.signalingManager.sendOffer(from: localPlayerId, to: peerId, sdp: sdp)
-                                    logger.log("Sent offer to \(peerId)")
+                                    logger.debug("Sent offer to \(peerId)")
                                     // Send ICE candidates after offer
                                     self.connectionManager.flushPendingIce(for: peerId)
                                 } catch {
-                                    logger.log("Error sending offer to \(peerId): \(error)")
+                                    logger.debug("Error sending offer to \(peerId): \(error)")
                                 }
                             }
                         case .failure(let error):
@@ -917,24 +876,24 @@ class GameManager: ObservableObject {
     }
 
     private func setupConnectionManagerCallbacks(localPlayerId: PlayerId) {
-        logger.log(" GM Setup: Setting up P2PConnectionManager callbacks for \(localPlayerId.rawValue).") // ADD: Log setup
+        logger.debug(" GM Setup: Setting up P2PConnectionManager callbacks for \(localPlayerId.rawValue).") // ADD: Log setup
 
         connectionManager.onIceCandidateGenerated = { [weak self] (peerId, candidate) in
              // ADD: Log callback execution start
-             logger.log(" GM Callback: onIceCandidateGenerated called for peer \(peerId.rawValue).")
+             logger.debug(" GM Callback: onIceCandidateGenerated called for peer \(peerId.rawValue).")
              guard let self = self else {
-                 logger.log(" GM Callback: ERROR - self is nil in onIceCandidateGenerated.") // ADD: Log self nil
+                 logger.debug(" GM Callback: ERROR - self is nil in onIceCandidateGenerated.") // ADD: Log self nil
                  return
              }
              // ADD: Log before starting Task
-             logger.log(" GM Callback: Starting Task to send ICE candidate from \(localPlayerId.rawValue) to \(peerId.rawValue).")
+             logger.debug(" GM Callback: Starting Task to send ICE candidate from \(localPlayerId.rawValue) to \(peerId.rawValue).")
              Task {
                  // ADD: Log inside Task, before calling sendIceCandidate
-                 logger.log(" GM Callback Task: Inside Task. Attempting to send ICE candidate via signalingManager...")
+                 logger.debug(" GM Callback Task: Inside Task. Attempting to send ICE candidate via signalingManager...")
                  do {
                      try await self.signalingManager.sendIceCandidate(from: localPlayerId, to: peerId, candidate: candidate)
                      // ADD: Log success
-                     logger.log(" GM Callback Task: signalingManager.sendIceCandidate successful for \(peerId.rawValue).")
+                     logger.debug(" GM Callback Task: signalingManager.sendIceCandidate successful for \(peerId.rawValue).")
                  } catch {
                       // ADD: Log error from sendIceCandidate
                      logger.log(" GM Callback Task: ERROR calling signalingManager.sendIceCandidate for \(peerId.rawValue): \(error)")
@@ -944,7 +903,7 @@ class GameManager: ObservableObject {
 
         connectionManager.onConnectionEstablished = { [weak self] peerId in
              guard let self = self else { return }
-             logger.log("✅ P2P Connection established with \(peerId.rawValue)")
+             logger.debug("✅ P2P Connection established with \(peerId.rawValue)")
              self.updatePlayerConnectionStatus(playerId: peerId, isConnected: true)
         }
 

@@ -20,6 +20,10 @@ class SimpleLogger {
     /// Queue for safe file writing
     private let fileQueue = DispatchQueue(label: "com.simplelogger.filequeue", qos: .background)
     
+    private var debug: Bool = false
+    private var localPlayer: String = ""
+    private var counter: Int = 0
+    
     // MARK: - Initialization
     
     init() {
@@ -43,10 +47,19 @@ class SimpleLogger {
         print("Log file created at: \(logFileURL)")
     }
     
+    func setLocalPlayer(with name: String) {
+        self.localPlayer = name
+    }
+    
     // MARK: - Logging Methods
     
     /// Logs a message to console and file with timestamp and function information
     func log(_ message: String, function: String = #function) {
+        counter += 1
+        if counter % 20 == 0 {
+            print("************************************ \(localPlayer) ************************************")
+        }
+        
         // Create timestamp
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "HH:mm:ss"
@@ -71,6 +84,12 @@ class SimpleLogger {
             } catch {
                 print("Error writing to log file: \(error)")
             }
+        }
+    }
+    
+    func debug(_ message: String, function: String = #function) {
+        if debug {
+            log(message, function: function)
         }
     }
     
@@ -100,20 +119,3 @@ class SimpleLogger {
 // Global logger for easy access
 let logger = SimpleLogger.shared
 
-// MARK: - Example Usage
-
-/*
-// Examples of how to use the logger
-func someFunction() {
-    logger.log("This is a test message")
-    logger.log("Processing user data")
-    
-    // More complex test
-    for i in 1...3 {
-        logger.log("Processing item \(i)")
-    }
-}
-
-// someFunction()
-// print("Log file is at: \(logger.getLogFileURL().path)")
-*/
