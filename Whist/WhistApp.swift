@@ -110,6 +110,16 @@ struct DatabaseMenuCommands: Commands {
                     }
                 }
                 
+                Button("Export scores") {
+                    let exportDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/Export")
+                    
+                    let scoresManager = ScoresManager()
+
+                    scoresManager.exportScoresToLocalDirectory(exportDirectory) { _ in
+                        print("All scores were exported successfully.")
+                    }
+                }
+                
                 Button("Clear Saved Game") {
                     let gameManager = GameManager()
                     gameManager.clearSavedGameState()

@@ -146,33 +146,33 @@ class ScoresManager {
     }
     
     // MARK: Save Scores
-//    func saveScores(_ scores: [GameScore]) throws {
-//        let fileManager = FileManager.default
-//        guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
-//            .appendingPathComponent("Documents")
-//            .appendingPathComponent("scores_\(currentYear).json") else {
-//            logger.log("❌ iCloud Drive is not available")
-//            throw ScoresManagerError.fileWriteFailed
-//        }
-//        
-//        do {
-//            let encoder = JSONEncoder()
-//            encoder.outputFormatting = [.prettyPrinted]
-//            
-//            let formatter = DateFormatter()
-//            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
-//            formatter.locale = Locale(identifier: "en_US_POSIX")
-//            encoder.dateEncodingStrategy = .formatted(formatter)
-//            
-//            let data = try encoder.encode(scores)
-//            try data.write(to: iCloudURL, options: .atomic)
-//            logger.log("✅ Scores for \(currentYear) saved to iCloud Drive at \(iCloudURL.path)")
-//        } catch {
-//            logger.log("❌ Error saving to iCloud Drive: \(error.localizedDescription)")
-//            throw ScoresManagerError.fileWriteFailed
-//        }
-//    }
-//    
+    //    func saveScores(_ scores: [GameScore]) throws {
+    //        let fileManager = FileManager.default
+    //        guard let iCloudURL = fileManager.url(forUbiquityContainerIdentifier: "iCloud.com.Tony.Whist")?
+    //            .appendingPathComponent("Documents")
+    //            .appendingPathComponent("scores_\(currentYear).json") else {
+    //            logger.log("❌ iCloud Drive is not available")
+    //            throw ScoresManagerError.fileWriteFailed
+    //        }
+    //
+    //        do {
+    //            let encoder = JSONEncoder()
+    //            encoder.outputFormatting = [.prettyPrinted]
+    //
+    //            let formatter = DateFormatter()
+    //            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+    //            formatter.locale = Locale(identifier: "en_US_POSIX")
+    //            encoder.dateEncodingStrategy = .formatted(formatter)
+    //
+    //            let data = try encoder.encode(scores)
+    //            try data.write(to: iCloudURL, options: .atomic)
+    //            logger.log("✅ Scores for \(currentYear) saved to iCloud Drive at \(iCloudURL.path)")
+    //        } catch {
+    //            logger.log("❌ Error saving to iCloud Drive: \(error.localizedDescription)")
+    //            throw ScoresManagerError.fileWriteFailed
+    //        }
+    //    }
+    //
     // MARK: Save Score
     
     /// Saves a GameScore to CloudKit.
@@ -384,48 +384,62 @@ extension ScoresManager {
         }
     }
     
-    /// Loads GameScore objects for a specified year from CloudKit.
-    func loadScores(for year: Int = Calendar.current.component(.year, from: Date()),
+    /// Loads GameScore objects for a specified year from CloudKit, supporting paginated results using CKQueryOperation.Cursor.
+    func loadScores(for year: Int? = Calendar.current.component(.year, from: Date()),
                     completion: @escaping (Result<[GameScore], Error>) -> Void) {
         let container = CKContainer(identifier: "iCloud.com.Tony.WhistTest")
         let database = container.publicCloudDatabase
-        
-        // Calculate the start and end dates for the given year.
+
         let calendar = Calendar.current
-        guard let startDate = calendar.date(from: DateComponents(year: year, month: 1, day: 1)),
-              let endDate = calendar.date(from: DateComponents(year: year, month: 12, day: 31, hour: 23, minute: 59, second: 59)) else {
-            completion(.failure(ScoresManagerError.decodingFailed))
-            return
+        let predicate: NSPredicate
+        if let year = year,
+           let startDate = calendar.date(from: DateComponents(year: year, month: 1, day: 1)),
+           let endDate = calendar.date(from: DateComponents(year: year, month: 12, day: 31, hour: 23, minute: 59, second: 59)) {
+            predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDate as CVarArg, endDate as CVarArg)
+        } else {
+            predicate = NSPredicate(value: true)
         }
-        
-        let predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDate as CVarArg, endDate as CVarArg)
+
         let query = CKQuery(recordType: "GameScore", predicate: predicate)
-        
         var fetchedScores: [GameScore] = []
-        let operation = CKQueryOperation(query: query)
-        
-        operation.recordMatchedBlock = { recordID, result in
-            switch result {
-            case .failure(let error):
-                logger.log("❌ Error matching record \(recordID): \(error.localizedDescription)")
-            case .success(let record):
-                if let score = GameScore(record: record) {
-                    fetchedScores.append(score)
+
+        func fetch(with cursor: CKQueryOperation.Cursor?) {
+            let operation: CKQueryOperation
+            if let cursor = cursor {
+                operation = CKQueryOperation(cursor: cursor)
+            } else {
+                operation = CKQueryOperation(query: query)
+            }
+
+            operation.recordMatchedBlock = { recordID, result in
+                switch result {
+                case .failure(let error):
+                    logger.log("❌ Error matching record \(recordID): \(error.localizedDescription)")
+                case .success(let record):
+                    if let score = GameScore(record: record) {
+                        fetchedScores.append(score)
+                    }
                 }
             }
-        }
-        
-        operation.queryResultBlock = { result in
-            switch result {
-            case .failure(let error):
-                logger.log("❌ Error loading scores: \(error.localizedDescription)")
-                completion(.failure(ScoresManagerError.cloudKitError(error)))
-            case .success:
-                completion(.success(fetchedScores))
+
+            operation.queryResultBlock = { result in
+                switch result {
+                case .failure(let error):
+                    logger.log("❌ Error loading scores: \(error.localizedDescription)")
+                    completion(.failure(ScoresManagerError.cloudKitError(error)))
+                case .success(let cursor):
+                    if let cursor = cursor {
+                        fetch(with: cursor)
+                    } else {
+                        completion(.success(fetchedScores))
+                    }
+                }
             }
+
+            database.add(operation)
         }
-        
-        database.add(operation)
+
+        fetch(with: nil)
     }
 }
 
@@ -438,7 +452,7 @@ extension ScoresManager {
         let container = CKContainer(identifier: "iCloud.com.Tony.WhistTest")
         let database = container.publicCloudDatabase
         var recordIDsToDelete: [CKRecord.ID] = []
-
+        
         func fetchAllRecords(with cursor: CKQueryOperation.Cursor?) {
             let operation: CKQueryOperation
             if let cursor = cursor {
@@ -447,7 +461,7 @@ extension ScoresManager {
                 let query = CKQuery(recordType: "GameScore", predicate: NSPredicate(value: true))
                 operation = CKQueryOperation(query: query)
             }
-
+            
             operation.recordMatchedBlock = { recordID, result in
                 switch result {
                 case .success(let record):
@@ -456,12 +470,12 @@ extension ScoresManager {
                     logger.log("Error matching record \(recordID): \(error.localizedDescription)")
                 }
             }
-
+            
             operation.queryResultBlock = { result in
                 switch result {
                 case .failure(let error):
                     completion(.failure(ScoresManagerError.cloudKitError(error)))
-            case .success(let cursor):
+                case .success(let cursor):
                     if let cursor = cursor {
                         fetchAllRecords(with: cursor) // Continue fetching
                     } else {
@@ -470,10 +484,10 @@ extension ScoresManager {
                         let recordChunks = stride(from: 0, to: recordIDsToDelete.count, by: chunkSize).map {
                             Array(recordIDsToDelete[$0..<min($0 + chunkSize, recordIDsToDelete.count)])
                         }
-
+                        
                         let dispatchGroup = DispatchGroup()
                         var encounteredError: Error?
-
+                        
                         for chunk in recordChunks {
                             dispatchGroup.enter()
                             let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: chunk)
@@ -489,7 +503,7 @@ extension ScoresManager {
                             }
                             database.add(deleteOperation)
                         }
-
+                        
                         dispatchGroup.notify(queue: .main) {
                             if let error = encounteredError {
                                 completion(.failure(ScoresManagerError.cloudKitError(error)))
@@ -500,10 +514,10 @@ extension ScoresManager {
                     }
                 }
             }
-
+            
             database.add(operation)
         }
-
+        
         fetchAllRecords(with: nil)
     }
     
@@ -584,6 +598,45 @@ extension ScoresManager {
         } catch {
             logger.log("🚨 Error restoring backup: \(error)")
             completion(.failure(error))
+        }
+    }
+    
+    
+    /// Exports all GameScore records from CloudKit to the specified local directory as JSON files named "scores_20XX.json".
+    func exportScoresToLocalDirectory(_ directory: URL, completion: @escaping (Result<Void, Error>) -> Void) {
+        loadScores(for: nil) { result in
+            switch result {
+            case .failure(let error):
+                logger.log("🚨 Error loading scores for export: \(error)")
+                completion(.failure(error))
+            case .success(let scores):
+                // Group scores by year, and sort each year's scores by date ascending
+                let groupedByYear = Dictionary(grouping: scores) { score in
+                    Calendar.current.component(.year, from: score.date)
+                }.mapValues { yearlyScores in
+                    yearlyScores.sorted { $0.date < $1.date }
+                }
+                
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted]
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                encoder.dateEncodingStrategy = .formatted(formatter)
+                
+                do {
+                    for (year, yearlyScores) in groupedByYear {
+                        let fileURL = directory.appendingPathComponent("scores_\(year).json")
+                        let data = try encoder.encode(yearlyScores)
+                        try data.write(to: fileURL, options: .atomic)
+                        logger.log("✅ Exported scores for year \(year) to \(fileURL.path)")
+                    }
+                    completion(.success(()))
+                } catch {
+                    logger.log("🚨 Error exporting scores to local directory: \(error)")
+                    completion(.failure(error))
+                }
+            }
         }
     }
 }
