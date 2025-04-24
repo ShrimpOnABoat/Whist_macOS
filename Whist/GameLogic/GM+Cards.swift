@@ -232,6 +232,7 @@ extension GameManager {
                             }
                         }
                         self.sortLocalPlayerHand()
+                        self.saveGameState(self.gameState)
                     } else {
                         dealNextCard()
                     }
