@@ -14,7 +14,6 @@ import FirebaseFirestore
 class FirebaseService {
     static let shared = FirebaseService()
     private let db = Firestore.firestore()
-    // ADD: Constant for the document ID
     private let currentGameStateDocumentId = "current"
     private let gameStatesCollection = "gameStates"
     private let scoresCollection = "scores"
@@ -22,21 +21,18 @@ class FirebaseService {
     // MARK: - GameState
 
     func saveGameState(_ state: GameState) async throws {
-        // CHANGE: Use constants for collection and document ID
         try db.collection(gameStatesCollection)
             .document(currentGameStateDocumentId)
             .setData(from: state)
     }
 
     func loadGameState() async throws -> GameState {
-        // CHANGE: Use constants for collection and document ID
         let snapshot = try await db.collection(gameStatesCollection)
             .document(currentGameStateDocumentId)
             .getDocument()
         return try snapshot.data(as: GameState.self)
     }
 
-    // ADD: Function to delete the current game state document
     func deleteCurrentGameState() async throws {
         try await db.collection(gameStatesCollection)
             .document(currentGameStateDocumentId)
@@ -48,17 +44,70 @@ class FirebaseService {
 
     func saveGameScore(_ score: GameScore) async throws {
         let id = score.id.uuidString
-        // CHANGE: Use constant for collection
         try db.collection(scoresCollection)
             .document(id)
             .setData(from: score)
     }
 
-    func loadAllScores() async throws -> [GameScore] {
-        // CHANGE: Use constant for collection
-        let snapshot = try await db.collection(scoresCollection)
+    func saveGameScores(_ scores: [GameScore]) async throws {
+        let batch = db.batch()
+        let scoresRef = db.collection(scoresCollection)
+        for score in scores {
+            let docRef = scoresRef.document(score.id.uuidString)
+            try batch.setData(from: score, forDocument: docRef)
+        }
+        try await batch.commit()
+        logger.log("Successfully saved \(scores.count) scores in a batch.")
+    }
+
+    func loadScores(for year: Int? = nil) async throws -> [GameScore] {
+        var query: Query = db.collection(scoresCollection)
             .order(by: "date", descending: true)
-            .getDocuments()
-        return try snapshot.documents.compactMap { try $0.data(as: GameScore.self) }
+
+        if let year = year,
+           let calendar = Optional(Calendar.current),
+           let startDate = calendar.date(from: DateComponents(year: year, month: 1, day: 1)),
+           let endDate = calendar.date(from: DateComponents(year: year + 1, month: 1, day: 1)) {
+             query = query.whereField("date", isGreaterThanOrEqualTo: startDate)
+                          .whereField("date", isLessThan: endDate)
+        }
+
+        let snapshot = try await query.getDocuments()
+        let scores = snapshot.documents.compactMap { document -> GameScore? in
+            try? document.data(as: GameScore.self)
+        }
+        logger.log("Successfully loaded \(scores.count) scores\(year == nil ? "" : " for year \(year!)").")
+        return scores
+    }
+
+    func deleteGameScore(id: String) async throws {
+        try await db.collection(scoresCollection).document(id).delete()
+        logger.log("Successfully deleted score with ID: \(id)")
+    }
+
+    func deleteAllGameScores() async throws {
+        let collectionRef = db.collection(scoresCollection)
+        var count = 0
+        var lastSnapshot: DocumentSnapshot? = nil
+
+        repeat {
+            let batch = db.batch()
+            var query = collectionRef.limit(to: 400)
+            if let lastSnapshot = lastSnapshot {
+                query = query.start(afterDocument: lastSnapshot)
+            }
+
+            let snapshot = try await query.getDocuments()
+            guard !snapshot.documents.isEmpty else { break }
+
+            snapshot.documents.forEach { batch.deleteDocument($0.reference) }
+            try await batch.commit()
+
+            count += snapshot.documents.count
+            lastSnapshot = snapshot.documents.last
+
+        } while lastSnapshot != nil
+
+        logger.log("Successfully deleted \(count) scores from collection \(scoresCollection).")
     }
 }

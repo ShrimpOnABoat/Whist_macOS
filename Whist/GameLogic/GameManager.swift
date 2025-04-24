@@ -117,17 +117,22 @@ class GameManager: ObservableObject {
         // Update the game state
         gameState.dealer = gameState.playOrder.first
         logger.log("Dealer is \(String(describing: gameState.dealer))")
-        
+
         // Set the previous loser's monthlyLosses
-        GameManager.SM.findLoser { loser in
-            DispatchQueue.main.async {
-                if let loser = loser {
+        Task {
+            if let loser = await GameManager.SM.findLoser() {
+                // Since GameManager is @MainActor, DispatchQueue.main.async might be redundant,
+                // but it's safe to keep for explicit main thread updates.
+                DispatchQueue.main.async {
                     let loserPlayer = self.gameState.getPlayer(by: loser.playerId)
                     loserPlayer.monthlyLosses = loser.losingMonths
                     logger.log("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
-                } else {
-                    logger.log("No loser identified")
                 }
+            } else {
+                 // Ensure logging happens on the main thread if needed for UI consistency
+                 DispatchQueue.main.async {
+                    logger.log("No loser identified or loser had 0 losing months.")
+                 }
             }
         }
         // Identify localPlayer, leftPlayer, and rightPlayer
@@ -603,15 +608,19 @@ class GameManager: ObservableObject {
             )
             
             // Save the updated scores array.
-            ScoresManager.shared.saveScore(newScore) { result in
-                switch result {
-                case .success(let savedRecord):
-                    // The GameScore was successfully saved to CloudKit.
-                    logger.log("Score saved successfully with recordID: \(savedRecord.recordID)")
-                case .failure(let error):
-                    // Handle the error (e.g., display an alert to the user).
-                    logger.log("Failed to save score: \(error.localizedDescription)")
-                    logger.log("Scores to save: \(newScore)")
+            Task {
+                do {
+                    try await ScoresManager.shared.saveScore(newScore)
+                    // Log success on the main thread if necessary, though logger should handle it
+                    await MainActor.run { // Ensure logging happens on main thread if it interacts with UI state implicitly
+                         logger.log("Score saved successfully for game ending \(newScore.date)")
+                    }
+                } catch {
+                     // Handle the error (e.g., display an alert to the user).
+                    await MainActor.run {
+                         logger.log("Failed to save score: \(error.localizedDescription)")
+                         logger.log("Score data that failed to save: \(newScore)")
+                    }
                 }
             }
         }

@@ -111,7 +111,7 @@ struct ScoresMenuCommands: Commands {
 struct DatabaseMenuCommands: Commands {
     let preferences: Preferences
     let gameManager: GameManager
-
+    
     init(preferences: Preferences, gameManager: GameManager) {
         self.preferences = preferences
         self.gameManager = gameManager
@@ -121,31 +121,46 @@ struct DatabaseMenuCommands: Commands {
         CommandMenu("Database") {
             Button("Restore Database from Backup") {
                 let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
-                
-                let scoresManager = ScoresManager()
-                
-                scoresManager.restoreBackup(from: backupDirectory) { restoreResult in
-                    switch restoreResult {
-                    case .failure(let error):
-                        logger.log("Error restoring backup: \(error.localizedDescription)")
-                    case .success:
-                        logger.log("Database restored successfully.")
-                    }
-                }
-                
-                Button("Export scores") {
-                    let exportDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/Export")
-                    
-                    let scoresManager = ScoresManager()
 
-                    scoresManager.exportScoresToLocalDirectory(exportDirectory) { _ in
-                        print("All scores were exported successfully.")
+                Task {
+                    let scoresManager = ScoresManager.shared // Use shared instance
+                    do {
+                        try await scoresManager.restoreBackup(from: backupDirectory)
+                        // Log success on the main actor
+                        await MainActor.run {
+                             logger.log("✅ Database restored successfully.")
+                        }
+                    } catch {
+                         // Log error on the main actor
+                        await MainActor.run {
+                             logger.log("🚨 Error restoring backup: \(error.localizedDescription)")
+                        }
                     }
                 }
-                
-                Button("Clear Saved Game") {
-                    let gameManager = GameManager()
-                    gameManager.clearSavedGameState()
+            }
+            
+            Button("Export scores") {
+                let exportDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/Export")
+
+                Task {
+                     let scoresManager = ScoresManager.shared // Use shared instance
+                    do {
+                         try await scoresManager.exportScoresToLocalDirectory(exportDirectory)
+                        // Log success on the main actor
+                        await MainActor.run {
+                            logger.log("✅ All scores were exported successfully to \(exportDirectory.path).")
+                        }
+                    } catch {
+                         // Log error on the main actor
+                         await MainActor.run {
+                            logger.log("🚨 Error exporting scores: \(error.localizedDescription)")
+                         }
+                    }
+                }
+            }
+            
+            Button("Clear Saved Game") {
+                gameManager.clearSavedGameState()
             }
         }
     }
