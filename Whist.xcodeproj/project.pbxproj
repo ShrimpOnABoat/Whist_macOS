@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9502AE9C2DB3EA2E00990C9E /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 9502AE9B2DB3EA2E00990C9E /* GoogleService-Info.plist */; };
 		9502AE9E2DB3ECE800990C9E /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9502AE9D2DB3ECE800990C9E /* FirebaseAnalytics */; };
 		9502AEA02DB3ECE800990C9E /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = 9502AE9F2DB3ECE800990C9E /* FirebaseAnalyticsOnDeviceConversion */; };
 		9502AEA22DB3ECE800990C9E /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 9502AEA12DB3ECE800990C9E /* FirebaseAnalyticsWithoutAdIdSupport */; };
@@ -19,6 +20,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		9502AE9B2DB3EA2E00990C9E /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		95A0C6AA2CEB85EB00EA513A /* Whist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Whist.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		95E584552D765AD900753155 /* CloudKitDemo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = CloudKitDemo.entitlements; path = Whist/CloudKitDemo.entitlements; sourceTree = "<group>"; };
 		95E9A44B2D0DDC1800505A6B /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/MacOSX.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
@@ -78,6 +80,7 @@
 				95E9A4422D0DDB9700505A6B /* WhistTests */,
 				95E9A44A2D0DDC1800505A6B /* Frameworks */,
 				95A0C6AB2CEB85EB00EA513A /* Products */,
+				9502AE9B2DB3EA2E00990C9E /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -174,6 +177,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9502AE9C2DB3EA2E00990C9E /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

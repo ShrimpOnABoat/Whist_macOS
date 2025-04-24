@@ -6,48 +6,65 @@
 //  Entry point of the application.
 
 import SwiftUI
-import GameKit
+import Firebase
+import FirebaseAppCheck
 
 @main
 struct WhistApp: App {
-    @StateObject var gameManager = GameManager()
-    @StateObject var gameKitManager: GameKitManager
-    @StateObject var preferences = Preferences()
-
+    @StateObject var preferences: Preferences
+    @StateObject var gameManager: GameManager
+    
     // ADD: AppDelegate needed for GameKit listener on macOS
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
+    
     init() {
+        // Configure Firebase
+        AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
+        FirebaseApp.configure()
+        
+        let settings = FirestoreSettings()
+        settings.cacheSettings = MemoryCacheSettings() // Use in-memory cache
+        Firestore.firestore().settings = settings
+        #if DEBUG // So that I can assign a player for each app
+        UserDefaults.standard.removeObject(forKey: "playerId")
+        #endif
+        
+        // Initialize preferences
         let prefs = Preferences()
-        let gkManager = GameKitManager(preferences: prefs)
+        
+        // Use singleton instances for signaling and P2P
+        let signaling = FirebaseSignalingManager.shared
+        let connection = P2PConnectionManager.shared
+        
+        // Initialize the core game manager with our custom matchmaking
+        let manager = GameManager(connectionManager: connection,
+                                  signalingManager: signaling,
+                                  preferences: prefs)
+        
+        // Wire up state objects
         _preferences = StateObject(wrappedValue: prefs)
-        _gameKitManager = StateObject(wrappedValue: gkManager)
+        _gameManager = StateObject(wrappedValue: manager)
     }
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(gameManager)
-                .environmentObject(gameKitManager)
-                .environmentObject(preferences)
-                .sheet(isPresented: .constant(preferences.playerId.isEmpty)) {
+            Group {
+                if preferences.playerId.isEmpty {
                     IdentityPromptView(playerId: $preferences.playerId)
-                        .environmentObject(preferences)
+                } else {
+                    ContentView()
+                        .onAppear {
+                            if let window = NSApplication.shared.windows.first {
+                                window.contentAspectRatio = NSSize(width: 4, height: 3)
+                            }
+                            logger.setLocalPlayer(with: preferences.playerId)
+                            PresenceManager.shared.configure(with: preferences.playerId)
+                            PresenceManager.shared.startTracking()
+                        }
                 }
-                .onAppear {
-                    // Assign managers immediately
-                    gameManager.gameKitManager = gameKitManager
-                    gameKitManager.gameManager = gameManager
-
-                    gameKitManager.authenticateLocalPlayer() { playerId, name, image in
-                        gameManager.updateLocalPlayer(playerId, name: name, image: Image(nsImage: image))
-                    }
-                    
-                    if let window = NSApplication.shared.windows.first {
-                        window.contentAspectRatio = NSSize(width: 4, height: 3)
-                    }
-                    
-                }
+            }
+            .environmentObject(preferences)
+            .environmentObject(gameManager)
         }
         .defaultSize(width: 800, height: 600)
         .commands {
@@ -55,21 +72,22 @@ struct WhistApp: App {
             Group {
                 ScoresMenuCommands()
                 if preferences.playerId == "toto" {
-                    DatabaseMenuCommands()
+                    DatabaseMenuCommands(preferences: preferences, gameManager: gameManager)
                 }
             }
         }
-
         
         Settings {
             PreferencesView()
                 .environmentObject(preferences)
+                .environmentObject(gameManager)
         }
         
         // Secondary window for ScoresView with an identifier.
         Window("Scores", id: "ScoresWindow") {
             ScoresView()
                 .environmentObject(gameManager)
+                .environmentObject(preferences)
         }
         .commandsRemoved()
     }
@@ -91,22 +109,27 @@ struct ScoresMenuCommands: Commands {
 }
 
 struct DatabaseMenuCommands: Commands {
-    @EnvironmentObject var preferences: Preferences
+    let preferences: Preferences
+    let gameManager: GameManager
+
+    init(preferences: Preferences, gameManager: GameManager) {
+        self.preferences = preferences
+        self.gameManager = gameManager
+    }
     
     var body: some Commands {
-            CommandMenu("Database") {
-                Button("Restore Database from Backup") {
-                    let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
-                    
-                    let scoresManager = ScoresManager()
-                    
-                    scoresManager.restoreBackup(from: backupDirectory) { restoreResult in
-                        switch restoreResult {
-                        case .failure(let error):
-                            logger.log("Error restoring backup: \(error.localizedDescription)")
-                        case .success:
-                            logger.log("Database restored successfully.")
-                        }
+        CommandMenu("Database") {
+            Button("Restore Database from Backup") {
+                let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
+                
+                let scoresManager = ScoresManager()
+                
+                scoresManager.restoreBackup(from: backupDirectory) { restoreResult in
+                    switch restoreResult {
+                    case .failure(let error):
+                        logger.log("Error restoring backup: \(error.localizedDescription)")
+                    case .success:
+                        logger.log("Database restored successfully.")
                     }
                 }
                 
@@ -135,7 +158,12 @@ class Preferences: ObservableObject {
     @AppStorage("motifVisibility") var motifVisibility: Double = 0.5
     @AppStorage("patternOpacity") var patternOpacity: Double = 0.5
     @AppStorage("patternScale") private var patternScaleStorage: Double = 0.5
+    @AppStorage("enabledRandomColors") private var enabledRandomColorsData: Data?
+    #if DEBUG
+    @Published var playerId: String = ""
+    #else
     @AppStorage("playerId") var playerId: String = ""
+    #endif
     
     var patternScale: CGFloat {
         get { CGFloat(patternScaleStorage) }
@@ -147,8 +175,6 @@ class Preferences: ObservableObject {
     }
     
     // Sauvegarde des couleurs activables pour le tirage aléatoire
-    @AppStorage("enabledRandomColors") private var enabledRandomColorsData: Data?
-    
     var enabledRandomColors: [Bool] {
         get {
             if let data = enabledRandomColorsData,
@@ -225,20 +251,20 @@ struct PreferencesView: View {
             
             Form {
                 Section(header: Text("Identité du joueur")
-                            .font(.headline)
-                            .padding(.vertical, 4)) {
-                    if preferences.playerId.isEmpty {
-                        Text("Veuillez choisir votre identité")
-                            .foregroundColor(.red)
-                            .font(.caption)
-                    }
-                    Picker("", selection: $preferences.playerId) {
-                        ForEach(["dd", "gg", "toto"], id: \.self) { id in
-                            Text(id).tag(id)
+                    .font(.headline)
+                    .padding(.vertical, 4)) {
+                        if preferences.playerId.isEmpty {
+                            Text("Veuillez choisir votre identité")
+                                .foregroundColor(.red)
+                                .font(.caption)
                         }
+                        Picker("", selection: $preferences.playerId) {
+                            ForEach(["dd", "gg", "toto"], id: \.self) { id in
+                                Text(id).tag(id)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
                     }
-                    .pickerStyle(SegmentedPickerStyle())
-                }
             }
         }
         .padding()

@@ -7,6 +7,7 @@
 
 import Cocoa
 import GameKit
+import FirebaseCore
 
 class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
     
@@ -41,6 +42,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GKLocalPlayerListener {
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+//        FirebaseApp.configure()
         // Just check for pending invites
         if let inviteURL = pendingInviteURL {
             logger.log("Processing pending invite URL at launch: \(inviteURL)")

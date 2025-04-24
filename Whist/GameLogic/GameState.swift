@@ -24,8 +24,6 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
     // ADD: Add properties to be saved
     @Published var tricksGrabbed: [Bool] = []
     @Published var currentTrick: Int = 0
-    @Published var randomSeed: UInt64 = 0 // Added from GameManager
-
 
     // MARK: - Codable Conformance
     enum CodingKeys: String, CodingKey {
@@ -42,11 +40,10 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
         // ADD: Add new keys
         case tricksGrabbed
         case currentTrick
-        case randomSeed
     }
 
     // Custom initializer (ensure it initializes new properties)
-    init(round: Int = 0, deck: [Card] = [], trumpCards: [Card] = [Card(suit: .clubs, rank: .two), Card(suit: .spades, rank: .two), Card(suit: .diamonds, rank: .two), Card(suit: .hearts, rank: .two)], table: [Card] = [], players: [Player] = [], trumpSuit: Suit? = nil, playOrder: [PlayerId] = [], dealer: PlayerId? = nil, currentPhase: GamePhase = .waitingForPlayers, tricksGrabbed: [Bool] = [], currentTrick: Int = 0, randomSeed: UInt64 = 0) { // ADD: Added new properties
+    init(round: Int = 0, deck: [Card] = [], trumpCards: [Card] = [Card(suit: .clubs, rank: .two), Card(suit: .spades, rank: .two), Card(suit: .diamonds, rank: .two), Card(suit: .hearts, rank: .two)], table: [Card] = [], players: [Player] = [], trumpSuit: Suit? = nil, playOrder: [PlayerId] = [], dealer: PlayerId? = nil, currentPhase: GamePhase = .waitingForPlayers, tricksGrabbed: [Bool] = [], currentTrick: Int = 0) { // ADD: Added new properties
         self.round = round
         self.deck = deck
         self.trumpCards = trumpCards // Ensure this is set
@@ -60,7 +57,6 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
         // ADD: Initialize new properties
         self.tricksGrabbed = tricksGrabbed
         self.currentTrick = currentTrick
-        self.randomSeed = randomSeed
         if players.isEmpty { self.createDefaultPlayers() }
     }
 
@@ -80,7 +76,6 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
         // ADD: Decode new properties
         tricksGrabbed = try container.decode([Bool].self, forKey: .tricksGrabbed)
         currentTrick = try container.decode(Int.self, forKey: .currentTrick)
-        randomSeed = try container.decode(UInt64.self, forKey: .randomSeed)
 
         if players.isEmpty { self.createDefaultPlayers() }
         // Note: lastTrickCardStates and newDeck are not decoded as they are transient/UI state
@@ -102,7 +97,6 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
         // ADD: Encode new properties
         try container.encode(tricksGrabbed, forKey: .tricksGrabbed)
         try container.encode(currentTrick, forKey: .currentTrick)
-        try container.encode(randomSeed, forKey: .randomSeed)
         // Note: lastTrickCardStates and newDeck are not encoded
     }
 
@@ -123,7 +117,7 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
             }
 
             // Add the player to the game state
-            let newPlayer = Player(id: playerID, username: "", image: placeholderImage)
+            let newPlayer = Player(id: playerID, image: placeholderImage)
             newPlayer.isConnected = false
             players.append(newPlayer)
         }

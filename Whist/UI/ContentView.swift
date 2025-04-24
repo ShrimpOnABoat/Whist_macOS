@@ -9,49 +9,49 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var gameManager: GameManager
-    @EnvironmentObject private var gameKitManager: GameKitManager
     @EnvironmentObject private var preferences: Preferences
-
+    
     var body: some View {
         ZStack {
-            // ----- Authenticated -----
-            if gameKitManager.isAuthenticated {
-                 // Player ID must be selected (Handled by sheet in WhistApp)
-                 // If ID is empty, the sheet forces selection.
-
-                 // Show Matchmaking if waiting for players, otherwise show GameView
-                 if gameManager.gameState.currentPhase == .waitingForPlayers {
-                    MatchMakingView()
-                        .environmentObject(gameManager)
-                        .environmentObject(gameKitManager)
-                 } else {
-                    // Game is in progress (or just finished setting up post-match)
-                    GameView()
-                        .environmentObject(gameManager)
-                        .environmentObject(gameKitManager)
-                        .environmentObject(preferences)
-                 }
-            }
-            // ----- Not Authenticated / Error -----
-            else {
-                VStack(spacing: 20) {
-                    if let errorMessage = gameKitManager.authenticationErrorMessage {
-                         Image(systemName: "exclamationmark.triangle.fill") // ...
-                         Text("Erreur d'authentification Game Center :") // ...
-                         Text(errorMessage) // ...
-                    } else {
-                        // Still authenticating
-                        ProgressView().scaleEffect(1.5)
-                        Text("Authentification Game Center...")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                            .padding(.top)
-                    }
-                }
-                .padding()
+            // Show MatchMakingView when the game is waiting for players OR until setup game begins
+            if gameManager.gameState.currentPhase == .waitingForPlayers {
+                MatchMakingView()
+                    .environmentObject(gameManager)
+                    .environmentObject(preferences)
+            } else {
+                // Game is in progress
+                GameView()
+                    .environmentObject(gameManager)
+                    .environmentObject(preferences)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-
+        // Start P2P networking when view appears or playerId changes
+        .onAppear {
+            identifyAndUpdateLocalPlayer()
+            gameManager.startNetworkingIfNeeded()
+        }
+        .onChange(of: preferences.playerId) { _ in
+            identifyAndUpdateLocalPlayer()
+//            gameManager.startNetworkingIfNeeded()
+        }
+    }
+    // Helper function to avoid code duplication
+    private func identifyAndUpdateLocalPlayer() {
+        guard !preferences.playerId.isEmpty,
+              let localId = PlayerId(rawValue: preferences.playerId) else {
+            logger.log("ContentView: PlayerId not set, cannot identify local player.")
+            return
+        }
+        logger.log("ContentView: Identifying local player as \(localId)")
+        // Find the matching placeholder image (or set a default)
+        let placeholderImage: Image
+        switch localId {
+        case .dd: placeholderImage = Image(systemName: "figure.pool.swim.circle.fill")
+        case .gg: placeholderImage = Image(systemName: "safari.fill")
+        case .toto: placeholderImage = Image(systemName: "figure.run.treadmill.circle.fill")
+        }
+        // Call the GameManager function to update the player object
+        gameManager.updateLocalPlayer(localId, name: localId.rawValue, image: placeholderImage)
     }
 }

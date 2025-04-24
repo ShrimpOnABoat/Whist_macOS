@@ -9,10 +9,8 @@ import SwiftUI
 
 enum GamePhase: Encodable, Decodable {
     case waitingForPlayers      // Before the game starts, waiting for all players to connect
-    case sendingIDs             // Ensuring everybody knows who's who
-    case receivingIDs           // Ensuring everybody knows who's who
     case resumeSavedGame        // In case a game was saved, resume
-    case exchangingSeed         // Ensuring seed is distributed before setup
+    case setPlayOrder         // Ensuring seed is distributed before setup
     case setupGame              // Setup the game for the evening!
     case waitingToStart         // Display a "New game" button and the last game's winner
     case newGame                // Setup a new game
@@ -80,25 +78,17 @@ extension GameManager {
         case .waitingForPlayers:
             setPlayerState(to: .idle)
             
-        case .sendingIDs:
-            logger.log("Sending my ID to other players...")
-            sendGCIdToPlayers()
-            
-        case .receivingIDs:
-            // Nothing to do but wait for other players' ids
-            logger.log("Waiting for other players' IDs...")
-            
         case .resumeSavedGame:
             Task {
                 let isSavedGame = await checkAndRestoreSavedGame()
                 if !isSavedGame {
-                    transition(to: .exchangingSeed)
+                    transition(to: .setPlayOrder)
                 }
             }
             
-        case .exchangingSeed:
+        case .setPlayOrder:
             if gameState.localPlayer?.id == .toto {
-                generateAndSendSeed()
+                setAndSendPlayOrder()
             } else {
                 logger.log("Waiting for seed from Toto...")
             }
@@ -352,38 +342,24 @@ extension GameManager {
         logger.log("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
-            if let match = gameKitManager?.match {
-                if match.players.count == 2 { // counts only remote players
-                    logger.log("All players connected! Moving to .exchangingIDs")
-                    transition(to: .sendingIDs)
-                } else {
-                    logger.log("Only \(match.players.count) remote players connected. Waiting...")
-                }
+            if gameState.allPlayersConnected { // Use the existing computed property
+                 logger.log("All players connected! Transitioning from .waitingForPlayers...")
+                 transition(to: .resumeSavedGame)
             } else {
-                logger.log("Couldn't get match data. Waiting...")
-            }
-            
-        case .sendingIDs:
-            if myIDWasSent {
-                transition(to: .receivingIDs)
-            } else {
-                transition(to: .sendingIDs)
-            }
-            
-        case .receivingIDs:
-            if allPlayersIded() {
-                logger.log("All players identified, proceeding to resumeSavedGame...")
-                transition(to: .resumeSavedGame)
+                 // Still waiting, log status
+                 let connectedCount = gameState.players.filter { $0.isConnected }.count
+                 let totalCount = gameState.players.count
+                 logger.log("Waiting for players: \(connectedCount)/\(totalCount) connected.")
             }
             
         case .resumeSavedGame:
             logger.log("Not doing anything")
             
-        case .exchangingSeed:
-            if gameState.randomSeed == 0 {
-                logger.log("Seed not set yet. Waiting in .exchangingSeed...")
+        case .setPlayOrder:
+            if gameState.playOrder == [] {
+                logger.log("PlayOrder not set yet. Waiting in .setPlayOrder...")
             } else {
-                logger.log("Seed initialized! Moving to .setupGame")
+                logger.log("PlayOrder initialized! Moving to .setupGame")
                 transition(to: .setupGame)
             }
             
