@@ -423,7 +423,7 @@ class GameManager: ObservableObject {
         if !(bet > -1 && bet <= max(gameState.round - 2, 1)) {
             logger.fatalErrorAndLog("Received a illegal bet from \(playerId) with \(bet).")
         }
-        
+
         // Set the player's bet
         let player = gameState.getPlayer(by: playerId)
         if player.announcedTricks.count < gameState.round {
@@ -436,6 +436,26 @@ class GameManager: ObservableObject {
             saveGameState(gameState)
         }
         logger.log("Player \(playerId) announced tricks: \(player.announcedTricks)")
+
+        // if all players have bet and I'm placed 1, show the trump card if there's no 3-tie OR if local player score >= 2 * second player score
+        let shouldRevealTrump = (
+            allPlayersBet() &&
+            gameState.round > 3 &&
+            gameState.playerPlaced(1)?.scores.last != gameState.playerPlaced(3)?.scores.last
+        ) || ({ // Use a closure to safely unwrap and compare scores
+            guard let localScore = gameState.localPlayer?.scores.last, // Safely get local player's last score
+                  let secondPlacePlayer = gameState.playerPlaced(2),   // Safely get player in 2nd place
+                  let secondScore = secondPlacePlayer.scores.last else { // Safely get 2nd place player's last score
+                return false // If any value is nil, this condition is false
+            }
+            // Now perform the comparison with unwrapped values
+            return localScore >= 2 * secondScore
+        })() // Immediately execute the closure
+
+        if shouldRevealTrump {
+            gameState.trumpCards.last?.isFaceDown = false
+        }
+
         self.objectWillChange.send() // To force a refresh for the last player
     }
     

@@ -178,21 +178,6 @@ extension GameState {
     }
 }
 
-//extension GameState {
-//    func moveCardPreview(from source: inout [Card], to destination: inout [Card], card: Card) {
-//        // Ensure the card exists in the source array
-//        guard let cardIndex = source.firstIndex(of: card) else {
-//            logger.fatalErrorAndLog("Card \(card) not found in \(source)")
-//        }
-//
-//        // Remove the card from the source
-//        let cardToMove = source.remove(at: cardIndex)
-//
-//        // Add the card to the destination
-//        destination.append(cardToMove)
-//    }
-//}
-
 extension GameState {
     var localPlayer: Player? {
         players.first(where: { $0.tablePosition == .local })
@@ -212,6 +197,37 @@ extension GameState {
     
     var allPlayersConnected: Bool {
         players.allSatisfy(\.isConnected)
+    }
+    
+    func bonusCardsNeeded(for playerId: PlayerId) -> Int {
+        guard let player = players.first(where: { $0.id == playerId }) else { return 0 }
+
+        var extraCards = 0
+
+        if round > 3 {
+            if player.place == 2 {
+                if player.monthlyLosses > 1 && round < 12 {
+                    extraCards = 2
+                } else {
+                    extraCards = 1
+                }
+            } else if player.place == 3 {
+                extraCards = 1
+                let playerScore = player.scores[safe: round - 2] ?? 0
+                let secondPlayerScore = players[safe: 1]?.scores[safe: round - 2] ?? 0
+
+                if player.monthlyLosses > 0 || Double(playerScore) <= 0.5 * Double(secondPlayerScore) {
+                    extraCards = 2
+                }
+            }
+        }
+
+        return extraCards
+    }
+    
+    func playerPlaced(_ place: Int) -> Player? {
+        guard place >= 1 && place <= 3 else { return nil }
+        return players.first(where: { $0.place == place })
     }
 }
 

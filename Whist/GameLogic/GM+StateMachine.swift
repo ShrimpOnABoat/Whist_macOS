@@ -73,6 +73,8 @@ extension GameManager {
 
     private func handleStateTransition() {
         if processPendingActionsForCurrentPhase() { return }
+
+        guard let localPlayer: Player = gameState.localPlayer else { return }
         
         switch gameState.currentPhase {
         case .waitingForPlayers:
@@ -87,7 +89,7 @@ extension GameManager {
             }
             
         case .setPlayOrder:
-            if gameState.localPlayer?.id == .toto {
+            if localPlayer.id == .toto {
                 setAndSendPlayOrder()
             } else {
                 logger.log("Waiting for seed from Toto...")
@@ -109,7 +111,7 @@ extension GameManager {
         case .setupNewRound:
             setPlayerState(to: .idle)
             newGameRound()
-            if gameState.localPlayer?.id == gameState.dealer {
+            if localPlayer.id == gameState.dealer {
                 if !isDeckReady {
                     logger.log("isDeckReady: \(isDeckReady)")
                     transition(to: .renderingDeck)
@@ -141,7 +143,7 @@ extension GameManager {
         case .dealingCards:
             setPlayerState(to: .idle)
             hoveredSuit = nil
-            let isDealer = (gameState.localPlayer?.id == gameState.dealer)
+            let isDealer = (localPlayer.id == gameState.dealer)
 
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
             func afterDealing() {
@@ -203,7 +205,7 @@ extension GameManager {
             setPlayerState(to: .waiting)
 
             // Once a trump suit is chosen and confirmed:
-            if (gameState.trumpSuit != nil) && (gameState.localPlayer?.place == 2) {
+            if (gameState.trumpSuit != nil) && (localPlayer.place == 2) {
                 transition(to: .discard) // In case local player is second
             }
             
@@ -227,7 +229,7 @@ extension GameManager {
                     if lastPlayerDiscarded() {
                         transition(to: .playingTricks)
                     } else {
-                        if gameState.localPlayer?.place == 3 {
+                        if localPlayer.place == 3 {
                             transition(to: .discard)
                         } else {
                             setPlayerState(to: .waiting)
@@ -235,19 +237,25 @@ extension GameManager {
                     }
                 } else {
                     logger.log("Some players have not bet")
-                    showOptions = true
-                    setPlayerState(to: .bidding)
-                    logger.log("local player must bet > 3")
+                    // At the last round, if local player is last and has 2 bonus cards, he must wait for the second player to discard his card first.
+                    if gameState.round == 12
+                        && (gameState.bonusCardsNeeded(for: localPlayer.id) == 2)
+                        && localPlayer.hand.count != 12 {
+                        setPlayerState(to: .waiting)
+                        logger.log("Waiting for second player to give me his card")
+                    } else {
+                        showOptions = true
+                        setPlayerState(to: .bidding)
+                        logger.log("local player must bet > 3")
+                    }
                 }
             }
             
         case .showCard:
             setPlayerState(to: .idle)
             hoveredSuit = nil
-            if let localPlayer = gameState.localPlayer {
-                for i in localPlayer.hand.indices {
-                    localPlayer.hand[i].isFaceDown = false
-                }
+            for i in localPlayer.hand.indices {
+                localPlayer.hand[i].isFaceDown = false
             }
 
             transition(to: .playingTricks)
