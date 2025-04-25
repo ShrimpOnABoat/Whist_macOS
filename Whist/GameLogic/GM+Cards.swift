@@ -33,7 +33,7 @@ extension GameManager {
     
     func gatherCards(completion: @escaping () -> Void) {
         let totalCardsToMove = gameState.players.reduce(0) { $0 + $1.trickCards.count }
-//        logger.log("gatherCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
+        //        logger.log("gatherCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
         if totalCardsToMove > 0 {
             beginBatchMove(totalCards: totalCardsToMove) {
                 completion()
@@ -113,7 +113,7 @@ extension GameManager {
     func dealCards(completion: @escaping () -> Void) {
         var cardsToDeal: Int
         
-        isDeckReceived = false 
+        isDeckReceived = false
         
         // Sort players by the last score
         gameState.players.sort { (a, b) -> Bool in
@@ -167,7 +167,7 @@ extension GameManager {
         
         // Set the batch animation
         let totalCardsToMove = cardsPerPlayer.reduce(0) { $0 + $1.value }
-//        logger.log("dealCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
+        //        logger.log("dealCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: totalCardsToMove) {
             completion()
         }
@@ -208,7 +208,7 @@ extension GameManager {
                 default:
                     logger.fatalErrorAndLog("Invalid table position")
                 }
- 
+                
                 // Wait for card movement to complete before dealing next card
                 moveCard(card, from: .deck, to: destination)
                 cardsPerPlayer[playerID]! -= 1
@@ -228,7 +228,7 @@ extension GameManager {
                                 withAnimation(.smooth(duration: 0.5)) {
                                     trumpCard.isFaceDown = false
                                 }
-//                                logger.log("The trump card is \(trumpCard)")
+                                //                                logger.log("The trump card is \(trumpCard)")
                             }
                         }
                         self.sortLocalPlayerHand()
@@ -249,12 +249,12 @@ extension GameManager {
         guard let localPlayerId = gameState.localPlayer?.id else {
             logger.fatalErrorAndLog("Error: Local player is not defined.")
         }
-
+        
         let player = gameState.getPlayer(by: localPlayerId)
-
+        
         // Define the suit order
         let suitOrder: [Suit] = [.hearts, .clubs, .diamonds, .spades]
-
+        
         // Sort the hand based on suit order and rank
         player.hand.sort { card1, card2 in
             if card1.suit == card2.suit {
@@ -265,8 +265,8 @@ extension GameManager {
                 return suitOrder.firstIndex(of: card1.suit)! < suitOrder.firstIndex(of: card2.suit)!
             }
         }
-
-//        logger.log("Local player's hand has been sorted.")
+        
+        //        logger.log("Local player's hand has been sorted.")
     }
     
     // MARK: playCard
@@ -276,19 +276,19 @@ extension GameManager {
         guard let localPlayer = gameState.localPlayer else {
             logger.fatalErrorAndLog("Error: Local player is not defined.")
         }
-
+        
         // Ensure the local player has the card in their hand
         guard localPlayer.hand.firstIndex(where: { $0 == card }) != nil else {
             logger.fatalErrorAndLog("Error: The card is not in the local player's hand.")
         }
-
+        
         // Play the card
-        logger.log("playCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
+//        logger.log("playCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 1) {
             completion()
         }
         moveCard(card, from: .localPlayer, to: .table)
-
+        
         // Notify other players about the action
         sendPlayCardtoPlayers(card)
         
@@ -298,7 +298,7 @@ extension GameManager {
         }
         
         saveGameState(gameState)
-
+        
         logger.log("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
         
     }
@@ -310,7 +310,7 @@ extension GameManager {
         let player = gameState.getPlayer(by: playerId)
         
         logger.log("Received played card from \(playerId.rawValue) with card \(card).")
-//        logger.log("\(player)'s current hand: \(player.hand)")
+        //        logger.log("\(player)'s current hand: \(player.hand)")
         
         // Check if the player already played
         guard let playerIndex = gameState.playOrder.firstIndex(of: playerId) else {
@@ -325,7 +325,7 @@ extension GameManager {
         
         if player.hand.firstIndex(where: { $0 == card }) != nil {
             let source: CardPlace = player.tablePosition == .left ? .leftPlayer : .rightPlayer
-//            logger.log("updateGameStateWithPlayedCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
+            //            logger.log("updateGameStateWithPlayedCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
             beginBatchMove(totalCards: 1) { completion() }
             moveCard(card, from: source, to: .table)
         } else {
@@ -343,15 +343,15 @@ extension GameManager {
         guard let localPlayer = gameState.localPlayer else {
             logger.fatalErrorAndLog("Error: Local player is not defined.")
         }
-
+        
         // Determine the leading suit if available
         let leadingSuit = gameState.table.first?.suit
         
-//        logger.log("setPlayableCards with leadingSuit \(leadingSuit?.rawValue ?? "Undefined")")
-
+        //        logger.log("setPlayableCards with leadingSuit \(leadingSuit?.rawValue ?? "Undefined")")
+        
         // Check if the player has cards matching the leading suit
         let hasLeadingSuit = localPlayer.hand.contains { $0.suit == leadingSuit }
-
+        
         // Determine playable cards
         localPlayer.hand.forEach { card in
             if let leadingSuit = leadingSuit, hasLeadingSuit {
@@ -438,7 +438,7 @@ extension GameManager {
         }
         
         // make sure all cards moved before doing anything else
-//        logger.log("assignTricks: beginBatchMove(3), activeAnimations: \(activeAnimations)")
+        //        logger.log("assignTricks: beginBatchMove(3), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 3) {
             logger.log("Assign trick should be completed now!")
         }
@@ -446,7 +446,7 @@ extension GameManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             // Set isFaceDown to true for the cards on the table
             self.gameState.table.forEach { card in
-//                logger.log("Grabing card \(card) with active animations = \(self.activeAnimations)")
+                //                logger.log("Grabing card \(card) with active animations = \(self.activeAnimations)")
                 card.isFaceDown = true
                 switch winner.tablePosition {
                 case .local:
@@ -476,7 +476,7 @@ extension GameManager {
     // MARK: ChooseTrump
     
     func chooseTrump(completion: @escaping () -> Void) {
-//        logger.log("chooseTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
+                logger.log("chooseTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 4) { completion() }
         // Move the trump cards to the table face up
         for card in gameState.trumpCards {
@@ -491,7 +491,7 @@ extension GameManager {
         gameState.trumpSuit = trumpCard.suit
         
         // Move the cards back in the deck, the selected one last
-//        logger.log("selectTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
+        //        logger.log("selectTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 4) { completion() }
         for card in gameState.table {
             if card != trumpCard {
@@ -516,18 +516,18 @@ extension GameManager {
             card.isFaceDown = true
             // if player is second, round is 12 and last player needs 2 cards, destination == last player instead of deck
             var destination: CardPlace = .deck
-
-             if gameState.localPlayer?.place == 2 && gameState.round == 12 {
-                 if Double(gameState.lastPlayer?.scores[safe: gameState.round - 2] ?? 0) <= 0.5 * Double(gameState.localPlayer?.scores[safe: gameState.round - 2] ?? 0) || gameState.lastPlayer?.monthlyLosses ?? 0 > 0 {
-                     switch gameState.lastPlayer?.tablePosition {
-                     case .left:
-                         destination = .leftPlayer
-                     default:
-                         destination = .rightPlayer
-                     }
-                 }
-             }
-             moveCard(card, from: .localPlayer, to: destination)
+            
+            if gameState.localPlayer?.place == 2 && gameState.round == 12 {
+                if Double(gameState.lastPlayer?.scores[safe: gameState.round - 2] ?? 0) <= 0.5 * Double(gameState.localPlayer?.scores[safe: gameState.round - 2] ?? 0) || gameState.lastPlayer?.monthlyLosses ?? 0 > 0 {
+                    switch gameState.lastPlayer?.tablePosition {
+                    case .left:
+                        destination = .leftPlayer
+                    default:
+                        destination = .rightPlayer
+                    }
+                }
+            }
+            moveCard(card, from: .localPlayer, to: destination)
         }
         
         // Send the information to other players
@@ -535,7 +535,7 @@ extension GameManager {
         saveGameState(gameState)
         
         logger.log("Discarded cards: \(cardsToDiscard)")
-
+        
         completion()
     }
     
@@ -550,7 +550,7 @@ extension GameManager {
         guard let localIndex = gameState.playOrder.firstIndex(of: localPlayer.id) else {
             logger.fatalErrorAndLog("Error: Local player index is not defined.")
         }
-
+        
         if !gameState.table.indices.contains(localIndex) {
             // Filter playable cards
             let playableCards = localPlayer.hand.filter { $0.isPlayable }
@@ -559,7 +559,7 @@ extension GameManager {
             guard !playableCards.isEmpty else {
                 logger.fatalErrorAndLog("Error: No playable cards available.")
             }
-
+            
             // Select a random playable card
             if let selectedCard = playableCards.randomElement() {
                 logger.log("AI is playing card: \(selectedCard)")
@@ -567,7 +567,7 @@ extension GameManager {
                 // Play the selected card
                 playCard(selectedCard) {
                     logger.log("AI played card \(selectedCard)")
-//                    self.checkAndAdvanceStateIfNeeded()
+                    //                    self.checkAndAdvanceStateIfNeeded()
                     completion()
                 }
             }
@@ -577,7 +577,7 @@ extension GameManager {
     func AIChooseTrumpSuit(completion: @escaping () -> Void) {
         if gameState.trumpSuit == nil && !gameState.table.isEmpty {
             selectTrumpSuit(gameState.table.randomElement()!) {
-//                self.checkAndAdvanceStateIfNeeded()
+                //                self.checkAndAdvanceStateIfNeeded()
                 completion()
             }
         } else {
@@ -613,6 +613,59 @@ extension GameManager {
                 //                self.checkAndAdvanceStateIfNeeded()
                 completion()
             }
+        }
+    }
+    
+    // MARK: - Debugging Helpers
+
+    /// Prints debug info for a specific card, including its context in the game state.
+    func printDebugInfo(for card: Card) {
+        // Check deck
+        if gameState.deck.firstIndex(of: card) != nil {
+            card.printDebugInfo(in: gameState.deck, arrayName: "deck")
+            return
+        }
+        // Check trump deck
+        if gameState.trumpCards.firstIndex(of: card) != nil {
+            card.printDebugInfo(in: gameState.trumpCards, arrayName: "trumpCards")
+            return
+        }
+        // Check table
+        if gameState.table.firstIndex(of: card) != nil {
+            card.printDebugInfo(in: gameState.table, arrayName: "table")
+            return
+        }
+        // Check each player's hand and trickCards
+        for player in gameState.players {
+            if let _ = player.hand.firstIndex(of: card) {
+                card.printDebugInfo(in: player.hand, arrayName: "\(player.id.rawValue) hand")
+                return
+            }
+            if let _ = player.trickCards.firstIndex(of: card) {
+                card.printDebugInfo(in: player.trickCards, arrayName: "\(player.id.rawValue) trickCards")
+                return
+            }
+        }
+        // Fallback: just print basic info
+        card.printDebugInfo()
+    }
+
+    /// Iterates through all card collections and prints debug info for each.
+    func printAllCardsDebugInfo() {
+        print("=== All Cards Debug Info ===")
+        // Decks and table
+        let sections: [(cards: [Card], name: String)] = [
+            (gameState.deck, "deck"),
+            (gameState.trumpCards, "trumpCards"),
+            (gameState.table, "table")
+        ]
+        for (cards, name) in sections {
+            cards.forEach { $0.printDebugInfo(in: cards, arrayName: name) }
+        }
+        // Players' hands and trickCards
+        for player in gameState.players {
+            player.hand.forEach { $0.printDebugInfo(in: player.hand, arrayName: "\(player.id.rawValue) hand") }
+            player.trickCards.forEach { $0.printDebugInfo(in: player.trickCards, arrayName: "\(player.id.rawValue) trickCards") }
         }
     }
 }

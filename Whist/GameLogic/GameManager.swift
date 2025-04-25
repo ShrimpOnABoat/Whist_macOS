@@ -263,6 +263,12 @@ class GameManager: ObservableObject {
         }
         autoPilot = false // Resets the autoPilot
         
+#if DEBUG
+        if gameState.localPlayer?.id != .toto {
+            autoPilot = true
+        }
+#endif
+        
         // Move to the next dealer in playOrder
         guard let dealer = gameState.dealer,
               let currentIndex = gameState.playOrder.firstIndex(of: dealer) else {
@@ -661,6 +667,7 @@ class GameManager: ObservableObject {
         if let savedState = await persistence.loadGameState() {
             logger.log("Saved game found in db:\n\(savedState)")
             let localPlayerId = self.gameState.localPlayer?.id
+//            logger.log("I am player \(localPlayerId?.rawValue ?? "unknown")")
             let playerImages = Dictionary(uniqueKeysWithValues: self.gameState.players.map { ($0.id, $0.image) })
             self.gameState = savedState
             for index in self.gameState.players.indices {
@@ -674,7 +681,9 @@ class GameManager: ObservableObject {
                 self.gameState.players[index].tablePosition = .local
             }
             self.configureGameFromLoadedState()
+            self.checkAndAdvanceStateIfNeeded()
             self.objectWillChange.send()
+//            self.printAllCardsDebugInfo()
             return true
         } else {
             logger.log("No saved game found or error loading. Starting new game...")
@@ -690,7 +699,45 @@ class GameManager: ObservableObject {
         // Ensure player references and UI elements reflect the loaded state
         self.gameState.updatePlayerReferences() // Essential
         sortLocalPlayerHand()
-
+        
+        // restore states when in these phases:.choosingTrump, .waitingForTrump, .bidding, .discard
+        if [.choosingTrump, .waitingForTrump, .bidding, .discard].contains(gameState.currentPhase) {
+            // restore gameState.currentPhase
+            switch gameState.localPlayer?.state {
+            case .choosingTrump:
+                gameState.currentPhase = .choosingTrump
+                
+            case .waiting:
+                gameState.currentPhase = .waitingForTrump
+                
+            case .bidding:
+                gameState.currentPhase = .bidding
+                
+            case .discarding:
+                gameState.currentPhase = .discard
+                
+            default:
+                break
+            }
+//            logger.log("My current phase is \(gameState.currentPhase)")
+            
+            // Move trump cards back in their deck
+            gameState.table = []
+            gameState.trumpCards = [Card(suit: .clubs, rank: .two), Card(suit: .spades, rank: .two), Card(suit: .diamonds, rank: .two), Card(suit: .hearts, rank: .two)]
+            for trumpCard in gameState.trumpCards {
+                trumpCard.isFaceDown = true
+            }
+//            logger.log("Cards on table: \(gameState.table)")
+//            logger.log("Cards in trump deck: \(gameState.trumpCards)")
+            
+            // put back trump cards on table for the choosing player
+            if gameState.currentPhase == .choosingTrump {
+                chooseTrump() {
+                    self.hoveredSuit = nil
+                }
+            }
+        }
+        
         // Update card visibility based on loaded state
         for player in self.gameState.players {
             if player.tablePosition == .local {
@@ -721,8 +768,6 @@ class GameManager: ObservableObject {
         self.isDeckReady = true // Assume deck is ready based on loaded state
 
         logger.log("Game configured from loaded state. Current phase: \(self.gameState.currentPhase). Advancing state machine...")
-
-        self.checkAndAdvanceStateIfNeeded()
     }
     
     // MARK: - Signaling Setup

@@ -104,4 +104,31 @@ extension Card: CustomStringConvertible {
     var description: String {
         return "\(rank.rawValue) of \(suit.rawValue)"
     }
+
+    /// Prints detailed debug information for this card, including properties, optional array context, and view position.
+    func printDebugInfo(in array: [Card]? = nil, arrayName: String? = nil, viewPosition: CGPoint? = nil) {
+        print("🃏 Debug Info for Card ID: \(id)")
+        // Array context
+        if let array = array, let name = arrayName, let index = array.firstIndex(where: { $0 == self }) {
+            print(" • Array '\(name)' contains this card at index \(index)")
+        }
+        // View position
+        if let pos = viewPosition {
+            print(" • View position: x=\(pos.x), y=\(pos.y)")
+        }
+        // Properties
+        print(" • Suit: \(suit.rawValue)")
+        print(" • Rank: \(rank.rawValue)")
+        print(" • isFaceDown: \(isFaceDown)")
+        print(" • isPlayable: \(isPlayable)")
+        print(" • rotation: \(rotation)")
+        print(" • offset: \(offset)")
+        print(" • scale: \(scale)")
+        print(" • isPlaceholder: \(isPlaceholder)")
+        print(" • isLastTrick: \(isLastTrick)")
+        print(" • elevation: \(elevation)")
+        print(" • randomOffset: (\(randomOffset.x), \(randomOffset.y))")
+        print(" • randomAngle: \(randomAngle)")
+        print(" • playAnimationType: \(playAnimationType)")
+    }
 }

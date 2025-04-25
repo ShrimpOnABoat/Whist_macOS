@@ -72,6 +72,7 @@ extension GameManager {
     
     // Function to initiate card movement
     func moveCard(_ card: Card, from source: CardPlace, to destination: CardPlace) {
+//        logger.log("Moving \(card) from \(source.rawValue) to \(destination.rawValue)")
         if isShuffling {
             // Wait until shuffling is done, then retry
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
@@ -107,6 +108,7 @@ extension GameManager {
         case .trumpDeck:
             gameState.trumpCards.append(placeholderCard)
         }
+//        logger.log("Card \(placeholderCard) added to \(destination.rawValue)")
         
         // Remove the card from the source
         switch source {
@@ -147,21 +149,30 @@ extension GameManager {
                 self.gameState.trumpCards.remove(at: index)
             }
         }
+//        logger.log("Card \(card) removed from \(source.rawValue)")
         
         // Create a MovingCard instance without toState yet
-        guard let fromState = self.cardStates[card.id] else {
-//            logger.log("fromState wasn't captured")
-            return
+        let resolvedFromState: CardState
+        if let actualFromState = self.cardStates[card.id] {
+             resolvedFromState = actualFromState
+        } else {
+             logger.log("⚠️ Warning: fromState for card \(card.id) not found in cardStates. Using default state (likely due to game restore). Animation might start from an unexpected position.")
+             // Use a default state, e.g., centered or off-screen, adjust as needed
+             resolvedFromState = CardState(position: .zero, rotation: 0, scale: 1.0, zIndex: 0)
+             // Alternative: Could use a position far off-screen:
+             // resolvedFromState = CardState(position: CGPoint(x: -1000, y: -1000), rotation: 0, scale: 1.0, zIndex: 0)
         }
+
         let movingCardInstance = MovingCard(
             card: card,
             from: source,
             to: destination,
             placeholderCard: placeholderCard,
-            fromState: fromState
+            fromState: resolvedFromState // Use the resolved state
         )
-        
+
         self.movingCards.append(movingCardInstance)
+//        logger.log("Card \(card) added to movingCards")
     }
 
     // MARK: finalizeMove
@@ -169,7 +180,7 @@ extension GameManager {
     // Function to finalize card movement after animation
     func finalizeMove(_ movingCard: MovingCard) {
         guard let toState = movingCard.toState else {
-//            logger.log("toState is still nil for \(movingCard.card)")
+            logger.log("toState is still nil for \(movingCard.card)")
             return
         }
         
