@@ -94,7 +94,7 @@ struct GameView: View {
                                 .frame(width: 300, height: 300)
                                 .position(gameManager.effectPosition)
                                 .onAppear {
-                                    gameManager.soundManager.playSound(named: "impact")
+                                    gameManager.playSound(named: "impact")
                                 }
                             ProceduralCracksView()
                                 .blur(radius: 1)
@@ -107,7 +107,7 @@ struct GameView: View {
                                 .frame(width: 200, height: 200)
                                 .position(gameManager.effectPosition)
                                 .onAppear {
-                                    gameManager.soundManager.playSound(named: "fail")
+                                    gameManager.playSound(named: "fail")
                                 }
                         }
                     }
@@ -193,6 +193,7 @@ struct GameView: View {
                     Text("localPlayer: \(String(describing: gameManager.gameState.localPlayer))")
                     Text("leftPlayer: \(String(describing: gameManager.gameState.leftPlayer))")
                     Text("rightPlayer: \(String(describing: gameManager.gameState.rightPlayer))")
+                    Text("Dealer: \(String(describing: gameManager.gameState.dealer))")
                     Text("Setting up game...")
                         .italic()
                 }

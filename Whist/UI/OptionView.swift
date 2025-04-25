@@ -114,7 +114,7 @@ struct OptionsView: View {
                     backgroundColor: backgroundColor,
                     isSelected: randomNumber != nil,
                     action: {
-                        gameManager.soundManager.playSound(named: "normal-click")
+                        gameManager.playSound(named: "normal-click")
                         if randomNumber == nil {
                             handleRandomBetSelection()
                         }
@@ -140,7 +140,7 @@ struct OptionsView: View {
                                         backgroundColor: backgroundColor,
                                         isSelected: selectedBet == numbers[numberIndex],
                                         action: {
-                                            gameManager.soundManager.playSound(named: "normal-click")
+                                            gameManager.playSound(named: "normal-click")
                                             handleBetSelection(numbers[numberIndex])
                                         }
                                     )

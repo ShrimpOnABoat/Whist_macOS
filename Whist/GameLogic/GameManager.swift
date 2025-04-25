@@ -148,6 +148,9 @@ class GameManager: ObservableObject {
         
         // Create the cards
         initializeCards()
+        
+        // Refresh the UI if necessary
+        objectWillChange.send()
     }
     
     func setPersistencePlayerID(with playerId: PlayerId) {

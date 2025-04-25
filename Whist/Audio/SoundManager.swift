@@ -6,75 +6,123 @@
 //
 
 import AudioToolbox
+import AVFoundation
 
-class SoundManager {
-    private var soundIDs: [String: SystemSoundID] = [:]
-    private let soundFiles: [String] = [
-        "card shuffle.mp3",
-        "applaud.wav",
-        "fail.wav",
-        "impact.wav",
-        "Confetti.wav",
-        "pouet.wav",
-        "normal-click.wav",
-        "play card.mp3"
+class SoundManager: NSObject, AVAudioPlayerDelegate {
+    private var audioPlayers: [String: AVAudioPlayer] = [:]
+    private let soundConfigs: [String: (fileName: String, defaultVolume: Float)] = [
+        "card shuffle": ("card shuffle.mp3", 0.5),
+        "applaud": ("applaud.wav", 0.8),
+        "fail": ("fail.wav", 1.0),
+        "impact": ("impact.wav", 1.0),
+        "Confetti": ("Confetti.wav", 1.0),
+        "pouet": ("pouet.wav", 1.0),
+        "normal-click": ("normal-click.wav", 0.0), // Volume 0 to effectively disable
+        "play card": ("play card.mp3", 0.2)
     ]
 
-    init() {
+    override init() {
+        super.init()
         preloadAllSounds()
     }
 
-    /// Preload all sound files listed in `soundFiles`
+    /// Preload all sound files listed in `soundConfigs`
     private func preloadAllSounds() {
-        for soundFile in soundFiles {
-            let components = soundFile.split(separator: ".")
-            guard components.count == 2 else {
-                logger.log("Invalid sound file name: \(soundFile)")
-                continue
+        for (baseName, config) in soundConfigs {
+            preloadSound(baseName: baseName, fullFileName: config.fileName)
+        }
+    }
+
+    /// Preload a sound using AVAudioPlayer
+    func preloadSound(baseName: String, fullFileName: String) {
+        guard audioPlayers[baseName] == nil else {
+            return
+        }
+
+        let components = fullFileName.split(separator: ".")
+        guard components.count == 2 else {
+            logger.log("Invalid full file name format: \(fullFileName)")
+            return
+        }
+        let name = String(components[0])
+        let ext = String(components[1])
+
+        guard let url = Bundle.main.url(forResource: name, withExtension: ext) else {
+            logger.log("Sound file \(fullFileName) not found.")
+            return
+        }
+
+        do {
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.delegate = self
+            player.prepareToPlay()
+            audioPlayers[baseName] = player
+            logger.log("Preloaded sound: \(fullFileName) as '\(baseName)'")
+        } catch {
+            logger.log("Failed to create AVAudioPlayer for \(fullFileName): \(error.localizedDescription)")
+        }
+    }
+
+    /// Play a preloaded sound. Uses default volume if volume parameter is nil.
+    func playSound(named baseName: String, volume: Float? = nil) {
+        guard soundConfigs[baseName]?.defaultVolume ?? 1.0 > 0 else {
+            return
+        }
+
+        guard let player = audioPlayers[baseName] else {
+            logger.log("Sound '\(baseName)' was not preloaded. Attempting to load now...")
+            if let config = soundConfigs[baseName] {
+                preloadSound(baseName: baseName, fullFileName: config.fileName)
+                if let newlyLoadedPlayer = audioPlayers[baseName] {
+                    let finalVolume = volume ?? config.defaultVolume
+                    playLoadedSound(player: newlyLoadedPlayer, volume: finalVolume, baseName: baseName)
+                } else {
+                    logger.log("Failed to load and play sound '\(baseName)' on the fly.")
+                }
+            } else {
+                logger.log("Could not find config info for '\(baseName)' to load on the fly.")
             }
-            let name = String(components[0])
-            let ext = String(components[1])
-            preloadSound(named: name, withExtension: ext)
-        }
-    }
-    
-    /// Preload a sound to reduce latency during playback
-    func preloadSound(named fileName: String, withExtension fileExtension: String) {
-        guard let url = Bundle.main.url(forResource: fileName, withExtension: fileExtension) else {
-            logger.log("Sound file \(fileName).\(fileExtension) not found.")
             return
         }
 
-        var soundID: SystemSoundID = 0
-        AudioServicesCreateSystemSoundID(url as CFURL, &soundID)
-        soundIDs[fileName] = soundID
+        let finalVolume = volume ?? soundConfigs[baseName]?.defaultVolume ?? 1.0
+        playLoadedSound(player: player, volume: finalVolume, baseName: baseName)
     }
 
-    /// Play a preloaded sound
-    func playSound(named fileName: String) {
-        guard fileName != "normal-click" else {
-            return
+    private func playLoadedSound(player: AVAudioPlayer, volume: Float, baseName: String) {
+        if player.isPlaying {
+            player.stop()
+            player.currentTime = 0
         }
-        guard let soundID = soundIDs[fileName] else {
-            logger.log("Sound \(fileName) not preloaded. Call preloadSound() first.")
-            return
-        }
-        AudioServicesPlaySystemSound(soundID)
+
+        player.volume = max(0.0, min(1.0, volume))
+        player.play()
+    }
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        player.currentTime = 0
+    }
+
+    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        let baseName = audioPlayers.first { $0.value == player }?.key ?? "Unknown"
+        logger.log("Audio decode error for \(baseName): \(error?.localizedDescription ?? "nil")")
     }
 
     /// Unload a sound to free up memory
-    func unloadSound(named fileName: String) {
-        guard let soundID = soundIDs[fileName] else { return }
-        AudioServicesDisposeSystemSoundID(soundID)
-        soundIDs.removeValue(forKey: fileName)
+    func unloadSound(named baseName: String) {
+        if let player = audioPlayers[baseName] {
+            player.stop()
+            audioPlayers.removeValue(forKey: baseName)
+        }
     }
 
     /// Unload all sounds
     func unloadAllSounds() {
-        for soundID in soundIDs.values {
-            AudioServicesDisposeSystemSoundID(soundID)
+        for player in audioPlayers.values {
+            player.stop()
         }
-        soundIDs.removeAll()
+        audioPlayers.removeAll()
+        logger.log("Unloaded all sounds.")
     }
 }
 
