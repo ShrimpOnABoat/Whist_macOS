@@ -773,8 +773,16 @@ struct TilingPerlinView: View {
     }
     
     static func renderContentToCGImage(perlinView: PerlinNoiseOverlay) -> CGImage? {
-        let renderer = ImageRenderer(content: perlinView.frame(width: 4096, height: 4096))
-        return renderer.cgImage
+        let start = CFAbsoluteTimeGetCurrent()
+
+        let renderer = ImageRenderer(content: perlinView.frame(width: 1024, height: 1024))
+        let image = renderer.cgImage
+
+        let end = CFAbsoluteTimeGetCurrent()
+        let elapsed = end - start
+        print("🕒 Perlin rendering time: \(elapsed) seconds")
+
+        return image
     }
 }
 

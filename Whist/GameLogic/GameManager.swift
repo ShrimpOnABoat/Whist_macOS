@@ -436,7 +436,7 @@ class GameManager: ObservableObject {
             saveGameState(gameState)
         }
         logger.log("Player \(playerId) announced tricks: \(player.announcedTricks)")
-        //        checkAndAdvanceStateIfNeeded()
+        self.objectWillChange.send() // To force a refresh for the last player
     }
     
     func updateGameStateWithTrump(from playerId: PlayerId, with card: Card) {
@@ -661,7 +661,7 @@ class GameManager: ObservableObject {
         }
     }
     
-    // MARK: - Post-Matchmaking Logic
+    // MARK: - Restore Saved Game
     func checkAndRestoreSavedGame() async -> Bool {
         logger.log("Match connected. Checking database for saved game...")
         if let savedState = await persistence.loadGameState() {
