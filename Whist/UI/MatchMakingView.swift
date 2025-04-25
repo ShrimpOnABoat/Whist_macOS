@@ -12,74 +12,79 @@ struct MatchMakingView: View {
     @EnvironmentObject var preferences: Preferences // Added environment object
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Matchmaking for \(preferences.playerId)")
+        VStack(spacing: 20) { // Increased spacing
+            Text("Salle d'attente") // Changed title to "Waiting Room" in French
                 .font(.largeTitle)
+                .padding(.top)
 
-            // List all players with their connection status
-            ForEach(gameManager.gameState.players, id: \.id) { player in
-                HStack {
-                    // Player avatar or placeholder
-                    if let img = player.image {
-                        img
-                            .resizable()
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 40, height: 40)
+            // Player list
+            ScrollView { // Added ScrollView in case of many players
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(gameManager.gameState.players, id: \.id) { player in
+                        HStack {
+                            // Player avatar or placeholder
+                            if let img = player.image {
+                                img
+                                    .resizable()
+                                    .scaledToFit() // Use scaledToFit for better aspect ratio handling
+                                    .frame(width: 45, height: 45)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.secondary, lineWidth: 1)) // Added subtle border
+                            } else {
+                                Image(systemName: "person.crop.circle.fill") // Using SF Symbol placeholder
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 45, height: 45)
+                                    .foregroundColor(.gray.opacity(0.5))
+                            }
+
+                            Text(player.username == preferences.playerId ? "\(player.username) (Vous)" : player.username) // Indicate "You"
+                                .font(.headline)
+
+                            Spacer()
+
+                            // Connection indicator with icons
+                            Image(systemName: player.isConnected ? "wifi" : "wifi.slash")
+                                .foregroundColor(player.isConnected ? .green : .red)
+                                .font(.title3) // Slightly larger icon
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 5) // Add some vertical padding per row
+                        .background(Color.secondary.opacity(0.1)) // Subtle background per row
+                        .cornerRadius(8)
                     }
-
-                    Text(player.username)
-                        .font(.headline)
-                    Spacer()
-                    // Connection indicator
-                    Circle()
-                        .fill(player.isConnected ? Color.green : Color.red)
-                        .frame(width: 12, height: 12)
                 }
-                .padding(.horizontal)
+                .padding(.horizontal) // Padding for the inner VStack
             }
 
-            Spacer()
+            Spacer() // Pushes status text to the bottom
 
-            // Host button / waiting status / ready status
+            // Connection status text
             let total = gameManager.gameState.players.count
             let connected = gameManager.gameState.players.filter { $0.isConnected }.count
 
-            if !gameManager.gameState.allPlayersConnected {
-                Text("Waiting for others to connect (\(connected)/\(total))...")
-                    .foregroundColor(.gray)
-            } else {
-                Text("All players connected!")
-                    .foregroundColor(.green)
+            Group { // Group to apply modifiers together
+                if !gameManager.gameState.allPlayersConnected {
+                    Text("En attente d'autres joueurs (\(connected)/\(total))...")
+                        .foregroundColor(.orange) // Use orange for waiting
+                } else {
+                    Text("Tous les joueurs sont connectés !")
+                        .foregroundColor(.green)
+                }
             }
+            .font(.headline)
+            .padding(.bottom)
 
-            Spacer()
         }
-        .onAppear {
-            // Ensure networking listeners are set up (ContentView also does this, safe redundancy)
-//            gameManager.startNetworkingIfNeeded()      
-            
-            // If we know who we are, start trying to connect to others
-//            if !preferences.playerId.isEmpty {
-//                logger.log("MatchMakingView appeared, calling startHosting()")
-//                gameManager.startHosting()
-//            } else {
-//                logger.log("MatchMakingView appeared, but playerId is empty. Waiting for selection.")
-//            }
-        }
-//        .onChange(of: gameManager.gameState.players.count) { count in
-//            if count > 1 {
-//                gameManager.startHosting()
-//                gameManager.startNetworkingIfNeeded()
-//            }
-//        }
-        .padding()
+        .background( // Added a subtle gradient background
+            LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)]), startPoint: .topLeading, endPoint: .bottomTrailing)
+                .ignoresSafeArea()
+        )
+        .navigationTitle("Recherche de Partie") // Added a navigation title if embedded in NavigationView
     }
 }
 
+// InvitingButtonStyle remains the same - ensure localization if its label text is set outside this view
 struct InvitingButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

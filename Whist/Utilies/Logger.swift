@@ -28,6 +28,7 @@ class SimpleLogger {
     
     init() {
         // Create logs directory in the application's caches directory
+        // /Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Library/Caches/Logs
         let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         let logsDirectory = cachesDirectory.appendingPathComponent("Logs")
         

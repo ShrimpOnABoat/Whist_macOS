@@ -172,6 +172,7 @@ class GameManager: ObservableObject {
         
         // Update connection status
         if gameState.players[index].isConnected != isConnected {
+            self.objectWillChange.send()
             gameState.players[index].isConnected = isConnected
             logger.log("Updated \(playerId) connection status to \(isConnected)")
 
@@ -688,11 +689,11 @@ class GameManager: ObservableObject {
 
         // Ensure player references and UI elements reflect the loaded state
         self.gameState.updatePlayerReferences() // Essential
+        sortLocalPlayerHand()
 
         // Update card visibility based on loaded state
         for player in self.gameState.players {
-            let isLocalPlayer = (player.tablePosition == .local)
-            if isLocalPlayer {
+            if player.tablePosition == .local {
                 let shouldRevealCards = self.gameState.round > 3 || self.gameState.currentPhase.isPlayingPhase
                 player.hand.indices.forEach { player.hand[$0].isFaceDown = !shouldRevealCards }
             } else {

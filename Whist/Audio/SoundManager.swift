@@ -52,11 +52,13 @@ class SoundManager {
 
     /// Play a preloaded sound
     func playSound(named fileName: String) {
+        guard fileName != "normal-click" else {
+            return
+        }
         guard let soundID = soundIDs[fileName] else {
             logger.log("Sound \(fileName) not preloaded. Call preloadSound() first.")
             return
         }
-//        logger.log("Playing sound \(fileName).")
         AudioServicesPlaySystemSound(soundID)
     }
 

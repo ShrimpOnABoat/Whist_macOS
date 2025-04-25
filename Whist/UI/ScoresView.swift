@@ -45,8 +45,10 @@ struct ScoresView: View {
             // Display content based on the selected tab
             if selectedTab == .summary {
                 SummaryView(year: selectedYear)
+                    .id(selectedYear)
             } else {
                 DetailedScoresView(year: selectedYear)
+                    .id(selectedYear)
             }
 
             Spacer()
