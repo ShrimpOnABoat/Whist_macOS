@@ -40,7 +40,7 @@ enum GamePhase: Encodable, Decodable {
 
 extension GameManager {
     
-//     MARK: Transition
+    //     MARK: Transition
     
     func transition(to newPhase: GamePhase) {
         let multiplePhases: Set<GamePhase> = [.bidding, .playingTricks]
@@ -61,19 +61,28 @@ extension GameManager {
     // MARK: setPlayerState
     
     func setPlayerState(to newState: PlayerState) {
+        // Cancel any existing slowpoke timer whenever the player state changes
+        cancelSlowpokeTimer()
         if gameState.localPlayer?.state != newState {
             gameState.localPlayer?.state = newState
+            // If entering a state where the player must act, start the slowpoke timer
+            switch newState {
+            case .choosingTrump, .bidding, .discarding, .playing:
+                startSlowpokeTimer()
+            default:
+                break
+            }
             logger.log("My state is now \(newState)")
             sendStateToPlayers()
             saveGameState(gameState)
         }
     }
-
+    
     // MARK: handleStateTransition
-
+    
     private func handleStateTransition() {
         if processPendingActionsForCurrentPhase() { return }
-
+        
         guard let localPlayer: Player = gameState.localPlayer else { return }
         
         switch gameState.currentPhase {
@@ -125,7 +134,7 @@ extension GameManager {
         case .renderingDeck:
             setPlayerState(to: .idle)
             // Mark that the deck is NOT measured yet
-//            isDeckReady = false
+            //            isDeckReady = false
             
         case .waitingForDeck:
             setPlayerState(to: .idle)
@@ -133,7 +142,7 @@ extension GameManager {
             waitForAnimationsToFinish {
                 self.gatherCards() {
                     // in case the deck was sent earlier
-//                    self.processPendingActionsForCurrentPhase()
+                    //                    self.processPendingActionsForCurrentPhase()
                     
                     // otherwise nothing to do but wait
                     if !self.isDeckReady { logger.log("Waiting for deck") }
@@ -144,7 +153,7 @@ extension GameManager {
             setPlayerState(to: .idle)
             hoveredSuit = nil
             let isDealer = (localPlayer.id == gameState.dealer)
-
+            
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
             func afterDealing() {
                 saveGameState(gameState)
@@ -163,7 +172,7 @@ extension GameManager {
                     }
                 }
             }
-
+            
             // 2) Now branch out whether we do gatherCards + shuffle or not:
             waitForAnimationsToFinish {
                 if isDealer {
@@ -191,7 +200,7 @@ extension GameManager {
                     }
                 }
             }
-
+            
         case .choosingTrump:
             setPlayerState(to: .choosingTrump)
             
@@ -203,7 +212,7 @@ extension GameManager {
             
         case .waitingForTrump:
             setPlayerState(to: .waiting)
-
+            
             // Once a trump suit is chosen and confirmed:
             if (gameState.trumpSuit != nil) && (localPlayer.place == 2) {
                 transition(to: .discard) // In case local player is second
@@ -257,7 +266,7 @@ extension GameManager {
             for i in localPlayer.hand.indices {
                 localPlayer.hand[i].isFaceDown = false
             }
-
+            
             transition(to: .playingTricks)
             
         case .playingTricks:
@@ -341,7 +350,7 @@ extension GameManager {
     }
     
     // MARK: checkAndAdvanceStateIfNeeded
-
+    
     // Call this after actions come in or after dealing
     // to see if conditions are met to move to next phase
     func checkAndAdvanceStateIfNeeded() {
@@ -351,13 +360,13 @@ extension GameManager {
         switch gameState.currentPhase {
         case .waitingForPlayers:
             if gameState.allPlayersConnected { // Use the existing computed property
-                 logger.log("All players connected! Transitioning from .waitingForPlayers...")
-                 transition(to: .resumeSavedGame)
+                logger.log("All players connected! Transitioning from .waitingForPlayers...")
+                transition(to: .resumeSavedGame)
             } else {
-                 // Still waiting, log status
-                 let connectedCount = gameState.players.filter { $0.isConnected }.count
-                 let totalCount = gameState.players.count
-                 logger.log("Waiting for players: \(connectedCount)/\(totalCount) connected.")
+                // Still waiting, log status
+                let connectedCount = gameState.players.filter { $0.isConnected }.count
+                let totalCount = gameState.players.count
+                logger.log("Waiting for players: \(connectedCount)/\(totalCount) connected.")
             }
             
         case .resumeSavedGame:
@@ -382,11 +391,11 @@ extension GameManager {
             } else {
                 logger.log("Still waiting for the deck...")
             }
-
+            
         case .dealingCards:
             // This state is handled in handleStateTransition
             logger.log("Dealing cards")
-
+            
         case .choosingTrump:
             // If trump chosen, I chose a bid
             if gameState.trumpSuit != nil {
@@ -394,7 +403,7 @@ extension GameManager {
             } else {
                 transition(to: .choosingTrump)
             }
-
+            
         case .waitingForTrump:
             // If trump chosen, I chose a bid
             if gameState.trumpSuit != nil {
@@ -414,7 +423,7 @@ extension GameManager {
             } else {
                 transition(to: .playingTricks)
             }
-
+            
         case .bidding:
             if allPlayersBet() {
                 showOptions = false
@@ -454,20 +463,20 @@ extension GameManager {
             } else {
                 transition(to: .grabTrick)
             }
-
+            
         case .scoring:
             // After scoring logic:
             // Either start new round: transition(to: .dealingCards)
             // Or end game: transition(to: .gameOver)
             break
-
+            
         default:
             break
         }
     }
     
     // MARK: - Utilities
-
+    
     func startNewGame() {
         logger.log("Starting new game")
         transition(to: .newGame)
@@ -478,7 +487,7 @@ extension GameManager {
             logger.log("Error: Local player ID not found.")
             return false
         }
-
+        
         if gameState.round < 4 {
             guard let playerIndex = gameState.playOrder.firstIndex(of: localPlayerID) else {
                 logger.log("Error: Local player not found in play order.")
@@ -531,11 +540,11 @@ extension GameManager {
         guard let localPlayerID = gameState.localPlayer?.id else {
             logger.fatalErrorAndLog("Error: Local player ID not found.")
         }
-
+        
         guard let playerIndex = gameState.playOrder.firstIndex(of: localPlayerID) else {
             logger.fatalErrorAndLog("Error: Local player not found in play order.")
         }
-
+        
         // Check if it's the local player's turn to play
         if gameState.table.count == playerIndex {
             logger.log("It's my turn to play")
@@ -553,7 +562,7 @@ extension GameManager {
         logger.log("Players usernames: \(gameState.players.map(\.username))")
         return gameState.players.allSatisfy { !$0.username.isEmpty }
     }
-
+    
     func isLastTrick() -> Bool {
         // Check if all players' hands are empty
         let allHandsEmpty = gameState.players.allSatisfy { $0.hand.isEmpty }
@@ -561,7 +570,7 @@ extension GameManager {
         if allHandsEmpty {
             return true
         }
-
+        
         return false
     }
     
@@ -642,7 +651,7 @@ extension GameManager {
         
         let remainingActions = pendingActions
         pendingActions.removeAll()
-
+        
         for action in remainingActions {
             if isActionValidInCurrentPhase(action.type) {
                 logger.log("Action \(action.type) is valid in current phase, processing it")
@@ -653,7 +662,7 @@ extension GameManager {
                 pendingActions.append(action)  // Re-add invalid actions
             }
         }
-
+        
         if atLeastOneActionProcessed && checkState {
             logger.log("processPendingActionsForCurrentPhase: Checking state after processing actions...")
             checkAndAdvanceStateIfNeeded()
@@ -663,5 +672,30 @@ extension GameManager {
         logger.log("Pending actions left: \(pendingActions.count)")
         
         return atLeastOneActionProcessed
+    }
+    
+    // MARK: - Slowpoke Timer Helpers
+    
+    /// Cancels any existing slowpoke timer.
+    func cancelSlowpokeTimer() {
+        amSlowPoke = false
+        slowpokeTimer?.cancel()
+        slowpokeTimer = nil
+    }
+    
+    /// Starts a slowpoke timer for the local player.
+    func startSlowpokeTimer() {
+        cancelSlowpokeTimer()
+        guard let localPlayer = gameState.localPlayer else { return }
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
+        timer.schedule(deadline: .now() + slowpokeDelay)
+        timer.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            logger.log("Slowpoke timer fired for \(localPlayer.id)")
+            self.sendAmSlowPoke()
+            amSlowPoke = true
+        }
+        timer.resume()
+        slowpokeTimer = timer
     }
 }

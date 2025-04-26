@@ -63,9 +63,18 @@ class GameManager: ObservableObject {
     @Published var dealerPosition: CGPoint = .zero
     @Published var playersScoresUpdated: Bool = false
     
-    var myIDWasSent: Bool = false
-    
     var logCounter: Int = 0
+
+    // MARK: - Slowpoke Timer Properties
+    var slowpokeTimer: DispatchSourceTimer?
+    #if DEBUG
+    let slowpokeDelay: TimeInterval = 5 // Delay in seconds before sending slowpoke
+    #else
+    let slowpokeDelay: TimeInterval = 60 // Delay in seconds before sending slowpoke
+    #endif
+    var amSlowPoke: Bool = false
+    @Published var isSlowPoke: [PlayerId: Bool] = [:]
+    @Published var amHonked: Bool = false
     
     /// Dependency‐injecting initializer
     init(connectionManager: P2PConnectionManager,
@@ -264,6 +273,8 @@ class GameManager: ObservableObject {
         gameState.players.forEach {
             $0.hasDiscarded = false
         }
+        amSlowPoke = false
+        isSlowPoke = [:]
         autoPilot = false // Resets the autoPilot
         
 #if DEBUG
@@ -558,7 +569,19 @@ class GameManager: ObservableObject {
         Task {
             saveGameState(gameState)
         }
+        isSlowPoke[playerId] = false
         logger.log("\(playerId) updated their state to \(state).")
+    }
+    
+    func showSlowPokeButton(for playerId: PlayerId) {
+        isSlowPoke[playerId] = true
+    }
+    
+    func honk() {
+        if amSlowPoke {
+            amHonked = true
+        }
+        playSound(named: "pouet")
     }
     
     // MARK: Choose bet
@@ -731,7 +754,11 @@ class GameManager: ObservableObject {
                 gameState.currentPhase = .choosingTrump
                 
             case .waiting:
-                gameState.currentPhase = .waitingForTrump
+                if gameState.trumpSuit != nil {
+                    gameState.currentPhase = .bidding
+                } else {
+                    gameState.currentPhase = .waitingForTrump
+                }
                 
             case .bidding:
                 gameState.currentPhase = .bidding

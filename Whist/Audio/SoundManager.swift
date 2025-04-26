@@ -128,6 +128,10 @@ class SoundManager: NSObject, AVAudioPlayerDelegate {
 
 extension GameManager {
     func playSound(named filename: String) {
-        soundManager.playSound(named: filename)
+        if filename != "pouet" {
+            soundManager.playSound(named: filename)
+        } else {
+            soundManager.playSound(named: "pouet", volume: amSlowPoke ? 1.0 : 0.3)
+        }
     }
 }

@@ -17,8 +17,8 @@ struct PlayerView: View {
     
     @State private var dealerFrame: CGRect = .zero
     @State private var selectedCardIDs: Set<String> = []
-//    @State private var displayedMessage: String = ""
     @State private var scoreChange: Int? = nil
+    @State private var isBlinking = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -55,80 +55,68 @@ struct PlayerView: View {
                     }
                 }
             )
+            .onChange(of: gameManager.amHonked) { honked in
+                if honked && player.tablePosition == .local {
+                    // Instant highlight
+                    isBlinking = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        // Animate the fade-out only
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isBlinking = false
+                        }
+                        gameManager.amHonked = false
+                    }
+                }
+            }
         }
     }
     
     private var LocalPlayerView: some View {
-            // Local player layout
-            VStack {
-                ZStack {
-                    VStack {
-                        StateDisplay()
-                        TrickDisplay(dynamicSize: dynamicSize)
-                            .onTapGesture {
-                                gameManager.showLastTrick.toggle()
-                            }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    PlayerInfo(dynamicSize: dynamicSize)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if isDealer {
-                        HStack {
-                            Spacer()
-                            Circle()
-                                .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
-                                .opacity(0)
-                                .overlay(
-                                    GeometryReader { proxy in
-                                        Color.clear
-                                            .onAppear {
-                                                let frame = proxy.frame(in: .named("contentArea"))
-                                                logger.log("Captured frame: \(frame)")
-                                                gameManager.updateDealerFrame(playerId: player.id, frame: frame)
-                                            }
-                                    }
-                                )
+        // Local player layout
+        VStack {
+            ZStack {
+                VStack {
+                    StateDisplay()
+                    TrickDisplay(dynamicSize: dynamicSize)
+                        .onTapGesture {
+                            gameManager.showLastTrick.toggle()
                         }
-                    }
                 }
-                .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
-                Spacer()
-                ZStack {
-                    PlayerHand(dynamicSize: dynamicSize)
-                        .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
-                        if [.playingTricks, .grabTrick].contains(gameManager.gameState.currentPhase) {
-                            HStack {
-                                Spacer()
-                                Button(action: {
-                                    withAnimation(.easeInOut(duration: 0.1)) {
-                                        gameManager.autoPilot.toggle()
-                                    }
-                                }) {
-                                    HStack(spacing: 8) {
-                                        Text("Autoplay")
-                                            .font(.system(size: 13, weight: .medium))
-                                            .foregroundColor(.white)
-
-                                        Circle()
-                                            .fill(gameManager.autoPilot ? Color.green : Color.red)
-                                            .frame(width: 10, height: 10)
-                                            .shadow(color: (gameManager.autoPilot ? Color.green : Color.red).opacity(0.8), radius: (gameManager.autoPilot ? 6 : 0))
-                                            .animation(.easeInOut(duration: 0.1), value: gameManager.autoPilot)
-                                    }
-                                    .padding(.vertical, 6)
-                                    .padding(.horizontal, 12)
-                                    .background(Color(nsColor: .darkGray))
-                                    .cornerRadius(8)
+                .frame(maxWidth: .infinity, alignment: .center)
+                PlayerInfo(dynamicSize: dynamicSize)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if isDealer {
+                    HStack {
+                        Spacer()
+                        Circle()
+                            .frame(width: dynamicSize.dealerButtonSize, height: dynamicSize.dealerButtonSize)
+                            .opacity(0)
+                            .overlay(
+                                GeometryReader { proxy in
+                                    Color.clear
+                                        .onAppear {
+                                            let frame = proxy.frame(in: .named("contentArea"))
+                                            logger.log("Captured frame: \(frame)")
+                                            gameManager.updateDealerFrame(playerId: player.id, frame: frame)
+                                        }
                                 }
-                                .buttonStyle(PlainButtonStyle())
-                                .accessibility(label: Text(gameManager.autoPilot ? "Disable Autopilot" : "Enable Autopilot"))
-                                .help(gameManager.autoPilot ? "Disable autopilot mode" : "Enable autopilot mode")
-                                .padding(.trailing, 16)
-                                .padding(.bottom, 16)
-                            }
-                        }
+                            )
+                    }
                 }
             }
+            .frame(width: dynamicSize.localPlayerInfoWidth, height: dynamicSize.localPlayerInfoHeight)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.yellow.opacity(0.3))
+                    .blendMode(.overlay)
+                    .opacity(isBlinking ? 1 : 0)
+            )
+            Spacer()
+            ZStack {
+                PlayerHand(dynamicSize: dynamicSize)
+                    .frame(width: dynamicSize.localPlayerHandWidth, height: dynamicSize.localPlayerHandHeight)
+            }
+        }
     }
     
     private var NonLocalPlayerView: some View {

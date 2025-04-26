@@ -111,7 +111,18 @@ extension GameManager {
             
         case .startNewGame:
             self.startNewGame()
+            
+        case .amSlowPoke:
+            logger.log("Received slowPoke signal")
+            self.showSlowPokeButton(for: action.playerId)
+            /// faire un bool pour savoir si je suis visé
+            /// jouer le volume moins fort si c'Est pas pour moi
+            /// placer le bouton avec l'Autre Autopilot
+            /// flasher le state et jouer le son
 
+        case .honk:
+            logger.log("I've been honked!!")
+            self.honk()
         }
     }
     
@@ -284,6 +295,44 @@ extension GameManager {
             timestamp: Date().timeIntervalSince1970
         )
         sendAction(action)
+    }
+    
+    func sendAmSlowPoke() {
+        logger.log("Sending I'm a slowpoke signal to players")
+        guard let localPlayer = gameState.localPlayer else {
+            logger.log("Error: Local player is not defined")
+            return
+        }
+        
+        let action = GameAction(
+            playerId: localPlayer.id,
+            type: .amSlowPoke,
+            payload: Data(),
+            timestamp: Date().timeIntervalSince1970
+        )
+        sendAction(action)
+    }
+    
+    func sendHonk() {
+        guard isSlowPoke.values.contains(true) else {
+            return
+        }
+        
+        logger.log("Honking other players")
+        guard let localPlayer = gameState.localPlayer else {
+            logger.log("Error: Local player is not defined")
+            return
+        }
+        
+        let action = GameAction(
+            playerId: localPlayer.id,
+            type: .honk,
+            payload: Data(),
+            timestamp: Date().timeIntervalSince1970
+        )
+        sendAction(action)
+        
+        playSound(named: "pouet")
     }
     
     func sendAction(_ action: GameAction) {

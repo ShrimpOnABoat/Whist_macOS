@@ -18,6 +18,8 @@ struct GameAction: Codable {
         case cancelTrump
         case sendState
         case startNewGame
+        case amSlowPoke
+        case honk
         
         var associatedPhases: [GamePhase] {
             switch self {
