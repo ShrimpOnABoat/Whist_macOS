@@ -55,7 +55,17 @@ struct WhistApp: App {
                     ContentView()
                         .onAppear {
                             if let window = NSApplication.shared.windows.first {
+                                #if DEBUG
+                                window.setFrame(
+                                            NSRect(x: window.frame.origin.x,
+                                                   y: window.frame.origin.y,
+                                                   width: 800,
+                                                   height: 600),
+                                            display: true
+                                        )
+                                #endif
                                 window.contentAspectRatio = NSSize(width: 4, height: 3)
+                                window.minSize = NSSize(width: 800, height: 600)
                             }
                             logger.setLocalPlayer(with: preferences.playerId)
                             PresenceManager.shared.configure(with: preferences.playerId)

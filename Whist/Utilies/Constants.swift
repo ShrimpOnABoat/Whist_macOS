@@ -9,11 +9,15 @@ import Foundation
 import SwiftUI
 
 struct GameConstants {
-    // Deck
+    // Cards
     static let deckOffset = CGPoint(x: 0.25, y: -0.25)
     static let deckShuffleOffset: CGFloat = 50
     static let deckShuffleAngle: Double = 15
     static let deckShuffleDuration: TimeInterval = 0.9
+    static var deckCardsScale: CGFloat { 2 / 3 }
+    static var sidePlayerCardScale: CGFloat { 2 / 3 }
+    static var localPlayerCardScale: CGFloat = 1.0
+    static var trickScale: CGFloat { 1 / 3 }
 
     // Animation Durations
     static let cardMoveDuration: TimeInterval = 0.5
@@ -64,7 +68,6 @@ struct DynamicSize {
     // Scoreboard
     var scoreboardWidth: CGFloat { width * 0.5 }
     var scoreboardHeight: CGFloat { height * 0.25 }
-    var deckCardsScale: CGFloat { proportion * 2 / 3 }
     var vstackScoreSpacing: CGFloat { proportion * 10 }
     var roundSize: CGFloat { proportion * 20 }
     var nameSize: CGFloat { proportion * 14 }
@@ -93,12 +96,10 @@ struct DynamicSize {
     var localPlayerInfoHeight: CGFloat { localPlayerHeight * 0.25 }
     var localPlayerTrickWidth: CGFloat { localPlayerWidth * 0.25 }
     var localPlayerTrickHeight: CGFloat { localPlayerHeight * 0.25 }
-    var sidePlayerCardScale: CGFloat { proportion * 2 / 3 }
     var playerImageWidth: CGFloat { proportion * 50 }
     var playerImageHeight: CGFloat { proportion * 50 }
     var otherTrickSpacing: CGFloat { heightProportion * 5 }
     var localTrickSpacing: CGFloat { widthProportion * 5 }
-    var trickScale: CGFloat { proportion / 3 }
     var stateTextSize: CGFloat { proportion * 12 }
     
     // Dealer button

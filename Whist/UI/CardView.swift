@@ -45,9 +45,7 @@ struct CardView: View {
                     .resizable()
                     .scaledToFit()
                     .cornerRadius(4)
-//                    .saturation(shouldGreyOut ? 0.3 : 1.0) // Reduce saturation for non-matching suits
                     .brightness(shouldGreyOut ? -0.3 : 0) // Slightly darken non-matching suits
-//                    .opacity(shouldGreyOut ? 0.7 : 1.0) // Make non-matching suits slightly transparent
             }
         }
         .frame(width: dynamicSize.cardWidth, height: dynamicSize.cardHeight)

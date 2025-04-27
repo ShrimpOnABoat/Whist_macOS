@@ -256,7 +256,7 @@ struct PlayerView: View {
                 ForEach(0..<3, id: \.self) { cardIndex in
                     TransformableCardView(
                         card: player.trickCards[index * 3 + cardIndex],
-                        scale: dynamicSize.trickScale,
+                        scale: GameConstants.trickScale,
                         rotation: rotation,
                         dynamicSize: dynamicSize
                     )
@@ -268,8 +268,8 @@ struct PlayerView: View {
             }
         }
         .frame(
-            width: isVertical ? dynamicSize.cardHeight * dynamicSize.trickScale : dynamicSize.cardWidth * dynamicSize.trickScale,
-            height: isVertical ? dynamicSize.cardWidth * dynamicSize.trickScale : dynamicSize.cardHeight * dynamicSize.trickScale
+            width: isVertical ? dynamicSize.cardHeight * GameConstants.trickScale : dynamicSize.cardWidth * GameConstants.trickScale,
+            height: isVertical ? dynamicSize.cardWidth * GameConstants.trickScale : dynamicSize.cardHeight * GameConstants.trickScale
         )
     }
     
@@ -435,8 +435,8 @@ struct PlayerView: View {
                 )
                 
                 // Compute bounding box of the rotated card
-                let cardWidth = dynamicSize.cardWidth * dynamicSize.deckCardsScale
-                let cardHeight = dynamicSize.cardHeight * dynamicSize.deckCardsScale
+                let cardWidth = dynamicSize.cardWidth * GameConstants.deckCardsScale
+                let cardHeight = dynamicSize.cardHeight * GameConstants.deckCardsScale
                 let rad = rotation * .pi / 180
                 
                 // Width and height of rotated bounding box
@@ -464,7 +464,7 @@ struct PlayerView: View {
                 ForEach(cardPositions, id: \.0.id) { (card, xOffset, yOffset, rotation) in
                     TransformableCardView(
                         card: card,
-                        scale: player.tablePosition == .local ? dynamicSize.proportion : dynamicSize.sidePlayerCardScale,
+                        scale: player.tablePosition == .local ? GameConstants.localPlayerCardScale : GameConstants.sidePlayerCardScale,
                         rotation: rotation,
                         xOffset: xOffset,
                         yOffset: yOffset,
@@ -491,8 +491,8 @@ struct PlayerView: View {
             .stroke(Color.gray, style: StrokeStyle(lineWidth: 2))
             .opacity(0.8)
             .blendMode(.multiply)
-            .frame(width: dynamicSize.cardHeight * dynamicSize.trickScale,
-                   height: dynamicSize.cardWidth * dynamicSize.trickScale)
+            .frame(width: dynamicSize.cardHeight * GameConstants.trickScale,
+                   height: dynamicSize.cardWidth * GameConstants.trickScale)
             .background(Color.white.opacity(0.2))
     }
     
