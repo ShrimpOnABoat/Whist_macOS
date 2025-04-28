@@ -58,6 +58,7 @@ class Player: Identifiable, ObservableObject, Codable {
     
     // Image is not codable; handle separately if needed
     @Published var image: Image?
+    @Published var imageBackgroundColor: Color?
     
     init(id: PlayerId, username: String? = nil, image: Image? = nil) {
         self.id = id

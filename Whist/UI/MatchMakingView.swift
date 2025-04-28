@@ -10,13 +10,13 @@ import SwiftUI
 struct MatchMakingView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var preferences: Preferences // Added environment object
-
+    
     var body: some View {
         VStack(spacing: 20) { // Increased spacing
             Text("Salle d'attente") // Changed title to "Waiting Room" in French
                 .font(.largeTitle)
                 .padding(.top)
-
+            
             // Player list
             ScrollView { // Added ScrollView in case of many players
                 VStack(alignment: .leading, spacing: 12) {
@@ -24,25 +24,29 @@ struct MatchMakingView: View {
                         HStack {
                             // Player avatar or placeholder
                             if let img = player.image {
-                                img
-                                    .resizable()
-                                    .scaledToFit() // Use scaledToFit for better aspect ratio handling
-                                    .frame(width: 45, height: 45)
-                                    .clipShape(Circle())
-                                    .overlay(Circle().stroke(Color.secondary, lineWidth: 1)) // Added subtle border
+                                ZStack {
+                                    (player.imageBackgroundColor ?? Color.gray)
+                                    
+                                    img
+                                        .resizable()
+                                        .scaledToFit()
+                                }
+                                .frame(width: 45, height: 45)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(Color.secondary, lineWidth: 1))
                             } else {
-                                Image(systemName: "person.crop.circle.fill") // Using SF Symbol placeholder
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 45, height: 45)
-                                    .foregroundColor(.gray.opacity(0.5))
-                            }
-
+                                    Image(systemName: "person.crop.circle.fill") // Using SF Symbol placeholder
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 45, height: 45)
+                                        .foregroundColor(.gray.opacity(0.5))
+                                }
+                            
                             Text(player.username == preferences.playerId ? "\(player.username) (Vous)" : player.username) // Indicate "You"
                                 .font(.headline)
-
+                            
                             Spacer()
-
+                            
                             // Connection indicator with icons
                             Image(systemName: player.isConnected ? "wifi" : "wifi.slash")
                                 .foregroundColor(player.isConnected ? .green : .red)
@@ -56,13 +60,13 @@ struct MatchMakingView: View {
                 }
                 .padding(.horizontal) // Padding for the inner VStack
             }
-
+            
             Spacer() // Pushes status text to the bottom
-
+            
             // Connection status text
             let total = gameManager.gameState.players.count
             let connected = gameManager.gameState.players.filter { $0.isConnected }.count
-
+            
             Group { // Group to apply modifiers together
                 if !gameManager.gameState.allPlayersConnected {
                     Text("En attente d'autres joueurs (\(connected)/\(total))...")
@@ -74,7 +78,7 @@ struct MatchMakingView: View {
             }
             .font(.headline)
             .padding(.bottom)
-
+            
         }
         .background( // Added a subtle gradient background
             LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)]), startPoint: .topLeading, endPoint: .bottomTrailing)

@@ -107,18 +107,26 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
         for playerID in allPossiblePlayers {
             // Assign placeholder images for players based on their IDs
             let placeholderImage: Image
+            let background: Color
             switch playerID {
             case .dd:
-                placeholderImage = Image(systemName: "figure.pool.swim.circle.fill")
+//                placeholderImage = Image(systemName: "figure.pool.swim.circle.fill")
+                placeholderImage = Image("dd")
+                background = Color.yellow
             case .gg:
-                placeholderImage = Image(systemName: "safari.fill")
+//                placeholderImage = Image(systemName: "safari.fill")
+                placeholderImage = Image("gg")
+                background = Color.blue
             case .toto:
-                placeholderImage = Image(systemName: "figure.run.treadmill.circle.fill")
+//                placeholderImage = Image(systemName: "figure.run.treadmill.circle.fill")
+                placeholderImage = Image("toto")
+                background = Color.green
             }
 
             // Add the player to the game state
             let newPlayer = Player(id: playerID, image: placeholderImage)
             newPlayer.isConnected = false
+            newPlayer.imageBackgroundColor = background
             players.append(newPlayer)
         }
     }

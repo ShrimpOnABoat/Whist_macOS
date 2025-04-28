@@ -232,7 +232,7 @@ extension GameManager {
                             }
                         }
                         self.sortLocalPlayerHand()
-                        self.saveGameState(self.gameState)
+//                        self.saveGameState(self.gameState)
                     } else {
                         dealNextCard()
                     }
@@ -297,7 +297,7 @@ extension GameManager {
             card.isPlayable = false
         }
         
-        saveGameState(gameState)
+//        saveGameState(gameState)
         
         logger.log("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
         
@@ -332,7 +332,7 @@ extension GameManager {
             logger.log("Error: Card not found in player's hand.")
             return
         }
-        saveGameState(gameState)
+//        saveGameState(gameState)
         logger.log("Card \(card) played by \(playerId.rawValue). Updated gameState.table: \(gameState.table)")
     }
     
@@ -476,7 +476,7 @@ extension GameManager {
     // MARK: ChooseTrump
     
     func chooseTrump(completion: @escaping () -> Void) {
-                logger.log("chooseTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
+        logger.log("chooseTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 4) { completion() }
         // Move the trump cards to the table face up
         for card in gameState.trumpCards {
@@ -503,7 +503,7 @@ extension GameManager {
         
         // Send other players the chosen trump suit
         sendTrumpToPlayers(trumpCard)
-        saveGameState(gameState)
+//        saveGameState(gameState)
     }
     
     // MARK: discard
@@ -532,7 +532,7 @@ extension GameManager {
         
         // Send the information to other players
         sendDiscardedCards(cardsToDiscard)
-        saveGameState(gameState)
+//        saveGameState(gameState)
         
         logger.log("Discarded cards: \(cardsToDiscard)")
         

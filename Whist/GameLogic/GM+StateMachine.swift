@@ -156,7 +156,7 @@ extension GameManager {
             
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
             func afterDealing() {
-                saveGameState(gameState)
+//                saveGameState(gameState)
                 // After dealing, decide what’s next:
                 if gameState.round < 4 {
                     transition(to: .bidding)
@@ -178,7 +178,7 @@ extension GameManager {
                 if isDealer {
                     self.gatherCards {
                         self.shuffleCards() {
-                            self.saveGameState(self.gameState)
+//                            self.saveGameState(self.gameState)
                             self.sendDeckToPlayers()
                             
                             // 3) Call dealCards, then call our afterDealing function

@@ -95,7 +95,9 @@ class GameManager: ObservableObject {
         
         let player = gameState.players[playerIndex]
         player.username = name
-        player.image = image
+        if player.image == nil {
+            player.image = image
+        }
         player.isConnected = true
         player.tablePosition = .local // Assume local initially, updatePlayerReferences will adjust
         
@@ -446,9 +448,9 @@ class GameManager: ObservableObject {
         } else {
             player.announcedTricks[gameState.round - 1] = bet
         }
-        Task {
-            saveGameState(gameState)
-        }
+//        Task {
+//            saveGameState(gameState)
+//        }
         logger.log("Player \(playerId) announced tricks: \(player.announcedTricks)")
 
         // if all players have bet and I'm placed 1, show the trump card if there's no 3-tie OR if local player score >= 2 * second player score
@@ -494,9 +496,9 @@ class GameManager: ObservableObject {
         
         self.objectWillChange.send() // To force a refresh for the 2nd player
         
-        Task {
-            saveGameState(gameState)
-        }
+//        Task {
+//            saveGameState(gameState)
+//        }
         //        checkAndAdvanceStateIfNeeded()
     }
     
@@ -509,9 +511,9 @@ class GameManager: ObservableObject {
         logger.log("Trump choice cancelled by second player.")
         
         transition(to: .choosingTrump)
-        Task {
-            saveGameState(gameState) // Save the cancelled state
-        }
+//        Task {
+//            saveGameState(gameState) // Save the cancelled state
+//        }
     }
     
     func updateGameStateWithDiscardedCards(from playerId: PlayerId, with cards: [Card], completion: @escaping () -> Void) {
@@ -558,9 +560,9 @@ class GameManager: ObservableObject {
                 completion() }
             moveCard(card, from: origin, to: destination)
         }
-        Task {
-            saveGameState(gameState)
-        }
+//        Task {
+//            saveGameState(gameState)
+//        }
     }
     
     func updatePlayerWithState(from playerId: PlayerId, with state: PlayerState) {
@@ -607,9 +609,9 @@ class GameManager: ObservableObject {
         
         // Notify other players about the action
         sendBetToPlayers(bet)
-        Task {
-            saveGameState(gameState)
-        }
+//        Task {
+//            saveGameState(gameState)
+//        }
         //        checkAndAdvanceStateIfNeeded()
     }
     
@@ -745,6 +747,16 @@ class GameManager: ObservableObject {
         // Ensure player references and UI elements reflect the loaded state
         self.gameState.updatePlayerReferences() // Essential
         sortLocalPlayerHand()
+        for player in gameState.players {
+            switch player.id {
+            case .dd:
+                player.imageBackgroundColor = .yellow
+            case .gg:
+                player.imageBackgroundColor = .blue
+            case .toto:
+                player.imageBackgroundColor = .green
+            }
+        }
         
         // restore states when in these phases:.choosingTrump, .waitingForTrump, .bidding, .discard
         if [.choosingTrump, .waitingForTrump, .bidding, .discard].contains(gameState.currentPhase) {

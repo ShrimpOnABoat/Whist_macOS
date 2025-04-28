@@ -214,18 +214,25 @@ struct PlayerView: View {
     @ViewBuilder
     private func TrickDisplay(dynamicSize: DynamicSize) -> some View {
         let roundIndex = gameManager.gameState.round - 1
+        let overlap = -dynamicSize.cardWidth * GameConstants.trickScale * GameConstants.trickOverlap
+        
         if player.announcedTricks.indices.contains(roundIndex) {
             Group {
                 if player.tablePosition != .local {
                     ZStack {
                         VStack(spacing: dynamicSize.otherTrickSpacing) {
                             ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
+                                let isVertical = index % 2 == 0
                                 TrickStack(
                                     index: index,
                                     isExtra: index >= player.announcedTricks[roundIndex],
-                                    isVertical: true,
+                                    isVertical: isVertical,
                                     dynamicSize: dynamicSize
                                 )
+                                .offset(
+                                    x: 0,
+                                    y: overlap*CGFloat(index))
+                                .zIndex(Double(index < player.madeTricks[roundIndex] ? index + 10 : index))
                             }
                         }
                     }
@@ -233,12 +240,17 @@ struct PlayerView: View {
                     ZStack {
                         HStack(spacing: dynamicSize.localTrickSpacing) {
                             ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
+                                let isVertical = index % 2 == 1
                                 TrickStack(
                                     index: index,
                                     isExtra: index >= player.announcedTricks[roundIndex],
-                                    isVertical: false,
+                                    isVertical: isVertical,
                                     dynamicSize: dynamicSize
                                 )
+                                .offset(
+                                    x: overlap*CGFloat(index),
+                                    y: 0)
+                                .zIndex(Double(index < player.madeTricks[roundIndex] ? index + 10 : index))
                             }
                         }
                     }
@@ -531,6 +543,7 @@ struct PlayerView: View {
         } else {
             message = "Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" : "")"
         }
+        logger.log("Discard String: \(message)")
         return message
     }
 }
@@ -546,11 +559,16 @@ struct PlayerImageView: View {
         VStack {
             // Player Picture
             if player.isConnected {
-                (player.image ?? Image(systemName: "person.crop.circle"))
-                    .resizable()
-                    .frame(width: dynamicSize.playerImageWidth, height: dynamicSize.playerImageHeight)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                ZStack {
+                    (player.imageBackgroundColor ?? Color.gray)
+                    
+                    (player.image ?? Image(systemName: "person.crop.circle"))
+                        .resizable()
+                        .scaledToFit()
+                }
+                .frame(width: dynamicSize.playerImageWidth, height: dynamicSize.playerImageHeight)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.white, lineWidth: 2))
             } else {
                 Image(systemName: "person.crop.circle.badge.xmark")
                     .resizable()

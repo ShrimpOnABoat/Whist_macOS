@@ -18,6 +18,7 @@ struct GameConstants {
     static var sidePlayerCardScale: CGFloat { 2 / 3 }
     static var localPlayerCardScale: CGFloat = 1.0
     static var trickScale: CGFloat { 1 / 3 }
+    static var trickOverlap: CGFloat = 0.7
 
     // Animation Durations
     static let cardMoveDuration: TimeInterval = 0.5
@@ -96,8 +97,8 @@ struct DynamicSize {
     var localPlayerInfoHeight: CGFloat { localPlayerHeight * 0.25 }
     var localPlayerTrickWidth: CGFloat { localPlayerWidth * 0.25 }
     var localPlayerTrickHeight: CGFloat { localPlayerHeight * 0.25 }
-    var playerImageWidth: CGFloat { proportion * 50 }
-    var playerImageHeight: CGFloat { proportion * 50 }
+    var playerImageWidth: CGFloat { proportion * 80 }
+    var playerImageHeight: CGFloat { proportion * 80 }
     var otherTrickSpacing: CGFloat { heightProportion * 5 }
     var localTrickSpacing: CGFloat { widthProportion * 5 }
     var stateTextSize: CGFloat { proportion * 12 }
