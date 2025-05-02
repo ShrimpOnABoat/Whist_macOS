@@ -54,7 +54,7 @@ struct ScoresView: View {
             Spacer()
         }
         .padding()
-        .frame(minWidth: 700, minHeight: 500)
+        .frame(minWidth: 460, minHeight: 500)
         .background(Color(NSColor.windowBackgroundColor))
     }
 }
@@ -96,11 +96,11 @@ struct SummaryView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Scores pour \(String(year))")
-                .font(.headline)
-                .foregroundColor(.primary)
-                .padding(.bottom, 5)
-
+//            Text("Scores pour \(String(year))")
+//                .font(.headline)
+//                .foregroundColor(.primary)
+//                .padding(.bottom, 5)
+//
             // Table header row
             HStack {
                 Text("Mois").frame(width: 100, alignment: .leading).foregroundColor(.secondary)
@@ -131,9 +131,9 @@ struct SummaryView: View {
                     Rectangle()
                         .frame(width: 1, height: 20)
                         .foregroundColor(Color(NSColor.separatorColor))
-                    Text("\(summary.ggTally)").frame(width: 40, alignment: .center).background(Color.yellow.opacity(0.3))
-                    Text("\(summary.ddTally)").frame(width: 40, alignment: .center).background(Color.yellow.opacity(0.3))
-                    Text("\(summary.totoTally)").frame(width: 40, alignment: .center).background(Color.yellow.opacity(0.3))
+                    Text("\(summary.ggTally)").frame(width: 40, alignment: .center)
+                    Text("\(summary.ddTally)").frame(width: 40, alignment: .center)
+                    Text("\(summary.totoTally)").frame(width: 40, alignment: .center)
                 }
                 .padding(.vertical, 2)
             }
@@ -147,6 +147,9 @@ struct SummaryView: View {
                 Text("\(total.gg)").frame(width: 40, alignment: .center).foregroundColor(.primary)
                 Text("\(total.dd)").frame(width: 40, alignment: .center).foregroundColor(.primary)
                 Text("\(total.toto)").frame(width: 40, alignment: .center).foregroundColor(.primary)
+                Rectangle()
+                    .frame(width: 1, height: 20)
+                    .foregroundColor(Color(NSColor.separatorColor))
                 Text("\(total.ggTally)").frame(width: 40, alignment: .center).foregroundColor(.primary)
                 Text("\(total.ddTally)").frame(width: 40, alignment: .center).foregroundColor(.primary)
                 Text("\(total.totoTally)").frame(width: 40, alignment: .center).foregroundColor(.primary)
@@ -337,85 +340,131 @@ func calculateTallies(for points: (gg: Int, dd: Int, toto: Int)) -> (gg: Int, dd
 
 // MARK: - Detailed Scores View
 
+struct MonthGroup: Identifiable {
+    let id = UUID()
+    let monthName: String
+    let tallies: (gg: Int, dd: Int, toto: Int)
+    let scores: [GameScore]
+}
+
 struct DetailedScoresView: View {
     let year: Int
-    @State private var detailedScores: [GameScore] = []
+    @State private var monthGroups: [MonthGroup] = []
 
     var body: some View {
-        VStack(alignment: .leading) {
-            Text("Détails des scores pour \(String(year))")
-                .font(.headline)
-                .foregroundColor(.primary)
-                .padding(.bottom, 5)
+        ZStack {
+            // Rounded‑corner background
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(NSColor.textBackgroundColor))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                )
 
-            // Table header
-            HStack {
-                Text("Date")
-                    .frame(width: 100, alignment: .leading)
-                    .foregroundColor(.secondary)
-                Spacer()
-                Text("GG")
-                    .frame(width: 50, alignment: .center)
-                    .foregroundColor(.secondary)
-                Text("DD")
-                    .frame(width: 50, alignment: .center)
-                    .foregroundColor(.secondary)
-                Text("Toto")
-                    .frame(width: 50, alignment: .center)
-                    .foregroundColor(.secondary)
-            }
-            .font(.subheadline)
-            .padding(.vertical, 4)
+            List {
+                ForEach(monthGroups) { group in
+                    // Section header aligned with score columns
+                    Section(
+                        header: HStack {
+                            Text(group.monthName)
+                                .font(.headline)
+                                .frame(width: 80, alignment: .leading)
+                            Spacer(minLength: 0)
+                            Text("GG \(group.tallies.gg)").frame(width: 50)
+                            Text("DD \(group.tallies.dd)").frame(width: 50)
+                            Text("Toto \(group.tallies.toto)").frame(width: 50)
+                        }
+                    ) {
+                        // Group this month’s games by day
+                        let calendar = Calendar.current
+                        let byDay = Dictionary(grouping: group.scores) {
+                            calendar.component(.day, from: $0.date)
+                        }
+                        let days = byDay.keys.sorted()
 
-            Divider()
+                        ForEach(days, id: \.self) { day in
+                            let dayScores = byDay[day]!.sorted { $0.date < $1.date }
 
-            List(detailedScores) { score in
-                HStack {
-                    Text(dateFormatter.string(from: score.date))
-                        .frame(width: 100, alignment: .leading)
-                        .foregroundColor(.primary)
-                    Spacer()
-                    
-                    let gamePoints = calculateGamePoints(for: score)
-                    
-                    Text("\(score.ggScore)")
-                        .frame(width: 50, alignment: .center)
-                        .foregroundColor(colorForPoints(gamePoints.gg))
-                    Text("\(score.ddScore)")
-                        .frame(width: 50, alignment: .center)
-                        .foregroundColor(colorForPoints(gamePoints.dd))
-                    Text("\(score.totoScore)")
-                        .frame(width: 50, alignment: .center)
-                        .foregroundColor(colorForPoints(gamePoints.toto))
+                            ForEach(dayScores.indices, id: \.self) { idx in
+                                let score = dayScores[idx]
+                                let pts = calculateGamePoints(for: score)
+
+                                HStack {
+                                    // Show day number only once
+                                    if idx == 0 {
+                                        Text("\(day)").frame(width: 40, alignment: .leading)
+                                    } else {
+                                        Text("").frame(width: 40)
+                                    }
+
+                                    Spacer(minLength: 0)
+
+                                    Text("\(score.ggScore)")
+                                        .frame(width: 50)
+                                        .foregroundColor(colorForPoints(pts.gg))
+                                    Text("\(score.ddScore)")
+                                        .frame(width: 50)
+                                        .foregroundColor(colorForPoints(pts.dd))
+                                    Text("\(score.totoScore)")
+                                        .frame(width: 50)
+                                        .foregroundColor(colorForPoints(pts.toto))
+                                }
+                                .listRowSeparator(.hidden)
+
+                            }
+
+                            Divider()
+                        }
+                    }
                 }
+                .listRowSeparator(.hidden)
             }
+            .listStyle(.plain)
+            .listRowSeparator(.hidden)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .padding()
-        .onAppear {
-            Task {
-                await loadData()
-            }
-        }
-        .onChange(of: year) { _ in
-            Task {
-                await loadData()
-            }
-        }
+        .onAppear { Task { await loadData() } }
+        .onChange(of: year) { _ in Task { await loadData() } }
     }
-    
+
     private func loadData() async {
-        let scores = await ScoresManager.shared.loadScoresSafely(for: year)
+        let allScores = await ScoresManager.shared.loadScoresSafely(for: year)
         let calendar = Calendar.current
-        let filteredScores = scores.filter {
-            calendar.component(.year, from: $0.date) == year
+        let yearScores = allScores.filter { calendar.component(.year, from: $0.date) == year }
+        
+        // Group by month
+        var byMonth: [Int: [GameScore]] = [:]
+        for score in yearScores {
+            let month = calendar.component(.month, from: score.date)
+            byMonth[month, default: []].append(score)
         }
-            .sorted { $0.date < $1.date }
+        
+        // Build month groups with tallies
+        let monthNames = ["Janvier","Février","Mars","Avril","Mai","Juin",
+                          "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
+        let groups: [MonthGroup] = byMonth.keys.sorted().compactMap { month in
+            let scores = byMonth[month]!.sorted { $0.date < $1.date }
+            // Calculate monthly tallies
+            var monthlyPoints = (gg: 0, dd: 0, toto: 0)
+            for score in scores {
+                let p = calculateGamePoints(for: score)
+                monthlyPoints.gg += p.gg
+                monthlyPoints.dd += p.dd
+                monthlyPoints.toto += p.toto
+            }
+            return MonthGroup(
+                monthName: monthNames[month - 1],
+                tallies: monthlyPoints,
+                scores: scores
+            )
+        }
         
         await MainActor.run {
-            self.detailedScores = filteredScores
+            self.monthGroups = groups
         }
     }
-    
+
     func colorForPoints(_ points: Int) -> Color {
         switch points {
         case 2: return Color.blue
@@ -429,6 +478,12 @@ let dateFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateStyle = .short
     return formatter
+}()
+
+let dayFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "d"   // day of month
+    return f
 }()
 
 // MARK: - Preview
