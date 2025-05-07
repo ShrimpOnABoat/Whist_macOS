@@ -13,7 +13,7 @@ import simd
 //struct AdvancedFeltView: View {
 struct FeltBackgroundView: View {
     /// The main base color for the felt.
-    var baseColor: Color
+    var baseColorIndex: Int
     
     /// How strong the radial shading is (0 = none, 1 = quite dark edges).
     var radialShadingStrength: Double = 0.5
@@ -31,7 +31,7 @@ struct FeltBackgroundView: View {
     var showScratches: Bool = false
     
     init(
-        baseColor: Color? = nil,
+        baseColorIndex: Int = 0,
         radialShadingStrength: Double = 0.5,
         wearIntensity: Double = 0,
         motifVisibility: Double = 0,
@@ -39,7 +39,7 @@ struct FeltBackgroundView: View {
         showScratches: Bool = Bool.random()
     ) {
         // Set all parameters using provided values or defaults
-        self.baseColor = baseColor ?? GameConstants.feltColors.randomElement() ?? GameConstants.feltColors[0]
+        self.baseColorIndex = baseColorIndex
         
         self.radialShadingStrength = radialShadingStrength
         self.wearIntensity = wearIntensity
@@ -53,7 +53,7 @@ struct FeltBackgroundView: View {
             ZStack {
                 // 1. Base Perlin Noise – simulates a subtle cloth texture variation
                 TilingPerlinView(
-                    color: baseColor,
+                    colorIndex: baseColorIndex,
                     noiseWidth: 4096,
                     noiseHeight: 4096,
                     period: 128,
@@ -62,8 +62,9 @@ struct FeltBackgroundView: View {
                     method: 3,
                     level: 0.5,
                     scale: 64
-                    )
+                )
                 .drawingGroup()
+                
                 
                 // 2. Add normal “speck” noise to give fiber speckles
                 NoiseSpecklesOverlay()
@@ -154,8 +155,8 @@ struct NoiseSpecklesOverlay: View {
                 // Mix of white or black noise
                 let isWhiteNoise = Bool.random()
                 let color = isWhiteNoise
-                    ? Color.white.opacity(opacity)
-                    : Color.black.opacity(opacity)
+                ? Color.white.opacity(opacity)
+                : Color.black.opacity(opacity)
                 
                 // Draw a small ellipse
                 context.fill(
@@ -175,7 +176,7 @@ struct ScratchesOverlay: View {
     var body: some View {
         Canvas { context, size in
             // Number of scratch clusters depends on intensity
-//            let scratchCount = Int(size.width * size.height * intensity / 15000)
+            //            let scratchCount = Int(size.width * size.height * intensity / 15000)
             let scratchCount = Int(ceil(intensity * 5))
             for _ in 0..<scratchCount {
                 let startX = Double.random(in: 0...size.width)
@@ -349,13 +350,13 @@ struct MotifPatternOverlay: View {
                     for yIndex in 0..<yCount {
                         let x = CGFloat(xIndex) * (motifSize + spacing) + motifSize / 2
                         let y = CGFloat(yIndex) * (motifSize + spacing)
-                            + (xIndex % 2 == 0 ? 0 : motifSize / 2)
-
+                        + (xIndex % 2 == 0 ? 0 : motifSize / 2)
+                        
                         context.draw(
                             motifImage,
                             at: CGPoint(x: x, y: y),
                             anchor: .center
-                            )
+                        )
                     }
                 }
             }
@@ -477,23 +478,23 @@ extension Color {
     /// Decompose Color into (hue, saturation, brightness, alpha).
     private var hsba: (Double, Double, Double, Double) {
         // SwiftUI doesn’t give a direct HSBA accessor, so let’s do a small workaround:
-        #if canImport(UIKit)
+#if canImport(UIKit)
         // On iOS, we can use UIColor
         let uiColor = UIColor(self)
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         uiColor.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         return (Double(h), Double(s), Double(b), Double(a))
-        #elseif canImport(AppKit)
+#elseif canImport(AppKit)
         // On macOS, we can do something similar with NSColor
         let nsColor = NSColor(self)
         let converted = nsColor.usingColorSpace(.deviceRGB) ?? nsColor
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         converted.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         return (Double(h), Double(s), Double(b), Double(a))
-        #else
+#else
         // Fallback
         return (0, 0, 0, 1)
-        #endif
+#endif
     }
 }
 
@@ -526,12 +527,12 @@ struct StainsOverlay: View {
             }
             
             // 2) Draw repeated-wear spots
-//            if Double.random(in: 0...1) < wearSpotProbability {
-//                let count = Int.random(in: 1...wearSpotCount)
-//                for _ in 0..<count {
-//                    drawWearSpot(context: &context, size: size)
-//                }
-//            }
+            //            if Double.random(in: 0...1) < wearSpotProbability {
+            //                let count = Int.random(in: 1...wearSpotCount)
+            //                for _ in 0..<count {
+            //                    drawWearSpot(context: &context, size: size)
+            //                }
+            //            }
         }
         .drawingGroup()
     }
@@ -543,7 +544,7 @@ struct StainsOverlay: View {
         let region = Int.random(in: 0...2) // 0 = left, 1 = right, 2 = bottom
         let centerX: Double
         let centerY: Double
-
+        
         switch region {
         case 0: // 30% on the left
             centerX = Double.random(in: 0...(size.width * 0.3))
@@ -736,7 +737,7 @@ struct StainsOverlay: View {
 // MARK: TilingPerlinView
 
 struct TilingPerlinView: View {
-    var color: Color
+    var colorIndex: Int
     var noiseWidth: Int
     var noiseHeight: Int
     var period: Int
@@ -749,41 +750,59 @@ struct TilingPerlinView: View {
     @State private var renderedImage: Image? // Holds the rendered image
     
     var body: some View {
-        let perlinView = PerlinNoiseOverlay(
-            noiseWidth: noiseWidth,
-            noiseHeight: noiseHeight,
-            period: period,
-            randSeed: randSeed,
-            tileSize: tileSize,
-            baseColor: color,
-            method: method,
-            level: level
-        )
-        
-        // Render the PerlinNoiseOverlay into a CGImage
-        if let renderedImage = TilingPerlinView.renderContentToCGImage(perlinView: perlinView) {
-            return AnyView(
-                Image(decorative: renderedImage, scale: scale, orientation: .up)
-                    .resizable(resizingMode: .tile)
-//                    .frame(width: 1024, height: 1024)
-            )
-        } else {
-            return AnyView(Text("Failed to render image"))
+        //        let perlinView = PerlinNoiseOverlay(
+        //            noiseWidth: noiseWidth,
+        //            noiseHeight: noiseHeight,
+        //            period: period,
+        //            randSeed: randSeed,
+        //            tileSize: tileSize,
+        //            baseColorIndex: colorIndex,
+        //            method: method,
+        //            level: level
+        //        )
+        //
+        //        // Render the PerlinNoiseOverlay into a CGImage
+        //        if let renderedImage = TilingPerlinView.renderContentToCGImage(perlinView: perlinView, color: color) {
+        //            return AnyView(
+        //                Image(decorative: renderedImage, scale: scale, orientation: .up)
+        //                    .resizable(resizingMode: .tile)
+        //            )
+        //        } else {
+        //            return AnyView(Text("Failed to render image"))
+        //        }
+
+        guard let nsImage = NSImage(named: NSImage.Name("feltBackground_\(colorIndex)_\(feltBackgroundName(for: colorIndex))")) else {
+            fatalError("Couldn’t load NSImage from assets")
         }
+
+        // Ask the NSImage to give you a CGImage backing it:
+        var imgRect = CGRect(origin: .zero, size: nsImage.size)
+        guard let cgImage = nsImage.cgImage(
+                forProposedRect: &imgRect,
+                context: .current,
+                hints: nil
+        ) else {
+            fatalError("Couldn’t convert NSImage to CGImage")
+        }
+
+        return AnyView(
+            Image(decorative: cgImage, scale: scale, orientation: .up)
+                .resizable(resizingMode: .tile)
+        )
     }
     
-    static func renderContentToCGImage(perlinView: PerlinNoiseOverlay) -> CGImage? {
-        let start = CFAbsoluteTimeGetCurrent()
-
-        let renderer = ImageRenderer(content: perlinView.frame(width: 1024, height: 1024))
-        let image = renderer.cgImage
-
-        let end = CFAbsoluteTimeGetCurrent()
-        let elapsed = end - start
-        print("🕒 Perlin rendering time: \(elapsed) seconds")
-
-        return image
-    }
+    //    static func renderContentToCGImage(perlinView: PerlinNoiseOverlay, color: Color) -> CGImage? {
+    //        let renderer = ImageRenderer(content: perlinView.frame(width: 1024, height: 1024))
+    //        let image = renderer.cgImage
+    //        let outputURL = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/Export/feltBackground_\(color).png")
+    //        if let cgImage = image {
+    //            let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+    //            if let data = bitmapRep.representation(using: .png, properties: [:]) {
+    //                try? data.write(to: outputURL)
+    //            }
+    //        }
+    //        return image
+    //    }
 }
 
 // MARK: - PerlinNoiseOverlay
@@ -812,7 +831,7 @@ struct PerlinNoiseOverlay: View {
     var body: some View {
         Canvas { context, size in
             // 1) Create sampler sized to "ceil(width/period), ceil(height/period)"
-
+            
             let samplerWidth = Int(noiseWidth / period)
             let samplerHeight = Int(noiseHeight / period)
             
@@ -1015,7 +1034,7 @@ extension Comparable {
 struct HandWearOverlay: View {
     /// Controls the overall intensity of the hand wear.
     var wearIntensity: Double
-
+    
     var body: some View {
         Canvas { context, size in
             // Determine how many wear marks to draw.
@@ -1058,7 +1077,7 @@ struct DynamicWearOverlay: View {
     var wearIntensity: Double
     // An offset to animate the noise—could be tied to a timer.
     var timeOffset: Double = 0
-
+    
     var body: some View {
         Canvas { context, size in
             // Determine how many wear marks to draw.
@@ -1071,7 +1090,7 @@ struct DynamicWearOverlay: View {
                 let region = Int.random(in: 0...2) // 0 = left, 1 = right, 2 = bottom
                 let x: Double
                 let y: Double
-
+                
                 switch region {
                 case 0: // Left side (5-25%)
                     x = Double.random(in: size.width * -0.1...size.width * 0.10)
@@ -1120,7 +1139,7 @@ struct DynamicWearOverlay: View {
 struct AdvancedFeltView_Previews: PreviewProvider {
     static var previews: some View {
         FeltBackgroundView(
-            baseColor: GameConstants.feltColors[0],
+            baseColorIndex: 0,
             radialShadingStrength: 0.4,
             wearIntensity: 1,
             motifVisibility: 0.2,
@@ -1132,4 +1151,21 @@ struct AdvancedFeltView_Previews: PreviewProvider {
         .frame(width: 600, height: 400)
         .previewDisplayName("Advanced Felt Surface")
     }
+}
+
+
+private func feltBackgroundName(for index: Int) -> String {
+    let names = [
+        "Vert Classique",
+        "Bleu Profond",
+        "Rouge Vin",
+        "Violet Royal",
+        "Sarcelle",
+        "Gris Charbon",
+        "Orange Brûlé",
+        "Vert Forêt",
+        "Marron Chocolat",
+        "Rouge Écarlate"
+    ]
+    return index < names.count ? names[index] : "Vert Classique"
 }

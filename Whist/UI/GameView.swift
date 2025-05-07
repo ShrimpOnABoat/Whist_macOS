@@ -41,22 +41,22 @@ struct GameView: View {
                 isEnabled ? index : nil
             }
             // Pick a random index from enabled indices
-            let randomIndex = enabledIndices.randomElement()
+            let randomIndex = enabledIndices.randomElement() ?? 0
             // Determine the selected color based on the random index
-            let selectedColor: Color = {
-                if let randomIndex = randomIndex {
-                    return GameConstants.feltColors[randomIndex]
-                } else {
-                    return .gray
-                }
-            }()
+//            let selectedColor: Color = {
+//                if let randomIndex = randomIndex {
+//                    return GameConstants.feltColors[randomIndex]
+//                } else {
+//                    return .gray
+//                }
+//            }()
             // Determine wear intensity
             let wear: CGFloat = self.preferences.wearIntensity ? CGFloat.random(in: 0...1) : 0
         DispatchQueue.global(qos: .userInitiated).async {
             // Create the background view
             logger.log("Executing background refresh")
             let newBackground = AnyView(FeltBackgroundView(
-                baseColor: selectedColor,
+                baseColorIndex: randomIndex,
                 radialShadingStrength: 0.5,
                 wearIntensity: wear,
                 motifVisibility: CGFloat.random(in: 0...0.5),
@@ -65,9 +65,7 @@ struct GameView: View {
             ))
             // Update UI on the main thread
             DispatchQueue.main.async {
-                if let randomIndex = randomIndex {
-                    self.preferences.selectedFeltIndex = randomIndex
-                }
+                self.preferences.selectedFeltIndex = randomIndex
                 self.background = newBackground
             }
         }

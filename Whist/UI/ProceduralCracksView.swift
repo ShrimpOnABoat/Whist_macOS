@@ -92,7 +92,7 @@ struct ProceduralCracksView_Previews: PreviewProvider {
     static var previews: some View {
         ZStack{
             FeltBackgroundView(
-                baseColor: GameConstants.feltColors[0],
+                baseColorIndex: 0,
                 radialShadingStrength: 0.4,
                 wearIntensity: 1,
                 motifVisibility: 0.2,
