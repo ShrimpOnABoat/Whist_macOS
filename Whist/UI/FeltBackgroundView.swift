@@ -16,59 +16,71 @@ struct FeltBackgroundView: View {
     var baseColorIndex: Int
     
     /// How strong the radial shading is (0 = none, 1 = quite dark edges).
-    var radialShadingStrength: Double = 0.5
+    var radialShadingStrength: Double
     
     /// How heavy the “wear & tear” looks (scratches, spots, etc.).
-    var wearIntensity: Double = 0 //.25
+    var wearIntensity: Double
     
     /// How visible the random motif pattern is (0 = off, 1 = full).
-    var motifVisibility: Double = 0 //.2
-    
-    /// Scale for the motif shapes.
-    var motifScale: CGFloat = 0.3
+    var motif: String
+    var motifVisibility: Double
+    var motifScale: CGFloat
     
     /// Whether to show the random scratch overlay.
-    var showScratches: Bool = false
+    var showScratches: Bool
     
     init(
         baseColorIndex: Int = 0,
         radialShadingStrength: Double = 0.5,
         wearIntensity: Double = 0,
-        motifVisibility: Double = 0,
-        motifScale: CGFloat = CGFloat.random(in: 0...1),
+        motif: String = [
+            "star.fill", "heart.fill", "moon.fill", "leaf.fill", "snowflake",
+            "suit.spade.fill", "suit.heart.fill", "suit.diamond.fill", "suit.club.fill",
+            "sparkles", "bolt.fill",
+            "gearshape.fill", "globe", "camera.metering.spot"
+        ].randomElement() ?? "circle.fill",
+        motifVisibility: Double = 0.25, //[0.25, 0.5, 0.75, 1].randomElement() ?? 0.25,
+        motifScale: CGFloat = 0.5, //CGFloat.random(in: 0...1),
         showScratches: Bool = Bool.random()
     ) {
         // Set all parameters using provided values or defaults
         self.baseColorIndex = baseColorIndex
-        
         self.radialShadingStrength = radialShadingStrength
         self.wearIntensity = wearIntensity
+        self.motif = motif
         self.motifVisibility = motifVisibility
         self.motifScale = motifScale
         self.showScratches = showScratches
+        logger.log("motifVisibility: \(motifVisibility)")
     }
     
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 // 1. Base Perlin Noise – simulates a subtle cloth texture variation
-                TilingPerlinView(
-                    colorIndex: baseColorIndex,
-                    noiseWidth: 4096,
-                    noiseHeight: 4096,
-                    period: 128,
-                    randSeed: 553,
-                    tileSize: 16,
-                    method: 3,
-                    level: 0.5,
-                    scale: 64
-                )
-                .drawingGroup()
-                
+                //                TilingPerlinView(
+                //                    colorIndex: baseColorIndex,
+                //                    noiseWidth: 4096,
+                //                    noiseHeight: 4096,
+                //                    period: 128,
+                //                    randSeed: 553,
+                //                    tileSize: 16,
+                //                    method: 3,
+                //                    level: 0.5,
+                //                    scale: 64
+                //                )
+                //                .drawingGroup()
+                // 1. Base texture image – color filled then masked by alpha-only noise texture
+                GameConstants.feltColors[baseColorIndex]
+                    .overlay(
+                        Image("noiseTexture-4-alpha")
+                            .resizable(resizingMode: .tile)
+                            .blendMode(.multiply)
+                    )
                 
                 // 2. Add normal “speck” noise to give fiber speckles
-                NoiseSpecklesOverlay()
-                    .blendMode(.overlay)
+                //                NoiseSpecklesOverlay()
+                //                    .blendMode(.overlay)
                 
                 // 3. Wear & Tear Overlays
                 if wearIntensity > 0 {
@@ -95,11 +107,66 @@ struct FeltBackgroundView: View {
                     }
                 }
                 
-                // 4. Optional motif/pattern
+                // 4. Tile-pattern motif overlay: render minimal tile and repeat
                 if motifVisibility > 0 {
-                    MotifPatternOverlay(scale: motifScale)
-                        .opacity(motifVisibility)
-                        .blendMode(.softLight)
+                    let motifSize = 30 * motifScale
+                    let spacing = motifSize * 0.1
+                    let tileW = motifSize + spacing
+                    let tileH = motifSize + spacing
+                    // Generate a two-column offset tile image
+                    if let tileCGImage = {
+                        let renderer = ImageRenderer(content:
+                                                        Canvas { context, _ in
+                            let motifImage = Image(systemName: motif)
+                            // Draw in first column (no offset)
+                            let rect1a = CGRect(
+                                x: spacing / 2,
+                                y: spacing / 2,
+                                width: motifSize,
+                                height: motifSize
+                            )
+                            context.draw(motifImage, in: rect1a)
+                            let rect1b = CGRect(
+                                x: spacing / 2,
+                                y: tileH,
+                                width: motifSize,
+                                height: motifSize
+                            )
+                            context.draw(motifImage, in: rect1b)
+                            
+                            // Draw in second column, offset half motif vertically
+                            let rect2a = CGRect(
+                                x: tileW + spacing / 2,
+                                y: -(tileH / 2),
+                                width: motifSize,
+                                height: motifSize
+                            )
+                            context.draw(motifImage, in: rect2a)
+                            let rect2b = CGRect(
+                                x: tileW + spacing / 2,
+                                y: tileH / 2,
+                                width: motifSize,
+                                height: motifSize
+                            )
+                            context.draw(motifImage, in: rect2b)
+                            let rect2c = CGRect(
+                                x: tileW + spacing / 2,
+                                y: tileH * 1.5,
+                                width: motifSize,
+                                height: motifSize
+                            )
+                            context.draw(motifImage, in: rect2c)
+                        }
+                            .frame(width: tileW * 2, height: tileH * 2)
+                        )
+                        return renderer.cgImage
+                    }() {
+                        Image(decorative: tileCGImage, scale: 1)
+                            .resizable(resizingMode: .tile)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .opacity(motifVisibility)
+                            .blendMode(.softLight)
+                    }
                 }
                 
                 // 5. Radial shading for depth
@@ -326,41 +393,36 @@ struct SpotsOverlay: View {
 // MARK: - Motif Pattern
 
 struct MotifPatternOverlay: View {
+    var motif: String
     var scale: CGFloat
     
-    /// Example set: add any SF Symbols you like
-    private let motifSymbols = [
-        "star.fill", "heart.fill", "moon.fill", "leaf.fill", "snowflake",
-        "suit.spade.fill", "suit.heart.fill", "suit.diamond.fill", "suit.club.fill",
-        "pawprint.fill", "wand.and.stars", "sparkles",
-        "gearshape.fill", "globe", "camera.metering.spot"
-    ]
-    
     var body: some View {
-        GeometryReader { geometry in
-            Canvas { context, size in
-                let motifSize: CGFloat = 30 * scale
-                let spacing: CGFloat = motifSize * 0.1
-                let xCount = Int(size.width / (motifSize + spacing)) + 1
-                let yCount = Int(size.height / (motifSize + spacing)) + 1
-                let randomSymbol = motifSymbols.randomElement() ?? "circle.fill"
-                let motifImage = Image(systemName: randomSymbol)
-                
-                for xIndex in 0..<xCount {
-                    for yIndex in 0..<yCount {
-                        let x = CGFloat(xIndex) * (motifSize + spacing) + motifSize / 2
-                        let y = CGFloat(yIndex) * (motifSize + spacing)
-                        + (xIndex % 2 == 0 ? 0 : motifSize / 2)
-                        
-                        context.draw(
-                            motifImage,
-                            at: CGPoint(x: x, y: y),
-                            anchor: .center
-                        )
-                    }
+        Canvas { context, size in
+            let textureSize: CGFloat = 2048
+            let motifSize: CGFloat = 30 * scale
+            let spacing: CGFloat = motifSize * 0.1
+            let xCount = Int(textureSize / (motifSize + spacing)) + 1
+            let yCount = Int(textureSize / (motifSize + spacing)) + 1
+            let motifImage = Image(systemName: motif)
+            
+            for xIndex in 0..<xCount {
+                for yIndex in 0..<yCount {
+                    let x = CGFloat(xIndex) * (motifSize + spacing) + motifSize / 2
+                    let y = CGFloat(yIndex) * (motifSize + spacing)
+                    + (xIndex % 2 == 0 ? 0 : motifSize / 2)
+                    
+                    let rect = CGRect(
+                        x: x - motifSize / 2,
+                        y: y - motifSize / 2,
+                        width: motifSize,
+                        height: motifSize
+                    )
+                    context.draw(motifImage, in: rect)
                 }
             }
         }
+        .frame(width: 2048, height: 2048)
+        .drawingGroup()
     }
 }
 
@@ -770,21 +832,21 @@ struct TilingPerlinView: View {
         //        } else {
         //            return AnyView(Text("Failed to render image"))
         //        }
-
+        
         guard let nsImage = NSImage(named: NSImage.Name("feltBackground_\(colorIndex)_\(feltBackgroundName(for: colorIndex))")) else {
             fatalError("Couldn’t load NSImage from assets")
         }
-
+        
         // Ask the NSImage to give you a CGImage backing it:
         var imgRect = CGRect(origin: .zero, size: nsImage.size)
         guard let cgImage = nsImage.cgImage(
-                forProposedRect: &imgRect,
-                context: .current,
-                hints: nil
+            forProposedRect: &imgRect,
+            context: .current,
+            hints: nil
         ) else {
             fatalError("Couldn’t convert NSImage to CGImage")
         }
-
+        
         return AnyView(
             Image(decorative: cgImage, scale: scale, orientation: .up)
                 .resizable(resizingMode: .tile)

@@ -36,39 +36,28 @@ struct GameView: View {
     
     func refreshBackground() {
         logger.log("Refreshing backgroung")
-            // Compute enabled indices off the main thread
-            let enabledIndices = self.preferences.enabledRandomColors.enumerated().compactMap { (index, isEnabled) in
-                isEnabled ? index : nil
-            }
-            // Pick a random index from enabled indices
-            let randomIndex = enabledIndices.randomElement() ?? 0
-            // Determine the selected color based on the random index
-//            let selectedColor: Color = {
-//                if let randomIndex = randomIndex {
-//                    return GameConstants.feltColors[randomIndex]
-//                } else {
-//                    return .gray
-//                }
-//            }()
-            // Determine wear intensity
-            let wear: CGFloat = self.preferences.wearIntensity ? CGFloat.random(in: 0...1) : 0
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Create the background view
-            logger.log("Executing background refresh")
-            let newBackground = AnyView(FeltBackgroundView(
-                baseColorIndex: randomIndex,
-                radialShadingStrength: 0.5,
-                wearIntensity: wear,
-                motifVisibility: CGFloat.random(in: 0...0.5),
-                motifScale: CGFloat.random(in: 0...1),
-                showScratches: Bool.random()
-            ))
-            // Update UI on the main thread
-            DispatchQueue.main.async {
-                self.preferences.selectedFeltIndex = randomIndex
-                self.background = newBackground
-            }
+        // Compute enabled indices off the main thread
+        let enabledIndices = self.preferences.enabledRandomColors.enumerated().compactMap { (index, isEnabled) in
+            isEnabled ? index : nil
         }
+        // Pick a random index from enabled indices
+        let randomIndex = enabledIndices.randomElement() ?? 0
+        // Determine wear intensity
+        let wear: CGFloat = self.preferences.wearIntensity ? CGFloat.random(in: 0...1) : 0
+        // Determine motif presence
+        let motif: Bool = self.preferences.motif
+        // Create the background view
+        let newBackground = AnyView(FeltBackgroundView(
+            baseColorIndex: randomIndex,
+            radialShadingStrength: 0.5,
+            wearIntensity: wear,
+            motifVisibility: motif ? 0.25 : 0,
+            motifScale: 0.5,
+            showScratches: Bool.random()
+        ))
+        // Update UI on the main thread
+        self.background = newBackground
+        logger.log("Finished executing background refresh")
     }
     
     var body: some View {
@@ -411,6 +400,10 @@ struct GameView: View {
         // GeometryReader onAppear for background refresh
         .onAppear() {
             logger.log("onAppear: Refreshing background")
+            refreshBackground()
+        }
+        .onChange(of: preferences.selectedFeltIndex) { _ in
+            logger.log("Preferences changed: selectedFeltIndex updated, refreshing background")
             refreshBackground()
         }
     }

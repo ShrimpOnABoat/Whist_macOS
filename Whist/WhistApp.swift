@@ -180,6 +180,7 @@ class Preferences: ObservableObject {
     @AppStorage("selectedFeltIndex") var selectedFeltIndex: Int = 0
     // Utiliser un toggle pour l'intensité de l'usure, activé par défaut
     @AppStorage("wearIntensity") var wearIntensity: Bool = true
+    @AppStorage("motif") var motif: Bool = true
     @AppStorage("motifVisibility") var motifVisibility: Double = 0.5
     @AppStorage("patternOpacity") var patternOpacity: Double = 0.5
     @AppStorage("patternScale") private var patternScaleStorage: Double = 0.5
@@ -254,10 +255,11 @@ struct PreferencesView: View {
                     }
                 
                 // Section pour le toggle de l'usure du tapis
-                Section(header: Text("Usure du tapis")
+                Section(header: Text("Détails")
                     .font(.headline)
                     .padding(.vertical, 4)) {
-                        Toggle("Intensité de l'usure", isOn: $preferences.wearIntensity)
+                        Toggle("Usure du tapis", isOn: $preferences.wearIntensity)
+                        Toggle("Motifs", isOn: $preferences.motif)
                     }
             }
             
