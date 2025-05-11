@@ -227,8 +227,10 @@ extension GameManager {
                                 self.gameState.trumpSuit = trumpCard.suit
                                 withAnimation(.smooth(duration: 0.5)) {
                                     trumpCard.isFaceDown = false
+                                    logger.log("Showing the trump card \(trumpCard)")
                                 }
-                                //                                logger.log("The trump card is \(trumpCard)")
+                            } else {
+                                logger.log("Not showing the trump card")
                             }
                         }
                         self.sortLocalPlayerHand()

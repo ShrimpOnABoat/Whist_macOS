@@ -771,7 +771,7 @@ class GameManager: ObservableObject {
             case .choosingTrump:
                 gameState.currentPhase = .choosingTrump
                 
-            case .waiting:
+            case .waiting, .idle:
                 if gameState.trumpSuit != nil {
                     gameState.currentPhase = .bidding
                 } else {
@@ -799,7 +799,7 @@ class GameManager: ObservableObject {
 //            logger.log("Cards in trump deck: \(gameState.trumpCards)")
             
             // put back trump cards on table for the choosing player
-            if gameState.currentPhase == .choosingTrump {
+            if gameState.localPlayer?.state == .choosingTrump {
                 chooseTrump() {
                     self.hoveredSuit = nil
                 }
@@ -840,7 +840,7 @@ class GameManager: ObservableObject {
         if [.bidding, .discard, .playingTricks, .grabTrick].contains(gameState.currentPhase) {
             if [.discard, .playingTricks, .grabTrick].contains(gameState.currentPhase) {
                 return true
-            } else if gameState.currentPhase == .bidding && gameState.localPlayer?.place ?? 0 > 1 {
+            } else if gameState.currentPhase == .bidding && (gameState.localPlayer?.place ?? 0 > 1 || gameState.round < 4) {
                 return true
             }
         }

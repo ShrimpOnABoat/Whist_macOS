@@ -502,10 +502,10 @@ struct PlayerView: View {
         RoundedRectangle(cornerRadius: 4)
             .stroke(Color.gray, style: StrokeStyle(lineWidth: 2))
             .opacity(0.8)
-            .blendMode(.multiply)
+//            .blendMode(.multiply)
             .frame(width: dynamicSize.cardHeight * GameConstants.trickScale,
                    height: dynamicSize.cardWidth * GameConstants.trickScale)
-            .background(Color.white.opacity(0.2))
+            .background(Color.clear)
     }
     
     func adjustedCardPositionAndRotation(

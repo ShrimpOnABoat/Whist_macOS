@@ -295,7 +295,7 @@ extension GameState: CustomDebugStringConvertible {
         desc += "- Trump Suit: \(String(describing: trumpSuit))\n"
         desc += "- Players:\n"
         for player in players {
-            desc += "  • \(player.username) (\(player.id)) - place: \(player.place), scores: \(player.scores), tablePosition: \(String(describing: player.tablePosition)), isConnected: \(player.isConnected)\n"
+            desc += "  • \(player.username) (\(player.id)) - state: \(player.state) - place: \(player.place), scores: \(player.scores), tablePosition: \(String(describing: player.tablePosition)), isConnected: \(player.isConnected)\n"
         }
         return desc
     }
