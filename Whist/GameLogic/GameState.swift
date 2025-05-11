@@ -167,6 +167,54 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
             // Consider resetting all positions to unknown if this state is invalid.
             // players.forEach { $0.tablePosition = .unknown }
         }
+        logger.log("Players references updated!")
+    }
+    /// Verifies the game state before saving. Returns an array of error messages (empty if valid).
+    func checkIntegrity() -> [String] {
+        var errors: [String] = []
+        
+        // 1. Round within valid bounds
+        if round < 0 || round > 12 {
+            errors.append("Round \(round) is out of valid range (0...12).")
+        }
+        
+        // 2. All 32 cards accounted for and no duplicates
+        var allCards = deck
+        players.forEach { allCards.append(contentsOf: $0.hand) }
+        players.forEach { allCards.append(contentsOf: $0.trickCards) }
+        allCards.append(contentsOf: table)
+        allCards.append(contentsOf: trumpCards)
+        allCards.append(contentsOf: lastTrick.values)
+        
+        if allCards.count != 36 {
+            errors.append("Total card count is \(allCards.count), expected 36.")
+        }
+        
+        // 3. Trump cards must include the four twos
+        let expectedTwos = [Suit.clubs, .spades, .diamonds, .hearts].map { Card(suit: $0, rank: .two) }
+        expectedTwos.forEach { two in
+            if !trumpCards.contains(two) {
+                errors.append("Missing \(two.rank) of \(two.suit) in trumpCards.")
+            }
+        }
+        
+        // 4. playOrder must list all players exactly once
+        let playerIds = Set(players.map { $0.id })
+        let playOrderSet = Set(playOrder)
+        if playOrderSet != playerIds {
+            errors.append("playOrder \(playOrder) does not include exactly all players: \(playerIds).")
+        }
+        
+        // 5. Dealer must be set and valid
+        if let dealerId = dealer {
+            if !playerIds.contains(dealerId) {
+                errors.append("Dealer \(dealerId) is not among players.")
+            }
+        } else {
+            errors.append("Dealer is not defined.")
+        }
+        
+        return errors
     }
 }
 

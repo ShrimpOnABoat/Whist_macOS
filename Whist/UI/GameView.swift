@@ -172,35 +172,37 @@ struct GameView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .coordinateSpace(name: "contentArea")
                 .cameraShake(offset: $gameManager.cameraShakeOffset)
+                .onAppear() {
+                    logger.log("🎾🎾🎾 GameView is on!")
+                }
             } else {
-                Color.clear
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                            var message = "GameView refresh"
-                            if gameManager.gameState.localPlayer == nil {
-                                message += " - localPlayer is nil"
-                            }
-                            if gameManager.gameState.leftPlayer == nil {
-                                message += " - leftPlayer is nil"
-                            }
-                            if gameManager.gameState.rightPlayer == nil {
-                                message += " - rightPlayer is nil"
-                            }
-                            if gameManager.gameState.dealer == nil {
-                                message += " - dealer is nil"
-                            }
-                            logger.log(message)
-                            gameManager.gameState.objectWillChange.send()
+                ZStack {
+                    Color.clear
+                    ProgressView("Mise en place du jeu...")
+                        .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                        .scaleEffect(1.5)
+                        .padding()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                        var message = "🎾🎾🎾 GameView refresh"
+                        if gameManager.gameState.localPlayer == nil {
+                            message += " - localPlayer is nil"
                         }
-                    }
-                HStack(alignment: .center){
-                    VStack {
-                        Spacer()
-                        ProgressView("Mise en place du jeu...")
-                            .progressViewStyle(CircularProgressViewStyle(tint: .orange))
-                            .scaleEffect(1.5)
-                            .padding()
-                        Spacer()
+                        if gameManager.gameState.leftPlayer == nil {
+                            message += " - leftPlayer is nil"
+                        }
+                        if gameManager.gameState.rightPlayer == nil {
+                            message += " - rightPlayer is nil"
+                        }
+                        if gameManager.gameState.dealer == nil {
+                            message += " - dealer is nil"
+                        }
+                        logger.log(message)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                            gameManager.objectWillChange.send()
+                        }
                     }
                 }
             }

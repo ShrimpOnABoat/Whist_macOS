@@ -204,8 +204,14 @@ class GameManager: ObservableObject {
     
     func saveGameState(_ state: GameState) {
         if ![.waitingForPlayers, .setPlayOrder, .setupGame, .waitingToStart].contains(gameState.currentPhase) && gameState.localPlayer?.id == .toto {
-            Task {
-                await persistence.saveGameState(state)
+            logger.log("Trying to save the game state")
+            let gameStateIntegrity: [String] = gameState.checkIntegrity()
+            if gameStateIntegrity == [] {
+                Task {
+                    await persistence.saveGameState(state)
+                }
+            } else {
+                logger.log("Errors saving game state: \(gameStateIntegrity)")
             }
         }
     }
@@ -811,16 +817,14 @@ class GameManager: ObservableObject {
             }
         }
 
-        // Update trump card visibility (Simplified logic, adjust if needed)
-        if self.gameState.trumpSuit != nil {
-            let trumpCardShouldBeVisible = gameState.currentPhase.isPlayingPhase || gameState.round < 4 || allScoresEqual()
-            if self.gameState.round < 4 || allScoresEqual() {
-                 self.gameState.deck.last?.isFaceDown = !trumpCardShouldBeVisible
+        // Update trump card visibility
+        if IShouldSeeTrump() {
+            if gameState.round < 4 || allScoresEqual() {
+                gameState.deck.last?.isFaceDown = false
             } else if let trumpCard = self.gameState.trumpCards.last {
-                 trumpCard.isFaceDown = !trumpCardShouldBeVisible
+                trumpCard.isFaceDown = false
             }
         }
-
         // Update table card visibility
         if self.gameState.currentPhase.isPlayingPhase {
             self.gameState.table.indices.forEach { self.gameState.table[$0].isFaceDown = false }
@@ -830,6 +834,17 @@ class GameManager: ObservableObject {
         self.isDeckReady = true // Assume deck is ready based on loaded state
 
         logger.log("Game configured from loaded state. Current phase: \(self.gameState.currentPhase). Advancing state machine...")
+    }
+    
+    func IShouldSeeTrump() -> Bool {
+        if [.bidding, .discard, .playingTricks, .grabTrick].contains(gameState.currentPhase) {
+            if [.discard, .playingTricks, .grabTrick].contains(gameState.currentPhase) {
+                return true
+            } else if gameState.currentPhase == .bidding && gameState.localPlayer?.place ?? 0 > 1 {
+                return true
+            }
+        }
+        return false
     }
     
     // MARK: - Signaling Setup

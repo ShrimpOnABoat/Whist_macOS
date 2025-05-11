@@ -120,14 +120,14 @@ struct FeltBackgroundView: View {
                             let motifImage = Image(systemName: motif)
                             // Draw in first column (no offset)
                             let rect1a = CGRect(
-                                x: spacing / 2,
-                                y: spacing / 2,
+                                x: 0,
+                                y: 0,
                                 width: motifSize,
                                 height: motifSize
                             )
                             context.draw(motifImage, in: rect1a)
                             let rect1b = CGRect(
-                                x: spacing / 2,
+                                x: 0,
                                 y: tileH,
                                 width: motifSize,
                                 height: motifSize
@@ -136,21 +136,21 @@ struct FeltBackgroundView: View {
                             
                             // Draw in second column, offset half motif vertically
                             let rect2a = CGRect(
-                                x: tileW + spacing / 2,
+                                x: tileW,
                                 y: -(tileH / 2),
                                 width: motifSize,
                                 height: motifSize
                             )
                             context.draw(motifImage, in: rect2a)
                             let rect2b = CGRect(
-                                x: tileW + spacing / 2,
+                                x: tileW,
                                 y: tileH / 2,
                                 width: motifSize,
                                 height: motifSize
                             )
                             context.draw(motifImage, in: rect2b)
                             let rect2c = CGRect(
-                                x: tileW + spacing / 2,
+                                x: tileW,
                                 y: tileH * 1.5,
                                 width: motifSize,
                                 height: motifSize
