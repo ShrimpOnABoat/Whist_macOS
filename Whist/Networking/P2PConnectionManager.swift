@@ -230,8 +230,20 @@ class P2PConnectionManager: NSObject {
     func sendMessage(_ message: String) -> Bool {
         let buffer = RTCDataBuffer(data: message.data(using: .utf8)!, isBinary: false)
         var allSent = true
+        
         for (peerId, channel) in outgoingDataChannels {
             if channel.readyState == .open {
+                #if DEBUG
+                let delay = Double.random(in: 0.1...0.8) // Simulate 100ms to 800ms delay
+                DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
+                    let sent = channel.sendData(buffer)
+                    if !sent {
+                        logger.log("Simulated lag: Failed to send message to \(peerId)")
+                    } else {
+                        logger.debug("Simulated lag: Message sent to \(peerId) after \(Int(delay * 1000))ms")
+                    }
+                }
+                #else
                 let sent = channel.sendData(buffer)
                 if !sent {
                     logger.log("Failed to send message to \(peerId)")
@@ -239,6 +251,7 @@ class P2PConnectionManager: NSObject {
                 } else {
                     logger.debug("Message sent to \(peerId) on channel \(channel)")
                 }
+                #endif
             } else {
                 logger.log("Data channel to \(peerId) not open")
                 allSent = false
