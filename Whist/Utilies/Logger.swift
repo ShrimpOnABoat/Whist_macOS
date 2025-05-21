@@ -20,7 +20,11 @@ class SimpleLogger {
     /// Queue for safe file writing
     private let fileQueue = DispatchQueue(label: "com.simplelogger.filequeue", qos: .background)
     
+    #if DEBUG
+    private var debug: Bool = true
+    #else
     private var debug: Bool = false
+    #endif
     private var localPlayer: String = ""
     private var counter: Int = 0
     

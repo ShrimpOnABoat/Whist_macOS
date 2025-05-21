@@ -45,6 +45,7 @@ extension GameManager {
     func transition(to newPhase: GamePhase) {
         let multiplePhases: Set<GamePhase> = [.bidding, .playingTricks]
         if gameState.currentPhase == newPhase && !multiplePhases.contains(newPhase) {
+            logger.debug("No transition needed")
             return
         }
         if gameState.currentPhase == .setupGame && newPhase == .waitingToStart {
@@ -461,6 +462,7 @@ extension GameManager {
                     transition(to: .playingTricks)
                 }
             } else {
+                logger.debug("Transitioning to grabTrick")
                 transition(to: .grabTrick)
             }
             

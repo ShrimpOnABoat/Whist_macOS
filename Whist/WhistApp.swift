@@ -8,6 +8,7 @@
 import SwiftUI
 import Firebase
 import FirebaseAppCheck
+import FirebaseAuth
 
 @main
 struct WhistApp: App {
@@ -21,7 +22,16 @@ struct WhistApp: App {
         // Configure Firebase
         AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
         FirebaseApp.configure()
-        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            Auth.auth().signInAnonymously { authResult, error in
+                if let error = error {
+                    logger.log("❌ Firebase anonymous sign-in failed: \(error.localizedDescription)")
+                } else if let uid = authResult?.user.uid {
+                    logger.log("✅ Signed in anonymously with UID: \(uid)")
+                }
+            }
+        }
+        logger.log("Firebase UID: \(Auth.auth().currentUser?.uid ?? "nil")")
         let settings = FirestoreSettings()
         settings.cacheSettings = MemoryCacheSettings() // Use in-memory cache
         Firestore.firestore().settings = settings
