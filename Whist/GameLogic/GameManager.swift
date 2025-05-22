@@ -200,35 +200,6 @@ class GameManager: ObservableObject {
         }
     }
     
-    // MARK: resumeGameState
-    
-    func saveGameState(_ state: GameState) {
-        if ![.waitingForPlayers, .setPlayOrder, .setupGame, .waitingToStart].contains(gameState.currentPhase) && gameState.localPlayer?.id == .toto {
-            logger.log("Trying to save the game state")
-            let gameStateIntegrity: [String] = gameState.checkIntegrity()
-            if gameStateIntegrity == [] {
-                Task {
-                    await persistence.saveGameState(state)
-                }
-            } else {
-                logger.log("Errors saving game state: \(gameStateIntegrity)")
-            }
-        }
-    }
-    
-    func loadGameState(completion: @escaping (GameState?) -> Void) {
-        Task {
-            let state = await persistence.loadGameState()
-            completion(state)
-        }
-    }
-    
-    func clearSavedGameState() {
-        Task {
-            await persistence.clearSavedGameState()
-        }
-    }
-    
     // MARK: startNewGame
     func startNewGameAction() {
         sendStartNewGameAction()
@@ -715,6 +686,54 @@ class GameManager: ObservableObject {
         }
     }
     
+    // MARK: Save/Load Game State
+    
+    func saveGameState(_ state: GameState) {
+        // Only toto can trigger saves and only in non-initial phases
+        guard ![.waitingForPlayers, .setPlayOrder, .setupGame, .waitingToStart].contains(state.currentPhase),
+              state.localPlayer?.id == .toto else {
+            return
+        }
+        logger.log("Trying to save the game state")
+        let gameStateIntegrity: [String] = state.checkIntegrity()
+        guard gameStateIntegrity == [] else {
+            logger.log("Errors saving game state: \(gameStateIntegrity)")
+            return
+        }
+        
+        // Create an immutable snapshot
+        let snapshotData: Data
+        do {
+            snapshotData = try JSONEncoder().encode(state)
+        } catch {
+            logger.log("Failed to snapshot state: \(error)")
+            return
+        }
+        
+        Task {
+            // Decode back to freeze the instance before saving
+            do {
+                let frozenState = try JSONDecoder().decode(GameState.self, from: snapshotData)
+                await persistence.saveGameState(frozenState)
+            } catch {
+                logger.log("Failed to restore snapshot for save: \(error)")
+            }
+        }
+    }
+    
+    func loadGameState(completion: @escaping (GameState?) -> Void) {
+        Task {
+            let state = await persistence.loadGameState()
+            completion(state)
+        }
+    }
+    
+    func clearSavedGameState() {
+        Task {
+            await persistence.clearSavedGameState()
+        }
+    }
+    
     // MARK: - Restore Saved Game
     func checkAndRestoreSavedGame() async -> Bool {
         logger.log("Match connected. Checking database for saved game...")
@@ -787,7 +806,7 @@ class GameManager: ObservableObject {
             default:
                 break
             }
-//            logger.log("My current phase is \(gameState.currentPhase)")
+            logger.debug("My current phase is \(gameState.currentPhase)")
             
             // Move trump cards back in their deck
             gameState.table = []
@@ -795,8 +814,8 @@ class GameManager: ObservableObject {
             for trumpCard in gameState.trumpCards {
                 trumpCard.isFaceDown = true
             }
-//            logger.log("Cards on table: \(gameState.table)")
-//            logger.log("Cards in trump deck: \(gameState.trumpCards)")
+            logger.debug("Cards on table: \(gameState.table)")
+            logger.debug("Cards in trump deck: \(gameState.trumpCards)")
             
             // put back trump cards on table for the choosing player
             if gameState.localPlayer?.state == .choosingTrump {
@@ -845,6 +864,14 @@ class GameManager: ObservableObject {
             }
         }
         return false
+    }
+    
+    // MARK: Save/Load Game Actions
+    
+    func saveGameAction(_ action: GameAction) {
+        Task {
+            await persistence.saveGameAction(action)
+        }
     }
     
     // MARK: - Signaling Setup

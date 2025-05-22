@@ -16,6 +16,8 @@ class FirebaseService {
     private let db = Firestore.firestore()
     private let currentGameStateDocumentId = "current"
     private let gameStatesCollection = "gameStates"
+    private let currentGameActionDocumentId = "current"
+    private let gameActionsCollection = "gameActions"
     private let scoresCollection = "scores"
 
     // MARK: - GameState
@@ -38,6 +40,27 @@ class FirebaseService {
             .document(currentGameStateDocumentId)
             .delete()
         logger.log("Successfully deleted game state document: \(currentGameStateDocumentId)")
+    }
+
+    // MARK: - GameState
+
+    func saveGameAction(_ action: GameAction) async throws {
+        try db.collection(gameActionsCollection)
+            .addDocument(from: action)
+    }
+
+    func loadGameAction() async throws -> GameAction {
+        let snapshot = try await db.collection(gameActionsCollection)
+            .document(currentGameActionDocumentId)
+            .getDocument()
+        return try snapshot.data(as: GameAction.self)
+    }
+
+    func deleteCurrentGameAction() async throws {
+        try await db.collection(gameActionsCollection)
+            .document(currentGameActionDocumentId)
+            .delete()
+        logger.log("Successfully deleted game state document: \(currentGameActionDocumentId)")
     }
 
     // MARK: - GameScore

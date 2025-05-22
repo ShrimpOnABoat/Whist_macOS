@@ -42,4 +42,13 @@ class GamePersistence {
             logger.log("Error clearing saved game state from Firebase via GamePersistence: \(error.localizedDescription)")
         }
     }
+    
+    func saveGameAction(_ action: GameAction) async {
+        do {
+            try await firebaseService.saveGameAction(action)
+            logger.log("GameState saved successfully to Firebase.")
+        } catch {
+            logger.log("Error saving game state to Firebase: \(error.localizedDescription)")
+        }
+    }
 }
