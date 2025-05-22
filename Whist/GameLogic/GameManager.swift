@@ -874,6 +874,12 @@ class GameManager: ObservableObject {
         }
     }
     
+    func clearSavedGameAtions() {
+        Task {
+            await persistence.clearGameActions()
+        }
+    }
+    
     // MARK: - Signaling Setup
     func startNetworkingIfNeeded() {
         guard !preferences.playerId.isEmpty else {
