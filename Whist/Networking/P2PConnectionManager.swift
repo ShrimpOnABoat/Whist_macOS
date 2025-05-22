@@ -73,7 +73,7 @@ class P2PConnectionManager: NSObject {
          if let channel = pc.dataChannel(forLabel: peerId.rawValue, configuration: dataChannelConfig) {
              channel.delegate = self // Also set delegate for outgoing channel state changes
              outgoingDataChannels[peerId] = channel // Store in outgoing map
-             logger.debug("Created and stored outgoing data channel labeled '\(peerId.rawValue)' for peer \(peerId.rawValue)")
+             logger.logRTC("Created and stored outgoing data channel labeled '\(peerId.rawValue)' for peer \(peerId.rawValue)")
          } else {
              logger.log("Error: Failed to create outgoing data channel for \(peerId.rawValue)")
          }
@@ -168,19 +168,19 @@ class P2PConnectionManager: NSObject {
                 completion(error)
                 return
             }
-             logger.debug("Successfully set remote description for \(peerId). Type: \(sdp.type.rawValue)")
+             logger.logRTC("Successfully set remote description for \(peerId). Type: \(sdp.type.rawValue)")
 
 
             // Apply any stored remote candidates once remote description is set
             // Ensure this doesn't conflict with ICE candidate handling elsewhere
             if let candidates = self.remoteCandidates[peerId], !candidates.isEmpty {
-                logger.debug("Applying \(candidates.count) stored remote ICE candidates for \(peerId).")
+                logger.logRTC("Applying \(candidates.count) stored remote ICE candidates for \(peerId).")
                 for candidate in candidates {
                     pc.add(candidate) { error in
                         if let error = error {
                             logger.log("Error adding stored ICE candidate for \(peerId): \(error)")
                         } else {
-                            logger.debug("Successfully added stored ICE candidate for \(peerId).")
+                            logger.logRTC("Successfully added stored ICE candidate for \(peerId).")
                         }
                     }
                 }
@@ -192,7 +192,7 @@ class P2PConnectionManager: NSObject {
 
     func addIceCandidate(_ candidate: RTCIceCandidate, for peerId: PlayerId, completion: ((Error?) -> Void)? = nil) {
         guard let pc = peerConnections[peerId] else {
-             logger.debug("addIceCandidate: No peer connection found for \(peerId). Storing candidate.")
+             logger.logRTC("addIceCandidate: No peer connection found for \(peerId). Storing candidate.")
              pendingIceCandidates[peerId, default: []].append(candidate) // Store candidate if PC doesn't exist yet
              completion?(nil)
              return
@@ -200,17 +200,17 @@ class P2PConnectionManager: NSObject {
 
         // Check remote description state before adding candidate
         if pc.remoteDescription != nil {
-             logger.debug("addIceCandidate: Remote description exists for \(peerId). Adding candidate immediately.")
+             logger.logRTC("addIceCandidate: Remote description exists for \(peerId). Adding candidate immediately.")
             pc.add(candidate) { error in
                 completion?(error)
                 if let error = error {
                     logger.log("Error adding ICE candidate for \(peerId): \(error)")
                 } else {
-                     logger.debug("Successfully added ICE candidate for \(peerId)")
+                     logger.logRTC("Successfully added ICE candidate for \(peerId)")
                 }
             }
         } else {
-             logger.debug("addIceCandidate: Remote description not set yet for \(peerId). Storing candidate in remoteCandidates.")
+             logger.logRTC("addIceCandidate: Remote description not set yet for \(peerId). Storing candidate in remoteCandidates.")
              // Store in remoteCandidates to be applied when setRemoteDescription completes
             remoteCandidates[peerId, default: []].append(candidate)
             completion?(nil)
@@ -219,7 +219,7 @@ class P2PConnectionManager: NSObject {
 
      func flushPendingIce(for peerId: PlayerId) {
          guard let _ = peerConnections[peerId], let pending = pendingIceCandidates[peerId], !pending.isEmpty else { return }
-         logger.debug("Flushing \(pending.count) pending *local* ICE candidates for \(peerId).")
+         logger.logRTC("Flushing \(pending.count) pending *local* ICE candidates for \(peerId).")
          for candidate in pending {
              // Send pending local candidates via signaling
              onIceCandidateGenerated?(peerId, candidate)
@@ -240,7 +240,7 @@ class P2PConnectionManager: NSObject {
                     if !sent {
                         logger.log("Simulated lag: Failed to send message to \(peerId)")
                     } else {
-                        logger.debug("Simulated lag: Message sent to \(peerId) after \(Int(delay * 1000))ms")
+                        logger.logRTC("Simulated lag: Message sent to \(peerId) after \(Int(delay * 1000))ms")
                     }
                 }
                 #else
@@ -249,7 +249,7 @@ class P2PConnectionManager: NSObject {
                     logger.log("Failed to send message to \(peerId)")
                     allSent = false
                 } else {
-                    logger.debug("Message sent to \(peerId) on channel \(channel)")
+                    logger.logRTC("Message sent to \(peerId) on channel \(channel)")
                 }
                 #endif
             } else {
@@ -263,29 +263,29 @@ class P2PConnectionManager: NSObject {
 
 extension P2PConnectionManager: RTCPeerConnectionDelegate {
     func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
-        logger.debug("Signaling state changed: \(stateChanged.rawValue)")
+        logger.logRTC("Signaling state changed: \(stateChanged.rawValue)")
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
-        logger.debug("Stream added")
+        logger.logRTC("Stream added")
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
-        logger.debug("Stream removed")
+        logger.logRTC("Stream removed")
     }
     
     func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
-        logger.debug("Negotiation needed")
+        logger.logRTC("Negotiation needed")
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
-        logger.debug("ICE connection state changed: \(newState.rawValue)")
+        logger.logRTC("ICE connection state changed: \(newState.rawValue)")
         
         switch newState {
         case .connected, .completed:
-            logger.debug("ICE connected")
+            logger.logRTC("ICE connected")
         case .failed, .disconnected, .closed:
-            logger.debug("ICE connection failed or closed")
+            logger.logRTC("ICE connection failed or closed")
             let error = NSError(domain: "P2PConnectionManager", code: 1004, userInfo: [NSLocalizedDescriptionKey: "ICE connection failed with state: \(newState.rawValue)"])
             if let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key {
                 onError?(peerId, error)
@@ -296,21 +296,21 @@ extension P2PConnectionManager: RTCPeerConnectionDelegate {
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
-        logger.debug("ICE gathering state changed: \(newState.rawValue)")
+        logger.logRTC("ICE gathering state changed: \(newState.rawValue)")
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
-        logger.debug(" P2P Delegate: peerConnection(_:didGenerate:) called.")
-        logger.debug(" P2P Delegate: Candidate SDP: \(candidate.sdp)")
+        logger.logRTC(" P2P Delegate: peerConnection(_:didGenerate:) called.")
+        logger.logRTC(" P2P Delegate: Candidate SDP: \(candidate.sdp)")
         
         guard let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key else {
              logger.log(" P2P Delegate: ERROR - Could not find peerId for this peerConnection.")
             return
         }
-         logger.debug(" P2P Delegate: Found peerId: \(peerId.rawValue)")
+         logger.logRTC(" P2P Delegate: Found peerId: \(peerId.rawValue)")
 
         if onIceCandidateGenerated != nil {
-             logger.debug(" P2P Delegate: onIceCandidateGenerated callback IS set. Calling it now for \(peerId.rawValue).")
+             logger.logRTC(" P2P Delegate: onIceCandidateGenerated callback IS set. Calling it now for \(peerId.rawValue).")
             onIceCandidateGenerated?(peerId, candidate)
         } else {
              logger.log(" P2P Delegate: ERROR - onIceCandidateGenerated callback is NIL.")
@@ -318,11 +318,11 @@ extension P2PConnectionManager: RTCPeerConnectionDelegate {
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
-        logger.debug("ICE candidates removed")
+        logger.logRTC("ICE candidates removed")
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
-        logger.debug("Data channel opened with label: \(dataChannel.label)")
+        logger.logRTC("Data channel opened with label: \(dataChannel.label)")
         dataChannel.delegate = self
         // Update the dedicated data channel for the corresponding peerId
         if let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key {
@@ -331,41 +331,41 @@ extension P2PConnectionManager: RTCPeerConnectionDelegate {
         }
         
         for peerConnection in peerConnections {
-            logger.debug("🍐 Peer \(peerConnection.key) connected to \(peerConnection.value)")
+            logger.logRTC("🍐 Peer \(peerConnection.key) connected to \(peerConnection.value)")
         }
         for dataChannel in outgoingDataChannels {
-            logger.debug("🏁 Peer \(dataChannel.key) connected to \(dataChannel.value)")
+            logger.logRTC("🏁 Peer \(dataChannel.key) connected to \(dataChannel.value)")
         }
     }
 }
 
 extension P2PConnectionManager: RTCDataChannelDelegate {
     func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        logger.debug("Data channel state changed to: \(dataChannel.readyState.rawValue)")
+        logger.logRTC("Data channel state changed to: \(dataChannel.readyState.rawValue)")
 
         switch dataChannel.readyState {
         case .open:
-            logger.debug("Data channel is open and ready to use")
+            logger.logRTC("Data channel is open and ready to use")
             if let peerId = incomingDataChannelsMap[dataChannel] {
                 onConnectionEstablished?(peerId)
             } else if let peerId = outgoingDataChannels.first(where: { $0.value === dataChannel })?.key {
                 onConnectionEstablished?(peerId)
             }
         case .closed:
-            logger.debug("Data channel closed")
+            logger.logRTC("Data channel closed")
         case .connecting:
-            logger.debug("Data channel connecting")
+            logger.logRTC("Data channel connecting")
         case .closing:
-            logger.debug("Data channel closing")
+            logger.logRTC("Data channel closing")
         @unknown default:
-            logger.debug("Unknown data channel state: \(dataChannel.readyState.rawValue)")
+            logger.logRTC("Unknown data channel state: \(dataChannel.readyState.rawValue)")
         }
     }
     
     func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
         if !buffer.isBinary, let message = String(data: buffer.data, encoding: .utf8),
            let peerId = incomingDataChannelsMap[dataChannel] {
-            logger.debug("Received message from \(peerId): \(message)")
+            logger.logRTC("Received message from \(peerId): \(message)")
             onMessageReceived?(peerId, message)
         } else if buffer.isBinary {
             logger.log("Received binary data of size: \(buffer.data.count) bytes")

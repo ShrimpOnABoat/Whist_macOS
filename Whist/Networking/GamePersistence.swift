@@ -46,9 +46,9 @@ class GamePersistence {
     func saveGameAction(_ action: GameAction) async {
         do {
             try await firebaseService.saveGameAction(action)
-            logger.log("GameState saved successfully to Firebase.")
+            logger.log("Game action saved successfully to Firebase.")
         } catch {
-            logger.log("Error saving game state to Firebase: \(error.localizedDescription)")
+            logger.log("Error saving game action to Firebase: \(error.localizedDescription)")
         }
     }
 

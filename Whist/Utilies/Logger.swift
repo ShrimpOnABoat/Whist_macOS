@@ -26,6 +26,7 @@ class SimpleLogger {
     private var debug: Bool = false
     #endif
     private var localPlayer: String = ""
+    private var logRTC: Bool = false
     private var counter: Int = 0
     
     // MARK: - Initialization
@@ -94,6 +95,12 @@ class SimpleLogger {
     
     func debug(_ message: String, function: String = #function) {
         if debug {
+            log(message, function: function)
+        }
+    }
+    
+    func logRTC(_ message: String, function: String = #function) {
+        if logRTC {
             log(message, function: function)
         }
     }
