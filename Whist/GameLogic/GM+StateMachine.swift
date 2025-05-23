@@ -246,8 +246,10 @@ extension GameManager {
                     setPlayerState(to: .bidding)
                     showOptions = true
                 } else if allPlayersBet() {
+                    showOptions = false
                     transition(to: .showCard)
                 } else {
+                    showOptions = false
                     setPlayerState(to: .waiting)
                 }
             } else { // round > 3

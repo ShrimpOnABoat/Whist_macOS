@@ -159,7 +159,8 @@ struct OptionsView: View {
             // Initialize selectedBet from GameManager when the view appears
             let roundIndex = max(gameManager.gameState.round - 1, 0)
             if let tricks = gameManager.gameState.localPlayer?.announcedTricks,
-               tricks.indices.contains(roundIndex) {
+               tricks.indices.contains(roundIndex),
+               gameManager.gameState.round > 3 {
                 let currentBet = tricks[roundIndex]
                 self.selectedBet = currentBet
             }
@@ -168,7 +169,8 @@ struct OptionsView: View {
             // Keep selectedBet in sync with GameManager’s stored bet
             let roundIndex = max(gameManager.gameState.round - 1, 0)
             if let tricks = gameManager.gameState.localPlayer?.announcedTricks,
-               tricks.indices.contains(roundIndex) {
+               tricks.indices.contains(roundIndex),
+               gameManager.gameState.round > 3 {
                 let currentBet = tricks[roundIndex]
                 self.selectedBet = currentBet
             }
