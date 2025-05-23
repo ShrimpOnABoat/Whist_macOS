@@ -45,10 +45,12 @@ class GameManager: ObservableObject {
     private let preferences: Preferences
     let soundManager = SoundManager()
     static let SM = ScoresManager.shared
-    var persistence: GamePersistence = GamePersistence() // No longer needs playerID
+    var persistence: GamePersistence = GamePersistence()
+    @Published private(set) var isRestoring = false
     
     var cancellables = Set<AnyCancellable>()
     var isGameSetup: Bool = false
+    var isAwaitingActionCompletionDuringRestore: Bool = false
     @Published var autoPilot: Bool = false
     
     var lastGameWinner: PlayerId?
@@ -113,55 +115,51 @@ class GameManager: ObservableObject {
         }
     }
     
-    func setupGame() {
+    func setupGame(completion: @escaping () -> Void = {}) {
         logger.log("--> SetupGame()")
         let totalPlayers = gameState.players.count
         let connectedPlayers = gameState.players.filter { $0.isConnected }.count
         logger.log("Total players created: \(totalPlayers), Players connected: \(connectedPlayers)")
-        
-        // Check if the game is already set up
+
         guard !isGameSetup else {
             logger.log("Game is already set up.")
+            completion()
             return
         }
-        
-        // Update the game state
+
         gameState.dealer = gameState.playOrder.first
         logger.log("Dealer is \(String(describing: gameState.dealer))")
 
-        // Set the previous loser's monthlyLosses
-        Task {
+        Task.detached { [self] in
             if let loser = await GameManager.SM.findLoser() {
-                // Since GameManager is @MainActor, DispatchQueue.main.async might be redundant,
-                // but it's safe to keep for explicit main thread updates.
-                DispatchQueue.main.async {
+                await MainActor.run {
                     let loserPlayer = self.gameState.getPlayer(by: loser.playerId)
                     loserPlayer.monthlyLosses = loser.losingMonths
                     logger.log("Updated \(loser.playerId)'s monthlyLosses to \(loser.losingMonths)")
                 }
             } else {
-                 // Ensure logging happens on the main thread if needed for UI consistency
-                 DispatchQueue.main.async {
+                await MainActor.run {
                     logger.log("No loser identified or loser had 0 losing months.")
-                 }
+                }
+            }
+
+            await MainActor.run {
+                self.gameState.updatePlayerReferences()
+
+                if let localPlayer = self.gameState.localPlayer,
+                   let leftPlayer = self.gameState.leftPlayer,
+                   let rightPlayer = self.gameState.rightPlayer {
+                    logger.log("Main Player: \(localPlayer.username), Left Player: \(leftPlayer.username), Right Player: \(rightPlayer.username)")
+                } else {
+                    logger.fatalErrorAndLog("Players could not be assigned correctly.")
+                }
+
+                self.isGameSetup = true
+                self.initializeCards()
+                self.objectWillChange.send()
+                completion()
             }
         }
-        // Identify localPlayer, leftPlayer, and rightPlayer
-        gameState.updatePlayerReferences()
-        
-        if let localPlayer = gameState.localPlayer, let leftPlayer = gameState.leftPlayer, let rightPlayer = gameState.rightPlayer {
-            logger.log("Main Player: \(localPlayer.username), Left Player: \(leftPlayer.username), Right Player: \(rightPlayer.username)")
-        } else {
-            logger.fatalErrorAndLog("Players could not be assigned correctly.")
-        }
-        
-        isGameSetup = true
-        
-        // Create the cards
-        initializeCards()
-        
-        // Refresh the UI if necessary
-        objectWillChange.send()
     }
     
     func setPersistencePlayerID(with playerId: PlayerId) {
@@ -197,35 +195,6 @@ class GameManager: ObservableObject {
             
         } else {
             logger.log("Player \(playerId) connection status did not change: \(isConnected)")
-        }
-    }
-    
-    // MARK: resumeGameState
-    
-    func saveGameState(_ state: GameState) {
-        if ![.waitingForPlayers, .setPlayOrder, .setupGame, .waitingToStart].contains(gameState.currentPhase) && gameState.localPlayer?.id == .toto {
-            logger.log("Trying to save the game state")
-            let gameStateIntegrity: [String] = gameState.checkIntegrity()
-            if gameStateIntegrity == [] {
-                Task {
-                    await persistence.saveGameState(state)
-                }
-            } else {
-                logger.log("Errors saving game state: \(gameStateIntegrity)")
-            }
-        }
-    }
-    
-    func loadGameState(completion: @escaping (GameState?) -> Void) {
-        Task {
-            let state = await persistence.loadGameState()
-            completion(state)
-        }
-    }
-    
-    func clearSavedGameState() {
-        Task {
-            await persistence.clearSavedGameState()
         }
     }
     
@@ -454,9 +423,6 @@ class GameManager: ObservableObject {
         } else {
             player.announcedTricks[gameState.round - 1] = bet
         }
-//        Task {
-//            saveGameState(gameState)
-//        }
         logger.log("Player \(playerId) announced tricks: \(player.announcedTricks)")
 
         // if all players have bet and I'm placed 1, show the trump card if there's no 3-tie OR if local player score >= 2 * second player score
@@ -482,6 +448,16 @@ class GameManager: ObservableObject {
     }
     
     func updateGameStateWithTrump(from playerId: PlayerId, with card: Card) {
+        logger.debug("Trump card chosen: \(card)")
+        // if restoring and local player chose trump
+        if gameState.localPlayer?.id == playerId && isRestoring {
+            selectTrumpSuit(card) {
+                // hack
+                card.isFaceDown = false
+                self.checkAndAdvanceStateIfNeeded()
+            }
+        }
+        
         // move the card on top of the trump deck
         guard let index = gameState.trumpCards.firstIndex(of: card) else {
             logger.log("Card \(card) not found in trumpCards.")
@@ -501,11 +477,6 @@ class GameManager: ObservableObject {
         gameState.trumpSuit = card.suit
         
         self.objectWillChange.send() // To force a refresh for the 2nd player
-        
-//        Task {
-//            saveGameState(gameState)
-//        }
-        //        checkAndAdvanceStateIfNeeded()
     }
     
     func updateGameStateWithTrumpCancellation() {
@@ -517,9 +488,6 @@ class GameManager: ObservableObject {
         logger.log("Trump choice cancelled by second player.")
         
         transition(to: .choosingTrump)
-//        Task {
-//            saveGameState(gameState) // Save the cancelled state
-//        }
     }
     
     func updateGameStateWithDiscardedCards(from playerId: PlayerId, with cards: [Card], completion: @escaping () -> Void) {
@@ -535,7 +503,20 @@ class GameManager: ObservableObject {
             
             player.hasDiscarded = true
             
-            let origin: CardPlace = player.tablePosition == .left ? .leftPlayer: .rightPlayer
+            var origin: CardPlace = player.tablePosition == .left ? .leftPlayer: .rightPlayer
+            switch player.tablePosition {
+            case .left:
+                origin = .leftPlayer
+                
+            case .right:
+                origin = .rightPlayer
+                
+            case .local:
+                origin = .localPlayer
+            
+            default:
+                logger.fatalErrorAndLog("Player \(player) has not table position!")
+            }
             var destination: CardPlace = .deck
             var message: String = "Player \(player) discarded \(card)"
             
@@ -574,9 +555,9 @@ class GameManager: ObservableObject {
     func updatePlayerWithState(from playerId: PlayerId, with state: PlayerState) {
         let player = gameState.getPlayer(by: playerId)
         player.state = state
-        Task {
-            saveGameState(gameState)
-        }
+//        Task {
+//            saveGameState(gameState)
+//        }
         isSlowPoke[playerId] = false
         logger.log("\(playerId) updated their state to \(state).")
     }
@@ -715,6 +696,54 @@ class GameManager: ObservableObject {
         }
     }
     
+    // MARK: Save/Load Game State
+    
+//    func saveGameState(_ state: GameState) {
+//        // Only toto can trigger saves and only in non-initial phases
+//        guard ![.waitingForPlayers, .setPlayOrder, .setupGame, .waitingToStart].contains(state.currentPhase),
+//              state.localPlayer?.id == .toto else {
+//            return
+//        }
+//        logger.log("Trying to save the game state")
+//        let gameStateIntegrity: [String] = state.checkIntegrity()
+//        guard gameStateIntegrity == [] else {
+//            logger.log("Errors saving game state: \(gameStateIntegrity)")
+//            return
+//        }
+//
+//        // Create an immutable snapshot
+//        let snapshotData: Data
+//        do {
+//            snapshotData = try JSONEncoder().encode(state)
+//        } catch {
+//            logger.log("Failed to snapshot state: \(error)")
+//            return
+//        }
+//
+//        Task {
+//            // Decode back to freeze the instance before saving
+//            do {
+//                let frozenState = try JSONDecoder().decode(GameState.self, from: snapshotData)
+//                await persistence.saveGameState(frozenState)
+//            } catch {
+//                logger.log("Failed to restore snapshot for save: \(error)")
+//            }
+//        }
+//    }
+    
+    func loadGameState(completion: @escaping (GameState?) -> Void) {
+        Task {
+            let state = await persistence.loadGameState()
+            completion(state)
+        }
+    }
+    
+    func clearSavedGameState() {
+        Task {
+            await persistence.clearSavedGameState()
+        }
+    }
+    
     // MARK: - Restore Saved Game
     func checkAndRestoreSavedGame() async -> Bool {
         logger.log("Match connected. Checking database for saved game...")
@@ -787,7 +816,7 @@ class GameManager: ObservableObject {
             default:
                 break
             }
-//            logger.log("My current phase is \(gameState.currentPhase)")
+            logger.debug("My current phase is \(gameState.currentPhase)")
             
             // Move trump cards back in their deck
             gameState.table = []
@@ -795,8 +824,8 @@ class GameManager: ObservableObject {
             for trumpCard in gameState.trumpCards {
                 trumpCard.isFaceDown = true
             }
-//            logger.log("Cards on table: \(gameState.table)")
-//            logger.log("Cards in trump deck: \(gameState.trumpCards)")
+            logger.debug("Cards on table: \(gameState.table)")
+            logger.debug("Cards in trump deck: \(gameState.trumpCards)")
             
             // put back trump cards on table for the choosing player
             if gameState.localPlayer?.state == .choosingTrump {
@@ -846,6 +875,89 @@ class GameManager: ObservableObject {
         }
         return false
     }
+    
+    // MARK: Save/Load Game Actions
+    
+    func saveGameAction(_ action: GameAction) {
+        Task {
+            await persistence.saveGameAction(action)
+        }
+    }
+    
+    func clearSavedGameAtions() {
+        Task {
+            await persistence.clearGameActions()
+        }
+    }
+    
+    // MARK: Restore saved actions
+    
+    /// Restores the game state by loading and replaying all saved GameAction events.
+    func restoreGameFromActions() async -> Bool {
+        logger.log("Restoring game from saved actions...")
+        // Load saved actions
+        guard let actions = await persistence.loadGameActions(),
+              actions.contains(where: { $0.type == .startNewGame }) else {
+            logger.log("No fresh game actions (startNewGame) found. Starting new game...")
+            return false
+        }
+        // Sort all actions by timestamp
+        let sortedActions = actions.sorted { $0.timestamp < $1.timestamp }
+        
+        // Remove all sendState actions except the last one per player
+        var latestSendStateByPlayer: [PlayerId: GameAction] = [:]
+        for action in sortedActions where action.type == .sendState {
+            latestSendStateByPlayer[action.playerId] = action
+        }
+
+        let filteredActions: [GameAction] = sortedActions.filter { action in
+            action.type != .sendState || latestSendStateByPlayer[action.playerId]?.timestamp == action.timestamp
+        }
+
+        for action in filteredActions {
+            logger.log("Filtered action: \(action.playerId.rawValue) - \(action.type)")
+        }
+        logger.log("Filtered to \(filteredActions.count) actions after pruning redundant sendState actions.")
+
+        // Replay each action through your existing handler
+        isRestoring = true
+        logger.debug("😀😀😀 isRestoring is true!!!")
+        gameState.currentPhase = .setPlayOrder
+        for action in filteredActions {
+            while isAwaitingActionCompletionDuringRestore { // to make sure the last action is finished before handling the next one
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50 ms
+            }
+            handleActionImmediately(action)
+        }
+        // hack
+        if gameState.currentPhase == .playingTricks {
+            for card in gameState.table {
+                card.isFaceDown = false
+            }
+        }
+        isRestoring = false
+        logger.debug("😀😀😀 isRestoring is false!!!")
+
+        self.objectWillChange.send()
+        checkAndAdvanceStateIfNeeded()
+
+        logger.log("Game successfully restored via saved actions.")
+        return true
+    }
+    
+    private func handleActionImmediately(_ action: GameAction) {
+        logger.log("🏓 Handling (immediate) action \(action.type) from \(action.playerId)")
+        if self.isRestoring || self.isActionValidInCurrentPhase(action.type) {
+            self.processAction(action)
+            if action.type != .sendState {
+                self.checkAndAdvanceStateIfNeeded()
+            }
+        } else {
+            self.pendingActions.append(action)
+            logger.log("Stored action \(action.type) from \(action.playerId) for later because currentPhase = \(self.gameState.currentPhase)")
+        }
+    }
+
     
     // MARK: - Signaling Setup
     func startNetworkingIfNeeded() {
@@ -989,24 +1101,24 @@ class GameManager: ObservableObject {
     }
 
     private func setupConnectionManagerCallbacks(localPlayerId: PlayerId) {
-        logger.debug(" GM Setup: Setting up P2PConnectionManager callbacks for \(localPlayerId.rawValue).") // ADD: Log setup
+        logger.logRTC(" GM Setup: Setting up P2PConnectionManager callbacks for \(localPlayerId.rawValue).") // ADD: Log setup
 
         connectionManager.onIceCandidateGenerated = { [weak self] (peerId, candidate) in
              // ADD: Log callback execution start
-             logger.debug(" GM Callback: onIceCandidateGenerated called for peer \(peerId.rawValue).")
+             logger.logRTC(" GM Callback: onIceCandidateGenerated called for peer \(peerId.rawValue).")
              guard let self = self else {
-                 logger.debug(" GM Callback: ERROR - self is nil in onIceCandidateGenerated.") // ADD: Log self nil
+                 logger.logRTC(" GM Callback: ERROR - self is nil in onIceCandidateGenerated.") // ADD: Log self nil
                  return
              }
              // ADD: Log before starting Task
-             logger.debug(" GM Callback: Starting Task to send ICE candidate from \(localPlayerId.rawValue) to \(peerId.rawValue).")
+             logger.logRTC(" GM Callback: Starting Task to send ICE candidate from \(localPlayerId.rawValue) to \(peerId.rawValue).")
              Task {
                  // ADD: Log inside Task, before calling sendIceCandidate
-                 logger.debug(" GM Callback Task: Inside Task. Attempting to send ICE candidate via signalingManager...")
+                 logger.logRTC(" GM Callback Task: Inside Task. Attempting to send ICE candidate via signalingManager...")
                  do {
                      try await self.signalingManager.sendIceCandidate(from: localPlayerId, to: peerId, candidate: candidate)
                      // ADD: Log success
-                     logger.debug(" GM Callback Task: signalingManager.sendIceCandidate successful for \(peerId.rawValue).")
+                     logger.logRTC(" GM Callback Task: signalingManager.sendIceCandidate successful for \(peerId.rawValue).")
                  } catch {
                       // ADD: Log error from sendIceCandidate
                      logger.log(" GM Callback Task: ERROR calling signalingManager.sendIceCandidate for \(peerId.rawValue): \(error)")
@@ -1016,7 +1128,7 @@ class GameManager: ObservableObject {
 
         connectionManager.onConnectionEstablished = { [weak self] peerId in
              guard let self = self else { return }
-             logger.debug("✅ P2P Connection established with \(peerId.rawValue)")
+             logger.logRTC("✅ P2P Connection established with \(peerId.rawValue)")
              self.updatePlayerConnectionStatus(playerId: peerId, isConnected: true)
         }
 

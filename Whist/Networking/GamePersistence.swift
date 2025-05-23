@@ -42,4 +42,36 @@ class GamePersistence {
             logger.log("Error clearing saved game state from Firebase via GamePersistence: \(error.localizedDescription)")
         }
     }
+    
+    func saveGameAction(_ action: GameAction) async {
+        do {
+            try await firebaseService.saveGameAction(action)
+            logger.log("Game action saved successfully to Firebase.")
+        } catch {
+            logger.log("Error saving game action to Firebase: \(error.localizedDescription)")
+        }
+    }
+
+    /// Loads all saved GameAction entries from Firestore.
+    func loadGameActions() async -> [GameAction]? {
+        do {
+            let actions = try await firebaseService.loadGameAction()
+            logger.log("Loaded \(actions.count) game actions from Firebase via GamePersistence.")
+            return actions
+        } catch {
+            logger.log("Error loading game actions from Firebase: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Deletes all saved GameAction entries from Firestore.
+    func clearGameActions() async {
+        do {
+            try await firebaseService.deleteAllGameActions()
+            logger.log("Cleared all game actions from Firebase via GamePersistence.")
+        } catch {
+            logger.log("Error clearing game actions from Firebase: \(error.localizedDescription)")
+        }
+    }
+    
 }

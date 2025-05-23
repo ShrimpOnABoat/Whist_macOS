@@ -137,7 +137,7 @@ extension GameManager {
                 payload: playOrderData,
                 timestamp: Date().timeIntervalSince1970
             )
-            sendAction(action)
+            persistAndSend(action)
         } else {
             logger.log("Error: Failed to encode the random seed")
         }
@@ -145,7 +145,7 @@ extension GameManager {
 
     
     func sendDeckToPlayers() {
-        logger.log("Sending deck to players")
+        logger.log("Sending deck to players: \(gameState.deck)")
         // Ensure localPlayer is defined
         guard let localPlayer = gameState.localPlayer else {
             logger.log("Error: Local player is not defined")
@@ -160,7 +160,7 @@ extension GameManager {
                 payload: deckData,
                 timestamp: Date().timeIntervalSince1970
             )
-            sendAction(action)
+            persistAndSend(action)
         } else {
             logger.log("Error: Failed to encode the deck cards")
         }
@@ -181,7 +181,7 @@ extension GameManager {
                 payload: cardData,
                 timestamp: Date().timeIntervalSince1970
             )
-            sendAction(action)
+            persistAndSend(action)
         } else {
             logger.log("Error: Failed to encode the card")
         }
@@ -201,7 +201,7 @@ extension GameManager {
                 payload: betData,
                 timestamp: Date().timeIntervalSince1970
             )
-            sendAction(action)
+            persistAndSend(action)
         } else {
             logger.log("Error: Failed to encode the bet")
         }
@@ -221,7 +221,7 @@ extension GameManager {
                 payload: trumpData,
                 timestamp: Date().timeIntervalSince1970
             )
-            sendAction(action)
+            persistAndSend(action)
         } else {
             logger.log("Error: Failed to encode the trump card")
         }
@@ -241,7 +241,7 @@ extension GameManager {
                 payload: discardedCardsData,
                 timestamp: Date().timeIntervalSince1970
             )
-            sendAction(action)
+            persistAndSend(action)
         } else {
             logger.log("Error: Failed to encode the trump card")
         }
@@ -262,7 +262,7 @@ extension GameManager {
                 payload: state,
                 timestamp: Date().timeIntervalSince1970
             )
-            sendAction(action)
+            persistAndSend(action)
         } else {
             logger.log("Error: Failed to encode player's state")
         }
@@ -278,7 +278,7 @@ extension GameManager {
             payload: Data(),
             timestamp: Date().timeIntervalSince1970
         )
-        sendAction(action)
+        persistAndSend(action)
     }
     
     func sendCancelTrumpChoice() {
@@ -294,7 +294,7 @@ extension GameManager {
             payload: Data(),
             timestamp: Date().timeIntervalSince1970
         )
-        sendAction(action)
+        persistAndSend(action)
     }
     
     func sendAmSlowPoke() {
@@ -310,7 +310,7 @@ extension GameManager {
             payload: Data(),
             timestamp: Date().timeIntervalSince1970
         )
-        sendAction(action)
+        persistAndSend(action)
     }
     
     func sendHonk() {
@@ -330,20 +330,23 @@ extension GameManager {
             payload: Data(),
             timestamp: Date().timeIntervalSince1970
         )
-        sendAction(action)
+        persistAndSend(action)
         
         playSound(named: "pouet")
     }
     
-    func sendAction(_ action: GameAction) {
+    func persistAndSend(_ action: GameAction) {
+        guard !isRestoring else { return }
         if let actionData = try? JSONEncoder().encode(action),
-           let messageString = String(data: actionData, encoding: .utf8) { // Convert Data to String
-            // CHANGE: Send message via P2PConnectionManager
+           let messageString = String(data: actionData, encoding: .utf8) {
             let sent = connectionManager.sendMessage(messageString)
             if sent {
                  logger.log("Sent P2P action \(action.type) to other players")
             } else {
                  logger.log("Failed to send P2P action \(action.type) (some channels might not be open)")
+            }
+            if ![.amSlowPoke, .honk].contains(action.type) {
+                saveGameAction(action)
             }
         } else {
             logger.log("Failed to encode action or convert to string")

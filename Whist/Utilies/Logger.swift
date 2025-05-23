@@ -25,8 +25,8 @@ class SimpleLogger {
     #else
     private var debug: Bool = false
     #endif
-    private var localPlayer: String = ""
-    private var counter: Int = 0
+    private var localPlayerInitial: String = ""
+    private var logRTC: Bool = false
     
     // MARK: - Initialization
     
@@ -53,25 +53,21 @@ class SimpleLogger {
     }
     
     func setLocalPlayer(with name: String) {
-        self.localPlayer = name
+        self.localPlayerInitial = name.prefix(1).uppercased()
     }
     
     // MARK: - Logging Methods
     
     /// Logs a message to console and file with timestamp and function information
     func log(_ message: String, function: String = #function) {
-        counter += 1
-        if counter % 20 == 0 {
-            print("************************************ \(localPlayer) ************************************")
-        }
-        
+            
         // Create timestamp
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "HH:mm:ss"
         let timestamp = dateFormatter.string(from: Date())
         
         // Format the log entry
-        let logEntry = "[\(timestamp)] [\(function)] \(message)"
+        let logEntry = "[\(localPlayerInitial)-\(timestamp)] [\(function)] \(message)"
         
         // Print to console
         print(logEntry)
@@ -94,6 +90,12 @@ class SimpleLogger {
     
     func debug(_ message: String, function: String = #function) {
         if debug {
+            log(message, function: function)
+        }
+    }
+    
+    func logRTC(_ message: String, function: String = #function) {
+        if logRTC {
             log(message, function: function)
         }
     }

@@ -16,6 +16,8 @@ class FirebaseService {
     private let db = Firestore.firestore()
     private let currentGameStateDocumentId = "current"
     private let gameStatesCollection = "gameStates"
+    private let currentGameActionDocumentId = "current"
+    private let gameActionsCollection = "gameActions"
     private let scoresCollection = "scores"
 
     // MARK: - GameState
@@ -38,6 +40,44 @@ class FirebaseService {
             .document(currentGameStateDocumentId)
             .delete()
         logger.log("Successfully deleted game state document: \(currentGameStateDocumentId)")
+    }
+
+    // MARK: - GameState
+
+    func saveGameAction(_ action: GameAction) async throws {
+        try db.collection(gameActionsCollection)
+            .addDocument(from: action)
+    }
+
+    func loadGameAction() async throws -> [GameAction] {
+        let snapshot = try await db.collection(gameActionsCollection)
+            .order(by: "timestamp") // optional: ensure chronological order if actions include a timestamp field
+            .getDocuments()
+        let actions = snapshot.documents.compactMap { doc in
+            return try? doc.data(as: GameAction.self)
+        }
+        logger.log("Loaded \(actions.count) game actions from Firebase.")
+        return actions
+    }
+
+    func deleteAllGameActions() async throws {
+        let collectionRef = db.collection(gameActionsCollection)
+        var lastSnapshot: QuerySnapshot? = nil
+        var totalDeleted = 0
+        repeat {
+            var query: Query = collectionRef.limit(to: 400)
+            if let last = lastSnapshot?.documents.last {
+                query = query.start(afterDocument: last)
+            }
+            let snapshot = try await query.getDocuments()
+            guard !snapshot.documents.isEmpty else { break }
+            let batch = db.batch()
+            snapshot.documents.forEach { batch.deleteDocument($0.reference) }
+            try await batch.commit()
+            totalDeleted += snapshot.documents.count
+            lastSnapshot = snapshot
+        } while lastSnapshot != nil
+        logger.log("Successfully deleted \(totalDeleted) game actions from collection \(gameActionsCollection).")
     }
 
     // MARK: - GameScore

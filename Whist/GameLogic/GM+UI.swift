@@ -41,6 +41,10 @@ extension GameManager {
     }
 
     func beginBatchMove(totalCards: Int, completion: @escaping () -> Void) {
+        guard !isRestoring else {
+            completion()
+            return
+        }
         if isShuffling {
             // Queue the action to run after shuffling completes
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
@@ -72,6 +76,71 @@ extension GameManager {
     
     // Function to initiate card movement
     func moveCard(_ card: Card, from source: CardPlace, to destination: CardPlace) {
+        // Direct move during state restoration: bypass animations/placeholders
+        if isRestoring {
+            // Remove the card from the source array
+            switch source {
+            case .localPlayer:
+                if let idx = gameState.localPlayer?.hand.firstIndex(of: card) {
+                    gameState.localPlayer?.hand.remove(at: idx)
+                }
+            case .leftPlayer:
+                if let idx = gameState.leftPlayer?.hand.firstIndex(of: card) {
+                    gameState.leftPlayer?.hand.remove(at: idx)
+                }
+            case .rightPlayer:
+                if let idx = gameState.rightPlayer?.hand.firstIndex(of: card) {
+                    gameState.rightPlayer?.hand.remove(at: idx)
+                }
+            case .localPlayerTricks:
+                if let idx = gameState.localPlayer?.trickCards.firstIndex(of: card) {
+                    gameState.localPlayer?.trickCards.remove(at: idx)
+                }
+            case .leftPlayerTricks:
+                if let idx = gameState.leftPlayer?.trickCards.firstIndex(of: card) {
+                    gameState.leftPlayer?.trickCards.remove(at: idx)
+                }
+            case .rightPlayerTricks:
+                if let idx = gameState.rightPlayer?.trickCards.firstIndex(of: card) {
+                    gameState.rightPlayer?.trickCards.remove(at: idx)
+                }
+            case .table:
+                if let idx = gameState.table.firstIndex(of: card) {
+                    gameState.table.remove(at: idx)
+                }
+            case .deck:
+                if let idx = gameState.deck.firstIndex(of: card) {
+                    gameState.deck.remove(at: idx)
+                }
+            case .trumpDeck:
+                if let idx = gameState.trumpCards.firstIndex(of: card) {
+                    gameState.trumpCards.remove(at: idx)
+                }
+            }
+            // Add the card to the destination array
+            switch destination {
+            case .localPlayer:
+                gameState.localPlayer?.hand.append(card)
+            case .leftPlayer:
+                gameState.leftPlayer?.hand.append(card)
+            case .rightPlayer:
+                gameState.rightPlayer?.hand.append(card)
+            case .localPlayerTricks:
+                gameState.localPlayer?.trickCards.append(card)
+            case .leftPlayerTricks:
+                gameState.leftPlayer?.trickCards.append(card)
+            case .rightPlayerTricks:
+                gameState.rightPlayer?.trickCards.append(card)
+            case .table:
+                gameState.table.append(card)
+            case .deck:
+                gameState.deck.append(card)
+            case .trumpDeck:
+                gameState.trumpCards.append(card)
+            }
+            
+            return
+        }
 //        logger.log("Moving \(card) from \(source.rawValue) to \(destination.rawValue)")
         if isShuffling {
             // Wait until shuffling is done, then retry
@@ -251,7 +320,7 @@ extension GameManager {
     
     func waitForAnimationsToFinish(completion: @escaping () -> Void) {
         if activeAnimations > 0 {
-//            logger.log("Waiting for \(activeAnimations) animations to finish before proceeding.")
+            logger.debug("Waiting for \(activeAnimations) animations to finish before proceeding.")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.waitForAnimationsToFinish(completion: completion)
             }

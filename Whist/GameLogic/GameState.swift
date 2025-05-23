@@ -219,6 +219,18 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
 }
 
 extension GameState {
+    /// Returns the first Card matching the given suit and rank from all relevant locations.
+    func getCard(suit: Suit, rank: Rank) -> Card? {
+        let allCards = deck
+            + trumpCards
+            + table
+            + players.flatMap { $0.hand + $0.trickCards }
+            + Array(lastTrick.values)
+        return allCards.first { $0.suit == suit && $0.rank == rank }
+    }
+}
+
+extension GameState {
     func getPlayer(by id: PlayerId) -> Player {
         guard let player = players.first(where: { $0.id == id }) else {
             logger.fatalErrorAndLog("Error: Player with ID \(id.rawValue) not found.")
