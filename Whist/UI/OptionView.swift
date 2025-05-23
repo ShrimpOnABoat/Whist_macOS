@@ -163,6 +163,7 @@ struct OptionsView: View {
                gameManager.gameState.round > 3 {
                 let currentBet = tricks[roundIndex]
                 self.selectedBet = currentBet
+                randomNumber = currentBet
             }
         }
         .onReceive(gameManager.objectWillChange) { _ in
@@ -173,6 +174,7 @@ struct OptionsView: View {
                gameManager.gameState.round > 3 {
                 let currentBet = tricks[roundIndex]
                 self.selectedBet = currentBet
+                randomNumber = currentBet 
             }
         }
     }
