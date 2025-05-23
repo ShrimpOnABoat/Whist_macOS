@@ -33,7 +33,7 @@ extension GameManager {
     
     func gatherCards(completion: @escaping () -> Void) {
         let totalCardsToMove = gameState.players.reduce(0) { $0 + $1.trickCards.count }
-        //        logger.log("gatherCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
+        logger.debug("beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
         if totalCardsToMove > 0 {
             beginBatchMove(totalCards: totalCardsToMove) {
                 completion()
@@ -71,6 +71,11 @@ extension GameManager {
     // MARK: shuffleCards
     
     func shuffleCards(animationOnly: Bool = false, completion: @escaping () -> Void) {
+        guard !isRestoring else {
+            gameState.deck = gameState.newDeck
+            completion()
+            return
+        }
         var newDeck: [Card] = []
         if animationOnly {
             // We use the deck received from the dealer
@@ -103,6 +108,7 @@ extension GameManager {
             self.isDeckReady = true
             self.isDeckReceived = true
             logger.log("Updated deck from dealer, isDeckReady now true")
+            logger.debug("Deck: \(newDeck)")
         } else {
             logger.log("Failed to decode deck data.")
         }
@@ -111,6 +117,7 @@ extension GameManager {
     // MARK: dealCards
     
     func dealCards(completion: @escaping () -> Void) {
+        logger.debug("♠️♥️♣️♦️ Start dealing cards with deck \(gameState.deck)")
         var cardsToDeal: Int
         
         isDeckReceived = false
@@ -169,7 +176,9 @@ extension GameManager {
         let totalCardsToMove = cardsPerPlayer.reduce(0) { $0 + $1.value }
         //        logger.log("dealCards: beginBatchMove(\(totalCardsToMove)), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: totalCardsToMove) {
-            completion()
+            if !self.isRestoring {
+                completion()
+            }
         }
         
         // Distribute cards one by one in a clockwise manner with delay
@@ -214,7 +223,7 @@ extension GameManager {
                 cardsPerPlayer[playerID]! -= 1
                 
                 // Wait for the animation to complete before moving to next card
-                let animationDuration: TimeInterval = 0.5 / Double(max(gameState.round - 2, 1))
+                let animationDuration: TimeInterval =  isRestoring ? 0 : 0.5 / Double(max(gameState.round - 2, 1))
                 DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration) {
                     // Move to the next player
                     currentIndex = (currentIndex + 1) % self.gameState.playOrder.count
@@ -234,7 +243,9 @@ extension GameManager {
                             }
                         }
                         self.sortLocalPlayerHand()
-//                        self.saveGameState(self.gameState)
+                        if self.isRestoring {
+                            completion()
+                        }
                     } else {
                         dealNextCard()
                     }
@@ -243,6 +254,7 @@ extension GameManager {
         }
         
         dealNextCard()
+        logger.debug("♠️♥️♣️♦️ Finished dealing cards")
     }
     
     // MARK: sortLocalPlayerHand
@@ -324,10 +336,21 @@ extension GameManager {
             return
         }
         
-        
         if player.hand.firstIndex(where: { $0 == card }) != nil {
-            let source: CardPlace = player.tablePosition == .left ? .leftPlayer : .rightPlayer
-            //            logger.log("updateGameStateWithPlayedCard: beginBatchMove(1), activeAnimations: \(activeAnimations)")
+            var source: CardPlace
+            switch player.tablePosition {
+            case .left:
+                source = .leftPlayer
+                
+            case .right:
+                source = .rightPlayer
+                
+            case .local:
+                source = .localPlayer
+                
+            default:
+                logger.fatalErrorAndLog("Player \(playerId.rawValue) hasn't a table position.")
+            }
             beginBatchMove(totalCards: 1) { completion() }
             moveCard(card, from: source, to: .table)
         } else {
@@ -444,8 +467,9 @@ extension GameManager {
         beginBatchMove(totalCards: 3) {
             logger.log("Assign trick should be completed now!")
         }
-        // Introduce a delay before clearing the table and assigning the trick
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        // Introduce a delay before clearing the table and assigning the trick unless restoring persistence
+        var delay = isRestoring ? 0 : 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(delay)) {
             // Set isFaceDown to true for the cards on the table
             self.gameState.table.forEach { card in
                 //                logger.log("Grabing card \(card) with active animations = \(self.activeAnimations)")
@@ -466,7 +490,7 @@ extension GameManager {
             logger.log("Winner \(winner.id.rawValue) has \(winner.trickCards.count) trick cards and announced \(winner.announcedTricks[self.gameState.round - 1]) trick.")
             
             // Add a delay after the animation completes if last trick of the round
-            DispatchQueue.main.asyncAfter(deadline: .now() + (winner.hand.isEmpty ? 1.5 : 0)) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + (winner.hand.isEmpty && !self.isRestoring ? 1.5 : 0)) {
                 if self.gameState.round > 3 {
                     self.updatePlayerPlayOrder(startingWith: .winner(winningPlayerID))
                 }
@@ -481,6 +505,7 @@ extension GameManager {
         logger.log("chooseTrump: beginBatchMove(4), activeAnimations: \(activeAnimations)")
         beginBatchMove(totalCards: 4) { completion() }
         // Move the trump cards to the table face up
+        logger.debug("Setting trump cards' isFaceDown and isPlayable")
         for card in gameState.trumpCards {
             card.isFaceDown = false
             card.isPlayable = true

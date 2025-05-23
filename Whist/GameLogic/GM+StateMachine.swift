@@ -43,12 +43,13 @@ extension GameManager {
     //     MARK: Transition
     
     func transition(to newPhase: GamePhase) {
+        logger.log("🔁 Forcing transition to \(newPhase) from \(gameState.currentPhase)")
         let multiplePhases: Set<GamePhase> = [.bidding, .playingTricks]
         if gameState.currentPhase == newPhase && !multiplePhases.contains(newPhase) {
             logger.debug("No transition needed")
             return
         }
-        if gameState.currentPhase == .setupGame && newPhase == .waitingToStart {
+        if gameState.currentPhase == .setupGame && newPhase == .waitingToStart && !isRestoring {
             DispatchQueue.main.async {
                 self.objectWillChange.send()
                 logger.log("Transitionning to waitingToStart with UI refresh")
@@ -75,7 +76,7 @@ extension GameManager {
             }
             logger.log("My state is now \(newState)")
             sendStateToPlayers()
-            saveGameState(gameState)
+//            saveGameState(gameState)
         }
     }
     
@@ -92,7 +93,8 @@ extension GameManager {
             
         case .resumeSavedGame:
             Task {
-                let isSavedGame = await checkAndRestoreSavedGame()
+//                let isSavedGame = await checkAndRestoreSavedGame()
+                let isSavedGame = await restoreGameFromActions()
                 if !isSavedGame {
                     transition(to: .setPlayOrder)
                 }
@@ -107,8 +109,14 @@ extension GameManager {
             
         case .setupGame:
             setPlayerState(to: .idle)
-            setupGame()
-            transition(to: .waitingToStart)
+            isAwaitingActionCompletionDuringRestore = true
+            let setupGameId = Int.random(in: 0...1000)
+            logger.debug("setupGameId set to \(setupGameId)")
+            setupGame {
+                self.transition(to: .waitingToStart)
+                logger.debug("setupGame finished with Id \(setupGameId)")
+                self.isAwaitingActionCompletionDuringRestore = false
+            }
             
         case .waitingToStart:
             setPlayerState(to: .startNewGame)
@@ -121,7 +129,7 @@ extension GameManager {
         case .setupNewRound:
             setPlayerState(to: .idle)
             newGameRound()
-            if localPlayer.id == gameState.dealer {
+            if localPlayer.id == gameState.dealer && !isRestoring {
                 if !isDeckReady {
                     logger.log("isDeckReady: \(isDeckReady)")
                     transition(to: .renderingDeck)
@@ -151,24 +159,33 @@ extension GameManager {
             }
             
         case .dealingCards:
+            isAwaitingActionCompletionDuringRestore = true
             setPlayerState(to: .idle)
             hoveredSuit = nil
-            let isDealer = (localPlayer.id == gameState.dealer)
+            let isDealer = isRestoring ? false : (localPlayer.id == gameState.dealer)
             
             // 1) Define a function/closure that contains everything you do *after* dealCards finishes.
             func afterDealing() {
-//                saveGameState(gameState)
                 // After dealing, decide what’s next:
                 if gameState.round < 4 {
+                    isAwaitingActionCompletionDuringRestore = false
                     transition(to: .bidding)
                 } else {
                     if let localPlayer = gameState.localPlayer {
                         logger.log("My place is \(localPlayer.place)")
                         switch localPlayer.place {
-                        case 1: transition(to: .bidding)
-                        case 2: transition(to: .waitingForTrump)
-                        case 3: transition(to: .choosingTrump)
-                        default: logger.fatalErrorAndLog("Unknown place \(localPlayer.place)")
+                        case 1:
+                            isAwaitingActionCompletionDuringRestore = false
+                            transition(to: .bidding)
+                        case 2:
+                            isAwaitingActionCompletionDuringRestore = false
+                            transition(to: .waitingForTrump)
+                        case 3:
+                            isAwaitingActionCompletionDuringRestore = false
+                            transition(to: .choosingTrump)
+                        default:
+                            isAwaitingActionCompletionDuringRestore = false
+                            logger.fatalErrorAndLog("Unknown place \(localPlayer.place)")
                         }
                     }
                 }
@@ -176,7 +193,7 @@ extension GameManager {
             
             // 2) Now branch out whether we do gatherCards + shuffle or not:
             waitForAnimationsToFinish {
-                if isDealer {
+                if isDealer && !self.isRestoring {
                     self.gatherCards {
                         self.shuffleCards() {
 //                            self.saveGameState(self.gameState)
@@ -281,7 +298,7 @@ extension GameManager {
             if isLocalPlayerTurnToPlay() {
                 setPlayerState(to: .playing)
                 setPlayableCards()
-                if autoPilot {
+                if autoPilot && !isRestoring {
                     waitForAnimationsToFinish {
                         self.AIPlayCard() {
                             if self.allPlayersPlayed() {
@@ -302,12 +319,14 @@ extension GameManager {
             // Wait a few seconds and grab trick automatically
             // and set the last trick
             // and refresh playOrder
+            isAwaitingActionCompletionDuringRestore = true
             logger.log("Assigning trick")
             setPlayerState(to: .idle)
             waitForAnimationsToFinish {
                 self.assignTrick() {
                     self.gameState.currentTrick += 1
                     logger.log("Trick assigned, current trick is now \(self.gameState.currentTrick)")
+                    self.isAwaitingActionCompletionDuringRestore = false
                     // check if last trick
                     if self.isLastTrick() {
                         self.transition(to: .scoring)
@@ -319,8 +338,11 @@ extension GameManager {
             
             
         case .scoring:
+            isAwaitingActionCompletionDuringRestore = true
             waitForAnimationsToFinish {
+                logger.debug("Animations finished")
                 self.gatherCards {
+                    logger.debug("gatherCards finished")
                     // Compute scores
                     self.setPlayerState(to: .idle)
                     self.computeScores()
@@ -329,6 +351,7 @@ extension GameManager {
                     self.updatePlayersPositions()
                     
                     // if last round, transition to gameOver
+                    self.isAwaitingActionCompletionDuringRestore = false
                     if self.gameState.round == 12 {
                         self.transition(to: .gameOver)
                     } else { // proceed to the next round
@@ -344,6 +367,7 @@ extension GameManager {
             playSound(named: "Confetti")
             // Show final results, store the score, transition to .newGame ...
             clearSavedGameState()
+            clearSavedGameAtions()
             // save the game
             saveScore() //Sets the winner too
             transition(to: .waitingToStart)
@@ -357,7 +381,7 @@ extension GameManager {
     func checkAndAdvanceStateIfNeeded() {
         // TODO: Add a .pause phase for when a player disconnects?
         
-        logger.log("checkAndAdvanceStateIfNeeded: \(gameState.currentPhase)")
+        logger.log("🔁 checkAndAdvanceStateIfNeeded() called during phase \(gameState.currentPhase)")
         switch gameState.currentPhase {
         case .waitingForPlayers:
             if gameState.allPlayersConnected { // Use the existing computed property
@@ -637,7 +661,9 @@ extension GameManager {
                 logger.log("No bonus added due to tie among highest bidders.")
             }
         }
-        self.playersScoresUpdated.toggle()
+        if !isRestoring {
+            self.playersScoresUpdated.toggle()
+        }
     }
     
     func isActionValidInCurrentPhase(_ actionType: GameAction.ActionType) -> Bool {

@@ -61,6 +61,30 @@ struct WhistApp: App {
             Group {
                 if preferences.playerId.isEmpty {
                     IdentityPromptView(playerId: $preferences.playerId)
+                        .onAppear {
+                            if let window = NSApplication.shared.windows.first {
+#if DEBUG
+                                let windowPositions: [CGPoint] = [
+                                    CGPoint(x: 100, y: 700),
+                                    CGPoint(x: 500, y: 700),
+                                    CGPoint(x: 900, y: 700),
+                                    CGPoint(x: 100, y: 100),
+                                    CGPoint(x: 500, y: 100),
+                                    CGPoint(x: 900, y: 100)
+                                ]
+                                let randomPosition = windowPositions.randomElement() ?? CGPoint(x: 100, y: 700)
+                                window.setFrame(
+                                    NSRect(x: randomPosition.x,
+                                           y: randomPosition.y,
+                                           width: 800,
+                                           height: 600),
+                                    display: true
+                                )
+#endif
+                                window.contentAspectRatio = NSSize(width: 4, height: 3)
+                                window.minSize = NSSize(width: 800, height: 600)
+                            }
+                        }
                 } else {
                     ContentView()
                         .onAppear {

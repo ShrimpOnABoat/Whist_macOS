@@ -145,7 +145,7 @@ extension GameManager {
 
     
     func sendDeckToPlayers() {
-        logger.log("Sending deck to players")
+        logger.log("Sending deck to players: \(gameState.deck)")
         // Ensure localPlayer is defined
         guard let localPlayer = gameState.localPlayer else {
             logger.log("Error: Local player is not defined")
@@ -336,6 +336,7 @@ extension GameManager {
     }
     
     func persistAndSend(_ action: GameAction) {
+        guard !isRestoring else { return }
         if let actionData = try? JSONEncoder().encode(action),
            let messageString = String(data: actionData, encoding: .utf8) {
             let sent = connectionManager.sendMessage(messageString)

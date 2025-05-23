@@ -155,6 +155,24 @@ struct OptionsView: View {
         .background(Color.white.opacity(0.2))
         .cornerRadius(15)
         .shadow(radius: 10)
+        .onAppear {
+            // Initialize selectedBet from GameManager when the view appears
+            let roundIndex = max(gameManager.gameState.round - 1, 0)
+            if let tricks = gameManager.gameState.localPlayer?.announcedTricks,
+               tricks.indices.contains(roundIndex) {
+                let currentBet = tricks[roundIndex]
+                self.selectedBet = currentBet
+            }
+        }
+        .onReceive(gameManager.objectWillChange) { _ in
+            // Keep selectedBet in sync with GameManager’s stored bet
+            let roundIndex = max(gameManager.gameState.round - 1, 0)
+            if let tricks = gameManager.gameState.localPlayer?.announcedTricks,
+               tricks.indices.contains(roundIndex) {
+                let currentBet = tricks[roundIndex]
+                self.selectedBet = currentBet
+            }
+        }
     }
     
     private func handleBetSelection(_ bet: Int) {

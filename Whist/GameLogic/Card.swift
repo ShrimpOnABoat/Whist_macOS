@@ -93,13 +93,6 @@ class Card: Identifiable, ObservableObject, Codable, Equatable {
     }
 }
 
-extension Card {
-    static var mock: Card {
-        let card = Card(suit: .hearts, rank: .queen) // Create a mutable card instance
-        return card                                // Return the fully initialized card
-    }
-}
-
 extension Card: CustomStringConvertible {
     var description: String {
         return "\(rank.rawValue) of \(suit.rawValue)"
