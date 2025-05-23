@@ -468,7 +468,7 @@ extension GameManager {
             logger.log("Assign trick should be completed now!")
         }
         // Introduce a delay before clearing the table and assigning the trick unless restoring persistence
-        var delay = isRestoring ? 0 : 1
+        let delay = isRestoring ? 0 : 1
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(delay)) {
             // Set isFaceDown to true for the cards on the table
             self.gameState.table.forEach { card in

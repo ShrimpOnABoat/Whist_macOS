@@ -204,7 +204,6 @@ struct DatabaseMenuCommands: Commands {
             }
             
             Button("Clear Saved Game") {
-                gameManager.clearSavedGameState()
                 gameManager.clearSavedGameAtions()
             }
         }

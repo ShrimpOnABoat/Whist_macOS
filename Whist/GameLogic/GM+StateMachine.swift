@@ -366,7 +366,6 @@ extension GameManager {
             playSound(named: "applaud")
             playSound(named: "Confetti")
             // Show final results, store the score, transition to .newGame ...
-            clearSavedGameState()
             clearSavedGameAtions()
             // save the game
             saveScore() //Sets the winner too
