@@ -26,12 +26,10 @@ struct ScoreBoardView: View {
             // Header row: Player IDs
             HStack {
                 ForEach(["GG", "DD", "Toto"], id: \.self) { name in
-                    VStack {
                         Text(name)
                             .font(.system(size: dynamicSize.nameSize))
                             .bold(true)
                             .frame(maxWidth: .infinity)
-                    }
                 }
             }
 
@@ -39,25 +37,32 @@ struct ScoreBoardView: View {
             HStack {
                 ForEach(playOrder, id: \.self) { id in
                     let player = gameManager.gameState.getPlayer(by: id)
-                    HStack {
-                        // Tricks
-                        let tricks = player.announcedTricks.reduce(0, +)
-                        Text("\(tricks)")
-                            .font(.system(size: dynamicSize.scoreSize))
+                    let score: Int = round > 1 ? player.scores.last ?? 0 : 0
+                    let tricks: Int = {
+                        if gameManager.allPlayersBet() {
+                            return player.announcedTricks.reduce(0, +)
+                        } else if round > 1 {
+                            if player.announcedTricks.count == round {
+                                return player.announcedTricks.dropLast().reduce(0, +)
+                            } else {
+                                return player.announcedTricks.reduce(0, +)
+                            }
+                        } else {
+                            return 0
+                        }
+                    }()
 
-                        // Scores
-                        if round > 1 {
-                            let score = player.scores.last ?? 0
+                    return AnyView( // Use AnyView to wrap the view and make the return type explicit
+                        HStack {
+                            Text("\(tricks)")
+                                .font(.system(size: dynamicSize.scoreSize))
+                            
                             Text("\(score)")
                                 .font(.system(size: dynamicSize.scoreSize))
                                 .fontWeight(.bold)
-                        } else {
-                            Text("0")
-                                .font(.system(size: dynamicSize.scoreSize))
-                                .fontWeight(.bold)
                         }
-                    }
-                    .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity)
+                    )
                 }
             }
 

@@ -128,32 +128,40 @@ struct GameView: View {
                                     .frame(width: dynamicSize.scoreboardWidth, height: dynamicSize.scoreboardHeight)
                                     
                                     ZStack {
-                                        if !(gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks) {
-                                            if gameManager.gameState.currentPhase != .choosingTrump {
-                                                TableView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
+                                        ZStack {
+                                            if !(gameManager.showLastTrick && gameManager.gameState.currentPhase == .playingTricks) {
+                                                if gameManager.gameState.currentPhase != .choosingTrump {
+                                                    TableView(gameState: gameManager.gameState, dynamicSize: dynamicSize)
+                                                } else {
+                                                    TableView(gameState: gameManager.gameState, dynamicSize: dynamicSize, mode: .trumps)
+                                                }
                                             } else {
-                                                TableView(gameState: gameManager.gameState, dynamicSize: dynamicSize, mode: .trumps)
+                                                // Display a background for the last trick
+                                                ZStack {
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.white.opacity(0.5)) // Background with opacity
+                                                        .overlay(
+                                                            VStack {
+                                                                Text(gameManager.gameState.lastTrick.isEmpty ? "Pas de dernier pli" : "Dernier pli")
+                                                                    .font(.headline)
+                                                                    .foregroundColor(.black)
+                                                                    .padding(.bottom, 8) // Ensure padding at the bottom
+                                                                Spacer()
+                                                            }
+                                                        )
+                                                        .overlay(
+                                                            RoundedRectangle(cornerRadius: 12)
+                                                                .stroke(Color.white, lineWidth: 2) // Add a white border
+                                                        )
+                                                }
+                                                
                                             }
-                                        } else {
-                                            // Display a background for the last trick
-                                            ZStack {
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color.white.opacity(0.5)) // Background with opacity
-                                                    .overlay(
-                                                        VStack {
-                                                            Text(gameManager.gameState.lastTrick.isEmpty ? "Pas de dernier pli" : "Dernier pli")
-                                                                .font(.headline)
-                                                                .foregroundColor(.black)
-                                                                .padding(.bottom, 8) // Ensure padding at the bottom
-                                                            Spacer()
-                                                        }
-                                                    )
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 12)
-                                                            .stroke(Color.white, lineWidth: 2) // Add a white border
-                                                    )
-                                            }
-                                            
+                                        }
+                                        // MARK: Options View
+                                        if gameManager.showOptions {
+                                            OptionsView(dynamicSize: dynamicSize)
+                                                .transition(.scale)
+                                                .animation(.easeInOut, value: gameManager.showOptions)
                                         }
                                     }
                                     .frame(width: dynamicSize.tableWidth, height: dynamicSize.tableHeight)
@@ -206,18 +214,6 @@ struct GameView: View {
                             }
                         }
                     }
-                }
-                
-                // MARK: Show Options
-                // Overlay OptionsView if showOptions is true
-                if gameManager.showOptions {
-                    ZStack {
-                        OptionsView(dynamicSize: dynamicSize)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    }
-                    .zIndex(1) // Ensure it's above everything else
-                    .transition(.scale) // Smooth scaling effect
-                    .animation(.easeInOut, value: gameManager.showOptions)
                 }
                 
                 // MARK: Dealer button
