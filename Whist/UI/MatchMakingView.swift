@@ -10,55 +10,87 @@ import SwiftUI
 struct MatchMakingView: View {
     @EnvironmentObject var gameManager: GameManager
     @EnvironmentObject var preferences: Preferences // Added environment object
+    // TODO: add dynamicSize for the avatars
+    
+    // Helper to get a user-friendly string and color for the phase
+    private func displayInfo(for phase: P2PConnectionPhase) -> (text: String, color: Color) {
+        switch phase {
+        case .idle:
+            return ("Idle", .gray)
+        case .initiating:
+            return ("Initiating...", .yellow)
+        case .offering:
+            return ("Sending Offer...", .orange)
+        case .waitingForOffer:
+            return ("Waiting for Offer...", .yellow)
+        case .answering:
+            return ("Sending Answer...", .orange)
+        case .waitingForAnswer:
+            return ("Waiting for Answer...", .yellow)
+        case .exchangingNetworkInfo:
+            return ("Exchanging Network Info...", .blue)
+        case .connecting:
+            return ("Connecting...", .purple)
+        case .connected:
+            return ("Connected", .green)
+        case .failed:
+            return ("Failed", .red)
+        case .disconnected:
+            return ("Disconnected", .pink) // Or red
+        }
+    }
     
     var body: some View {
-        VStack(spacing: 20) { // Increased spacing
-            Text("Salle d'attente") // Changed title to "Waiting Room" in French
+        VStack(spacing: 20) {
+            Text("Salle d'attente")
                 .font(.largeTitle)
                 .padding(.top)
             
             // Player list
-            ScrollView { // Added ScrollView in case of many players
+            ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(gameManager.gameState.players, id: \.id) { player in
-                        HStack {
-                            // Player avatar or placeholder
-                            if let img = player.image {
-                                ZStack {
-                                    (player.imageBackgroundColor ?? Color.gray)
+                        // Only show detailed P2P status for other players
+                        if player.username != preferences.playerId { // Don't show P2P status for self
+                            let avatarColor = player.imageBackgroundColor ?? Color.gray
+                            let avatarImage = player.image ?? Image(systemName: "person.crop.circle")
+                            let phaseInfo = displayInfo(for: player.connectionPhase)
+
+                            HStack {
+                                avatarImage
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 80, height: 80)
+                                    .background(avatarColor)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                                
+                                VStack(alignment: .leading) {
+                                    Text(player.username)
+                                        .font(.headline)
                                     
-                                    img
-                                        .resizable()
-                                        .scaledToFit()
+                                    Text(phaseInfo.text)
+                                        .font(.caption)
+                                        .foregroundColor(phaseInfo.color)
+                                        .padding(.horizontal, 6)
+                                        .background(phaseInfo.color.opacity(0.15))
+                                        .cornerRadius(4)
                                 }
-                                .frame(width: 45, height: 45)
-                                .clipShape(Circle())
-                                .overlay(Circle().stroke(Color.secondary, lineWidth: 1))
-                            } else {
-                                    Image(systemName: "person.crop.circle.fill") // Using SF Symbol placeholder
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 45, height: 45)
-                                        .foregroundColor(.gray.opacity(0.5))
-                                }
-                            
-                            Text(player.username == preferences.playerId ? "\(player.username) (Vous)" : player.username) // Indicate "You"
-                                .font(.headline)
-                            
-                            Spacer()
-                            
-                            // Connection indicator with icons
-                            Image(systemName: player.isConnected ? "wifi" : "wifi.slash")
-                                .foregroundColor(player.isConnected ? .green : .red)
-                                .font(.title3) // Slightly larger icon
+                                
+                                Spacer()
+                                
+                                Image(systemName: player.isConnected ? "wifi" : "wifi.slash")
+                                    .foregroundColor(player.isConnected ? .green : .red)
+                                    .font(.title3)
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 5)
+                            .background(Color.secondary.opacity(0.1))
+                            .cornerRadius(8)
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 5) // Add some vertical padding per row
-                        .background(Color.secondary.opacity(0.1)) // Subtle background per row
-                        .cornerRadius(8)
                     }
                 }
-                .padding(.horizontal) // Padding for the inner VStack
+                .padding(.horizontal)
             }
             
             Spacer() // Pushes status text to the bottom

@@ -22,6 +22,8 @@ class P2PConnectionManager: NSObject {
     var onMessageReceived: ((PlayerId, String) -> Void)?
     var onConnectionEstablished: ((PlayerId) -> Void)?
     var onIceCandidateGenerated: ((PlayerId, RTCIceCandidate) -> Void)?
+    var onIceConnectionStateChanged: ((_ peerId: PlayerId, _ newState: RTCIceConnectionState) -> Void)?
+    var onSignalingStateChanged: ((_ peerId: PlayerId, _ newState: RTCSignalingState) -> Void)?
     var onError: ((PlayerId, Error) -> Void)?
 
     private let factory: RTCPeerConnectionFactory = {
@@ -264,6 +266,9 @@ class P2PConnectionManager: NSObject {
 extension P2PConnectionManager: RTCPeerConnectionDelegate {
     func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
         logger.logRTC("Signaling state changed: \(stateChanged.rawValue)")
+        if let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key {
+            onSignalingStateChanged?(peerId, stateChanged)
+        }
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
@@ -279,19 +284,26 @@ extension P2PConnectionManager: RTCPeerConnectionDelegate {
     }
     
     func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
-        logger.logRTC("ICE connection state changed: \(newState.rawValue)")
+        logger.logRTC("ICE connection state changed for PC (\(peerConnection.description)) to: \(newState.rawValue)")
         
-        switch newState {
-        case .connected, .completed:
-            logger.logRTC("ICE connected")
-        case .failed, .disconnected, .closed:
-            logger.logRTC("ICE connection failed or closed")
-            let error = NSError(domain: "P2PConnectionManager", code: 1004, userInfo: [NSLocalizedDescriptionKey: "ICE connection failed with state: \(newState.rawValue)"])
-            if let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key {
-                onError?(peerId, error)
+        if let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key {
+            logger.logRTC("P2P Delegate: Matched PC to peerId: \(peerId.rawValue)")
+            onIceConnectionStateChanged?(peerId, newState)
+
+            switch newState {
+            case .connected, .completed:
+                logger.logRTC("ICE connected")
+            case .failed, .disconnected, .closed:
+                logger.logRTC("ICE connection failed or closed")
+                let error = NSError(domain: "P2PConnectionManager", code: 1004, userInfo: [NSLocalizedDescriptionKey: "ICE connection failed with state: \(newState.rawValue)"])
+                if let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key {
+                    onError?(peerId, error)
+                }
+            default:
+                break
             }
-        default:
-            break
+        } else {
+            logger.logRTC("ICE state changed, but couldn't find peerId for this peerConnection.")
         }
     }
     

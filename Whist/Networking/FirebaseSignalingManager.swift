@@ -14,11 +14,16 @@ import WebRTC
 
 class FirebaseSignalingManager {
     static let shared = FirebaseSignalingManager()
+    
+    // Callbacks for GameManager
+    var onOfferReceived: ((_ fromId: PlayerId, _ sdp: RTCSessionDescription) -> Void)?
+    var onAnswerReceived: ((_ fromId: PlayerId, _ sdp: RTCSessionDescription) -> Void)?
+    var onRemoteIceCandidateReceived: ((_ fromId: PlayerId, _ candidate: RTCIceCandidate) -> Void)?
 
     private var listenerRegistrations: [ListenerRegistration] = []
     private let db = Firestore.firestore()
 
-    private func documentName(from: PlayerId, to: PlayerId) -> String {
+    func documentName(from: PlayerId, to: PlayerId) -> String {
         return "\(from.rawValue)_to_\(to.rawValue)"
     }
 
@@ -78,85 +83,28 @@ class FirebaseSignalingManager {
         listenerRegistrations.removeAll()
         
         // Listen for Offers sent TO me
-        let offerListener = listenForOffer(for: localPlayerId) { [weak self] (fromId, sdp) in
+        let offerListener = listenForOffer(for: localPlayerId) { [weak self] (fromId, sdpString) in
             guard let self = self else { return }
-            logger.logRTC(" GM Listener: Received OFFER from \(fromId.rawValue).")
-            let remoteSdp = RTCSessionDescription(type: .offer, sdp: sdp)
-            let connection = P2PConnectionManager.shared.makePeerConnection(for: fromId) // Ensure PC exists
-            
-            connection.setRemoteDescription(remoteSdp) { error in
-                if let error = error {
-                    logger.log(" P2P: Error setting remote offer from \(fromId.rawValue): \(error)")
-                    return
-                }
-                logger.logRTC(" P2P: Remote offer set from \(fromId.rawValue). Creating answer...")
-                
-                P2PConnectionManager.shared.createAnswer(to: fromId, from: remoteSdp) { _, result in
-                    // Use weak self again inside async task if needed
-                    switch result {
-                    case .success(let answerSdp):
-                        logger.logRTC(" P2P: Created answer for \(fromId.rawValue). Sending...")
-                        Task {
-                            do {
-                                try await self.sendAnswer(from: localPlayerId, to: fromId, sdp: answerSdp)
-                                logger.log(" Firebase: Successfully sent answer to \(fromId.rawValue)")
-                                P2PConnectionManager.shared.flushPendingIce(for: fromId)
-                                // Optional: Clear the processed offer field
-                                let offerPath = "offer"
-                                let docId = self.documentName(from: fromId, to: localPlayerId)
-                                try? await Firestore.firestore().collection("signaling").document(docId).updateData([offerPath: FieldValue.delete()])
-                                logger.logRTC(" Firebase: Cleared offer field in \(docId)")
-                            } catch {
-                                logger.log(" Firebase: Error sending answer to \(fromId.rawValue): \(error)")
-                            }
-                        }
-                    case .failure(let err):
-                        logger.log(" P2P: Failed to create answer for \(fromId.rawValue): \(err)")
-                    }
-                }
-            }
+            logger.logRTC("Received OFFER from \(fromId.rawValue). Invoking onOfferReceived callback.")
+            let remoteSdp = RTCSessionDescription(type: .offer, sdp: sdpString)
+            self.onOfferReceived?(fromId, remoteSdp)
         }
         listenerRegistrations.append(offerListener)
         
         // Listen for Answers sent TO me
-        let answerListener = listenForAnswer(for: localPlayerId) { [weak self] (fromId, sdp) in
+        let answerListener = listenForAnswer(for: localPlayerId) { [weak self] (fromId, sdpString) in
             guard let self = self else { return }
-            logger.logRTC(" GM Listener: Received ANSWER from \(fromId.rawValue).")
-            let remoteSdp = RTCSessionDescription(type: .answer, sdp: sdp)
-            
-            guard let connection = P2PConnectionManager.shared.peerConnections[fromId] else {
-                logger.log(" Warning: Received answer from \(fromId.rawValue), but no peer connection exists.")
-                return
-            }
-            
-            connection.setRemoteDescription(remoteSdp) { error in
-                // Use weak self again inside async task if needed
-                if let error = error {
-                    logger.log(" P2P: Failed to set remote answer from \(fromId.rawValue): \(error)")
-                } else {
-                    logger.logRTC(" P2P: Remote answer set from \(fromId.rawValue).")
-                    P2PConnectionManager.shared.flushPendingIce(for: fromId) // Important after setting answer
-                    // Optional: Clear the processed answer field
-                    let answerPath = "answer"
-                    let docId = self.documentName(from: fromId, to: localPlayerId)
-                    Task {
-                        try? await Firestore.firestore().collection("signaling").document(docId).updateData([answerPath: FieldValue.delete()])
-                        logger.logRTC(" Firebase: Cleared answer field in \(docId)")
-                    }
-                }
-            }
+            logger.logRTC(" Received ANSWER from \(fromId.rawValue). Invoking onAnswerReceived callback.")
+            let remoteSdp = RTCSessionDescription(type: .answer, sdp: sdpString)
+            self.onAnswerReceived?(fromId, remoteSdp)
         }
         listenerRegistrations.append(answerListener)
         
         // Listen for ICE Candidates sent TO me
         let candidateListener = listenForIceCandidates(for: localPlayerId) { [weak self] (fromId, candidate) in
             guard self != nil else { return }
-            logger.logRTC(" GM Listener: Received ICE candidate from \(fromId.rawValue). Attempting to add...")
-            P2PConnectionManager.shared.addIceCandidate(candidate, for: fromId) { error in
-                if let error = error {
-                    logger.log(" P2P: Error adding received ICE candidate from \(fromId.rawValue): \(error)")
-                }
-            }
+            logger.logRTC("Received ICE Candidate from \(fromId.rawValue). Invoking onRemoteIceCandidateReceived callback.")
+            self?.onRemoteIceCandidateReceived?(fromId, candidate)
         }
         listenerRegistrations.append(candidateListener)
 
@@ -176,7 +124,7 @@ class FirebaseSignalingManager {
                         let docId = diff.document.documentID
                         if let ids = self.extractIds(from: docId), ids.to == localPlayerId {
                             if let offerSdp = diff.document.data()["offer"] as? String {
-                                logger.log("Firebase [\(docId)]: Received offer for \(localPlayerId.rawValue)")
+                                logger.log("Raw offer received for \(ids.from) from doc \(docId).")
                                 handler(ids.from, offerSdp)
                             }
                         }

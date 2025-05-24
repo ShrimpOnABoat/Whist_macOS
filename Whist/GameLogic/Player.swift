@@ -36,6 +36,20 @@ enum PlayerState: String, Codable {
     }
 }
 
+enum P2PConnectionPhase: String, CaseIterable {
+    case idle = "Idle" // Initial state, or connection not yet attempted
+    case initiating = "Initiating..." // Deciding to offer/answer or checking presence
+    case offering = "Sending Offer..."
+    case waitingForOffer = "Waiting for Offer..."
+    case answering = "Sending Answer..."
+    case waitingForAnswer = "Waiting for Answer..."
+    case exchangingNetworkInfo = "Exchanging Network Info..." // ICE exchange
+    case connecting = "Connecting..." // ICE connected, DTLS handshake
+    case connected = "Connected"
+    case failed = "Failed"
+    case disconnected = "Disconnected"
+}
+
 class Player: Identifiable, ObservableObject, Codable {
     
     // Use PlayerId enum for the player's unique identifier
@@ -49,6 +63,7 @@ class Player: Identifiable, ObservableObject, Codable {
     @Published var monthlyLosses: Int = 0
     @Published var bonusCards: Int = 0
     @Published var isConnected: Bool = false
+    @Published var connectionPhase: P2PConnectionPhase = .idle // Represents the connection phase of non local players to local player
     @Published var place: Int = -1 // Player's rank (1, 2, or 3)
     @Published var hand: [Card] = []
     @Published var trickCards: [Card] = []
