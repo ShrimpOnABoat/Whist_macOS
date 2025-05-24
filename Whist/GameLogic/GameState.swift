@@ -29,7 +29,7 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
     enum CodingKeys: String, CodingKey {
         case round
         case deck
-        case trumpCards // ADD: Added trumpCards
+        case trumpCards
         case table
         case lastTrick
         case players
@@ -37,7 +37,6 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
         case playOrder
         case dealer
         case currentPhase
-        // ADD: Add new keys
         case tricksGrabbed
         case currentTrick
     }
@@ -48,13 +47,11 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
         self.deck = deck
         self.trumpCards = trumpCards // Ensure this is set
         self.table = table
-        // self.lastTrick = lastTrick // lastTrick initialized inline
         self.players = players
         self.trumpSuit = trumpSuit
         self.playOrder = playOrder
         self.dealer = dealer
         self.currentPhase = currentPhase // Ensure this is set
-        // ADD: Initialize new properties
         self.tricksGrabbed = tricksGrabbed
         self.currentTrick = currentTrick
         if players.isEmpty { self.createDefaultPlayers() }

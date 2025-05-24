@@ -14,6 +14,9 @@ extension GameManager {
     // MARK: initializeCards
     
     func initializeCards() {
+        // remove the old deck of cards if it's not the first game of the session
+        gameState.deck.removeAll()
+        
         // Create the deck cards, the trump ones are already defined
         for suit in Suit.allCases {
             for rank in Rank.allCases {

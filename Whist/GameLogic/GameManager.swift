@@ -167,7 +167,9 @@ class GameManager: ObservableObject {
     }
     
     func setAndSendPlayOrder() { // Only if local player is toto
-        gameState.playOrder = [.gg, .dd, .toto].shuffled()
+        if gameState.playOrder == [] { // first game of the session
+            gameState.playOrder = [.gg, .dd, .toto].shuffled()
+        }
         logger.log("Sending playOrder to other players!")
         sendPlayOrderToPlayers(gameState.playOrder)
         checkAndAdvanceStateIfNeeded()

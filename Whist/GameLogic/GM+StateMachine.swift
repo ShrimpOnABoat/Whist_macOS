@@ -371,7 +371,8 @@ extension GameManager {
             clearSavedGameAtions()
             // save the game
             saveScore() //Sets the winner too
-            transition(to: .waitingToStart)
+            isGameSetup = false // To allow recovery in case of crash
+            transition(to: .setPlayOrder)
         }
     }
     
