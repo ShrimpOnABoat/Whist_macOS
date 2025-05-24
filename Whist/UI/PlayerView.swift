@@ -535,16 +535,12 @@ struct PlayerView: View {
     }
     
     func discardString(numberOfCardsToDiscard: Int) -> String {
-        var message: String = ""
         if gameManager.gameState.localPlayer?.place == 2 && gameManager.gameState.round == 12 {
             if Double(gameManager.gameState.lastPlayer?.scores[safe: gameManager.gameState.round - 2] ?? 0) <= 0.5 * Double(gameManager.gameState.localPlayer?.scores[safe: gameManager.gameState.round - 2] ?? 0) || gameManager.gameState.lastPlayer?.monthlyLosses ?? 0 > 0 {
-                message = "Donne une carte à \(gameManager.gameState.lastPlayer?.username ?? "l'adversaire")"
+                return "Donne une carte à \(gameManager.gameState.lastPlayer?.username ?? "l'adversaire")"
             }
-        } else {
-            message = "Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" : "")"
         }
-        logger.log("Discard String: \(message)")
-        return message
+        return "Défausse \(numberOfCardsToDiscard) carte\(numberOfCardsToDiscard > 1 ? "s" : "")"
     }
 }
 
