@@ -46,6 +46,36 @@ struct MatchMakingView: View {
                 .font(.largeTitle)
                 .padding(.top)
             
+            // Display the local player at the top
+            if let localPlayer = gameManager.gameState.localPlayer {
+                let avatarColor = localPlayer.imageBackgroundColor ?? Color.gray
+                let avatarImage = localPlayer.image ?? Image(systemName: "person.crop.circle")
+                HStack {
+                    avatarImage
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 80)
+                        .background(avatarColor)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                    
+                    VStack(alignment: .leading) {
+                        Text(localPlayer.username)
+                            .font(.title2)
+                            .bold()
+                        Text("Vous")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(8)
+            }
+            
             // Player list
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
@@ -96,7 +126,7 @@ struct MatchMakingView: View {
             Spacer() // Pushes status text to the bottom
             
             // Connection status text
-            let total = gameManager.gameState.players.count
+            let total = gameManager.gameState.players.count - 1
             let connected = gameManager.gameState.players.filter { $0.isP2PConnected }.count
             
             Group { // Group to apply modifiers together

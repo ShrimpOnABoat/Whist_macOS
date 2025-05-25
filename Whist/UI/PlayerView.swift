@@ -554,7 +554,7 @@ struct PlayerImageView: View {
     var body: some View {
         VStack {
             // Player Picture
-            if player.firebasePresenceOnline {
+            if player.firebasePresenceOnline || player.tablePosition == .local {
                 ZStack {
                     (player.imageBackgroundColor ?? Color.gray)
                     

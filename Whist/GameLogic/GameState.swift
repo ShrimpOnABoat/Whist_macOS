@@ -261,7 +261,10 @@ extension GameState {
     }
     
     var allPlayersConnected: Bool {
-        players.allSatisfy(\.isP2PConnected)
+        // Only consider non-local players for connectivity
+        players
+            .filter { $0.tablePosition != .local }
+            .allSatisfy(\.isP2PConnected)
     }
     
     func bonusCardsNeeded(for playerId: PlayerId) -> Int {
