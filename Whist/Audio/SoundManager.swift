@@ -41,14 +41,14 @@ class SoundManager: NSObject, AVAudioPlayerDelegate {
 
         let components = fullFileName.split(separator: ".")
         guard components.count == 2 else {
-            logger.log("Invalid full file name format: \(fullFileName)")
+            logger.audio("Invalid full file name format: \(fullFileName)")
             return
         }
         let name = String(components[0])
         let ext = String(components[1])
 
         guard let url = Bundle.main.url(forResource: name, withExtension: ext) else {
-            logger.log("Sound file \(fullFileName) not found.")
+            logger.audio("Sound file \(fullFileName) not found.")
             return
         }
 
@@ -57,9 +57,9 @@ class SoundManager: NSObject, AVAudioPlayerDelegate {
             player.delegate = self
             player.prepareToPlay()
             audioPlayers[baseName] = player
-            logger.log("Preloaded sound: \(fullFileName) as '\(baseName)'")
+            logger.audio("Preloaded sound: \(fullFileName) as '\(baseName)'")
         } catch {
-            logger.log("Failed to create AVAudioPlayer for \(fullFileName): \(error.localizedDescription)")
+            logger.audio("Failed to create AVAudioPlayer for \(fullFileName): \(error.localizedDescription)")
         }
     }
 
@@ -70,17 +70,17 @@ class SoundManager: NSObject, AVAudioPlayerDelegate {
         }
 
         guard let player = audioPlayers[baseName] else {
-            logger.log("Sound '\(baseName)' was not preloaded. Attempting to load now...")
+            logger.audio("Sound '\(baseName)' was not preloaded. Attempting to load now...")
             if let config = soundConfigs[baseName] {
                 preloadSound(baseName: baseName, fullFileName: config.fileName)
                 if let newlyLoadedPlayer = audioPlayers[baseName] {
                     let finalVolume = volume ?? config.defaultVolume
                     playLoadedSound(player: newlyLoadedPlayer, volume: finalVolume, baseName: baseName)
                 } else {
-                    logger.log("Failed to load and play sound '\(baseName)' on the fly.")
+                    logger.audio("Failed to load and play sound '\(baseName)' on the fly.")
                 }
             } else {
-                logger.log("Could not find config info for '\(baseName)' to load on the fly.")
+                logger.audio("Could not find config info for '\(baseName)' to load on the fly.")
             }
             return
         }
@@ -105,7 +105,7 @@ class SoundManager: NSObject, AVAudioPlayerDelegate {
 
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         let baseName = audioPlayers.first { $0.value == player }?.key ?? "Unknown"
-        logger.log("Audio decode error for \(baseName): \(error?.localizedDescription ?? "nil")")
+        logger.audio("Audio decode error for \(baseName): \(error?.localizedDescription ?? "nil")")
     }
 
     /// Unload a sound to free up memory
@@ -122,7 +122,7 @@ class SoundManager: NSObject, AVAudioPlayerDelegate {
             player.stop()
         }
         audioPlayers.removeAll()
-        logger.log("Unloaded all sounds.")
+        logger.audio("Unloaded all sounds.")
     }
 }
 

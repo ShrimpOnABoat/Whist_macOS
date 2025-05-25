@@ -391,7 +391,7 @@ extension GameManager {
                 transition(to: .resumeSavedGame)
             } else {
                 // Still waiting, log status
-                let connectedCount = gameState.players.filter { $0.isConnected }.count
+                let connectedCount = gameState.players.filter { $0.firebasePresenceOnline }.count
                 let totalCount = gameState.players.count
                 logger.log("Waiting for players: \(connectedCount)/\(totalCount) connected.")
             }

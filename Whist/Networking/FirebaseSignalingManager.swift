@@ -62,7 +62,7 @@ class FirebaseSignalingManager {
             "iceCandidates": FieldValue.arrayUnion([candidateString])
         ]
         logger.logRTC("Firebase [\(docId)]: Sending ICE candidate")
-        try await db.collection("signaling").document(docId).updateData(candidateDataForFirestore)
+        try await db.collection("signaling").document(docId).setData(candidateDataForFirestore, merge: true)
     }
 
     private func extractIds(from docId: String) -> (from: PlayerId, to: PlayerId)? {
@@ -112,20 +112,26 @@ class FirebaseSignalingManager {
     }
 
     func listenForOffer(for localPlayerId: PlayerId, handler: @escaping (_ fromId: PlayerId, _ sdp: String) -> Void) -> ListenerRegistration {
+        logger.logRTC("FSM: listenForOffer: REGISTERING listener for \(localPlayerId.rawValue)")
         return db.collection("signaling")
             .addSnapshotListener { querySnapshot, error in
                 guard let snapshot = querySnapshot else {
                     logger.log("Error fetching signaling collection: \(error?.localizedDescription ?? "Unknown error")")
                     return
                 }
+                logger.logRTC("FSM: listenForOffer (\(localPlayerId.rawValue)): Snapshot received with \(querySnapshot?.documentChanges.count ?? 0) changes.")
 
                 snapshot.documentChanges.forEach { diff in
                     if diff.type == .added || diff.type == .modified {
                         let docId = diff.document.documentID
                         if let ids = self.extractIds(from: docId), ids.to == localPlayerId {
+                            logger.logRTC("FSM: listenForOffer (\(localPlayerId.rawValue)): Relevant doc \(docId) changed (from \(ids.from.rawValue)). Type: \(diff.type)")
+
                             if let offerSdp = diff.document.data()["offer"] as? String {
-                                logger.log("Raw offer received for \(ids.from) from doc \(docId).")
+                                logger.logRTC("FSM: listenForOffer (\(localPlayerId.rawValue)): OFFER SDP found from \(ids.from.rawValue). Calling handler.")
                                 handler(ids.from, offerSdp)
+                            } else {
+                                logger.logRTC("FSM: listenForOffer (\(localPlayerId.rawValue)): Doc \(docId) is relevant but 'offer' field NOT found or not a string. Data: \(diff.document.data())")
                             }
                         }
                     }

@@ -99,64 +99,93 @@ class P2PConnectionManager: NSObject {
     }
 
     func createOffer(to peerId: PlayerId, completion: @escaping (PlayerId, Result<RTCSessionDescription, Error>) -> Void) {
+        logger.logRTC("CALLED for peer \(peerId.rawValue)")
         let connection = makePeerConnection(for: peerId)
 
         connection.offer(for: constraints) { [weak self] (sdp: RTCSessionDescription?, error: Error?) in
-            guard self != nil else { return }
+            guard self != nil else {
+                logger.log("Completion invoked but self is nil for \(peerId.rawValue)")
+                return
+            }
 
             if let error = error {
+                logger.log("FAILED to create offer for \(peerId.rawValue). Error: \(error.localizedDescription)")
                 completion(peerId, .failure(error))
                 return
             }
 
             guard let sdp = sdp else {
-                completion(peerId, .failure(NSError(domain: "P2PConnectionManager", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Failed to create offer"])))
+                let offerError = NSError(domain: "P2PConnectionManager", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Failed to create offer, SDP is nil"])
+                logger.log("FAILED for \(peerId.rawValue). SDP is nil.")
+                completion(peerId, .failure(offerError))
                 return
             }
 
+            logger.logRTC("Offer SDP CREATED for \(peerId.rawValue). Type: \(sdp.type.rawValue). Now setting local description.")
+
             connection.setLocalDescription(sdp) { (error: Error?) in
                 if let error = error {
+                    logger.log("setLocalDescription FAILED for offer to \(peerId.rawValue). Error: \(error.localizedDescription)")
                     completion(peerId, .failure(error))
                     return
                 }
+                logger.logRTC("Local description (offer) SET SUCCESSFULLY for \(peerId.rawValue). Calling completion.")
                 completion(peerId, .success(sdp))
             }
         }
+        logger.logRTC("Native offer method CALLED for \(peerId.rawValue). Waiting for its completion.")
     }
 
     func createAnswer(to peerId: PlayerId, from remoteSDP: RTCSessionDescription, completion: @escaping (PlayerId, Result<RTCSessionDescription, Error>) -> Void) {
+        logger.logRTC("P2PCM: createAnswer: CALLED for peer \(peerId.rawValue), from remoteSDP type: \(remoteSDP.type.rawValue)")
+
         let connection = makePeerConnection(for: peerId)
+        logger.logRTC("P2PCM: createAnswer: Setting remote description (offer) for \(peerId.rawValue).")
 
         // Ensure remote description is set before creating answer (moved from original setRemoteDescription logic for clarity)
          connection.setRemoteDescription(remoteSDP) { [weak self] error in
-             guard let self = self else { return }
+             guard let strongSelf = self else {
+                 logger.log("P2PCM: createAnswer: setRemoteDescription completion - self is nil for \(peerId.rawValue)")
+                 return
+             }
              if let error = error {
-                 logger.log("Error setting remote description before creating answer for \(peerId): \(error)")
+                 logger.log("P2PCM: createAnswer: FAILED setting remote description (offer) for \(peerId.rawValue): \(error.localizedDescription)")
                  completion(peerId, .failure(error))
                  return
              }
+             logger.logRTC("P2PCM: createAnswer: Remote description (offer) SET SUCCESSFULLY for \(peerId.rawValue). Now creating actual answer SDP.")
 
              // Now create the answer
-             connection.answer(for: self.constraints) { (sdp: RTCSessionDescription?, error: Error?) in
+             connection.answer(for: strongSelf.constraints) { (sdp: RTCSessionDescription?, error: Error?) in
                 if let error = error {
+                    logger.log("P2PCM: createAnswer: FAILED to generate answer SDP for \(peerId.rawValue). Error: \(error.localizedDescription)")
                     completion(peerId, .failure(error))
                     return
                 }
 
-                guard let sdp = sdp else {
-                    completion(peerId, .failure(NSError(domain: "P2PConnectionManager", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Failed to create answer"])))
-                    return
+                 guard let sdp = sdp else {
+                     let answerError = NSError(domain: "P2PConnectionManager", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Failed to create answer, SDP is nil"])
+                     logger.log("P2PCM: createAnswer: FAILED for \(peerId.rawValue). Answer SDP is nil.")
+                     completion(peerId, .failure(answerError))
+                     return
+                     
                 }
+                 logger.logRTC("P2PCM: createAnswer: Answer SDP CREATED for \(peerId.rawValue). Type: \(sdp.type.rawValue). Now setting local description.")
 
                 connection.setLocalDescription(sdp) { (error: Error?) in
                     if let error = error {
+                        logger.log("P2PCM: createAnswer: setLocalDescription (answer) FAILED for \(peerId.rawValue). Error: \(error.localizedDescription)")
+
                         completion(peerId, .failure(error))
                         return
                     }
+                    logger.logRTC("P2PCM: createAnswer: Local description (answer) SET SUCCESSFULLY for \(peerId.rawValue). Calling completion.")
                     completion(peerId, .success(sdp))
                 }
             }
         }
+        logger.logRTC("P2PCM: createAnswer: Native setRemoteDescription and answer methods CALLED for \(peerId.rawValue). Waiting for completions.")
+
     }
 
     func setRemoteDescription(for peerId: PlayerId, _ sdp: RTCSessionDescription, completion: @escaping (Error?) -> Void) {
@@ -384,5 +413,26 @@ extension P2PConnectionManager: RTCDataChannelDelegate {
         } else {
             logger.log("Received data could not be decoded as UTF-8 text")
         }
+    }
+    
+    func closeConnection(for peerId: PlayerId) {
+        if let pc = peerConnections[peerId] {
+            pc.close()
+            peerConnections.removeValue(forKey: peerId)
+            logger.logRTC("P2P: Closed connection and removed PC for \(peerId.rawValue)")
+        }
+        if let dc = outgoingDataChannels[peerId] {
+            dc.close()
+            outgoingDataChannels.removeValue(forKey: peerId)
+        }
+        // Also find and close/remove incoming data channels associated with this peerId
+        let channelsToClose = incomingDataChannelsMap.filter { $0.value == peerId }.map { $0.key }
+        for channel in channelsToClose {
+            channel.close()
+            incomingDataChannelsMap.removeValue(forKey: channel)
+        }
+        
+        remoteCandidates.removeValue(forKey: peerId)
+        pendingIceCandidates.removeValue(forKey: peerId)
     }
 }

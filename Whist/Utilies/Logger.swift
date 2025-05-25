@@ -20,13 +20,14 @@ class SimpleLogger {
     /// Queue for safe file writing
     private let fileQueue = DispatchQueue(label: "com.simplelogger.filequeue", qos: .background)
     
-    #if DEBUG
+#if DEBUG
     private var debug: Bool = true
-    #else
+#else
     private var debug: Bool = false
-    #endif
+#endif
     private var localPlayerInitial: String = ""
-    private var logRTC: Bool = false
+    private var logRTC: Bool = true
+    private var audio: Bool = false
     
     // MARK: - Initialization
     
@@ -45,7 +46,7 @@ class SimpleLogger {
         if FileManager.default.fileExists(atPath: logFileURL.path) {
             try? FileManager.default.removeItem(at: logFileURL)
         }
-
+        
         // Create a new log file
         FileManager.default.createFile(atPath: logFileURL.path, contents: nil)
         
@@ -60,7 +61,7 @@ class SimpleLogger {
     
     /// Logs a message to console and file with timestamp and function information
     func log(_ message: String, function: String = #function) {
-            
+        
         // Create timestamp
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "HH:mm:ss"
@@ -100,6 +101,12 @@ class SimpleLogger {
         }
     }
     
+    func audio(_ message: String, function: String = #function) {
+        if audio {
+            log(message, function: function)
+        }
+    }
+    
     func fatalErrorAndLog(_ message: String) -> Never {
         log(message)
         fatalError(message)
@@ -122,7 +129,7 @@ class SimpleLogger {
         return logFileURL
     }
 }
-
-// Global logger for easy access
-let logger = SimpleLogger.shared
-
+    
+    // Global logger for easy access
+    let logger = SimpleLogger.shared
+    

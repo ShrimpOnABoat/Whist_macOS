@@ -67,10 +67,10 @@ struct MatchMakingView: View {
                                 
                                 VStack(alignment: .leading) {
                                     Text(player.username)
-                                        .font(.headline)
+                                        .font(.largeTitle)
                                     
                                     Text(phaseInfo.text)
-                                        .font(.caption)
+                                        .font(.title3)
                                         .foregroundColor(phaseInfo.color)
                                         .padding(.horizontal, 6)
                                         .background(phaseInfo.color.opacity(0.15))
@@ -79,8 +79,8 @@ struct MatchMakingView: View {
                                 
                                 Spacer()
                                 
-                                Image(systemName: player.isConnected ? "wifi" : "wifi.slash")
-                                    .foregroundColor(player.isConnected ? .green : .red)
+                                Image(systemName: player.isP2PConnected ? "wifi" : "wifi.slash")
+                                    .foregroundColor(player.isP2PConnected ? .green : .red)
                                     .font(.title3)
                             }
                             .padding(.horizontal)
@@ -97,7 +97,7 @@ struct MatchMakingView: View {
             
             // Connection status text
             let total = gameManager.gameState.players.count
-            let connected = gameManager.gameState.players.filter { $0.isConnected }.count
+            let connected = gameManager.gameState.players.filter { $0.isP2PConnected }.count
             
             Group { // Group to apply modifiers together
                 if !gameManager.gameState.allPlayersConnected {

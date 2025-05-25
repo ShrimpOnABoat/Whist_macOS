@@ -62,8 +62,12 @@ class Player: Identifiable, ObservableObject, Codable {
     @Published var madeTricks: [Int] = []
     @Published var monthlyLosses: Int = 0
     @Published var bonusCards: Int = 0
-    @Published var isConnected: Bool = false
-    @Published var connectionPhase: P2PConnectionPhase = .idle // Represents the connection phase of non local players to local player
+    @Published var firebasePresenceOnline: Bool = false // for UI
+    @Published var connectionPhase: P2PConnectionPhase = .idle {
+        didSet {
+            logger.debug("🏀🏀🏀 \(id)'s connection phase is now \(connectionPhase)")
+        }
+    }
     @Published var place: Int = -1 // Player's rank (1, 2, or 3)
     @Published var hand: [Card] = []
     @Published var trickCards: [Card] = []
@@ -74,6 +78,10 @@ class Player: Identifiable, ObservableObject, Codable {
     // Image is not codable; handle separately if needed
     @Published var image: Image?
     @Published var imageBackgroundColor: Color?
+    
+    var isP2PConnected: Bool {
+        connectionPhase == .connected
+    }
     
     init(id: PlayerId, username: String? = nil, image: Image? = nil) {
         self.id = id
@@ -92,8 +100,7 @@ class Player: Identifiable, ObservableObject, Codable {
         case madeTricks
         case monthlyLosses
         case bonusCards
-        case connected // Maps to isConnected
-        case place // ADD: Added place key
+        case place
         case state
         case hand
         case trickCards
@@ -112,7 +119,6 @@ class Player: Identifiable, ObservableObject, Codable {
         madeTricks = try container.decode([Int].self, forKey: .madeTricks)
         monthlyLosses = try container.decode(Int.self, forKey: .monthlyLosses)
         bonusCards = try container.decode(Int.self, forKey: .bonusCards)
-        isConnected = try container.decode(Bool.self, forKey: .connected)
         place = try container.decode(Int.self, forKey: .place) // ADD: Decode place
         hand = try container.decode([Card].self, forKey: .hand)
         trickCards = try container.decode([Card].self, forKey: .trickCards)
@@ -135,7 +141,6 @@ class Player: Identifiable, ObservableObject, Codable {
         try container.encode(madeTricks, forKey: .madeTricks)
         try container.encode(monthlyLosses, forKey: .monthlyLosses)
         try container.encode(bonusCards, forKey: .bonusCards)
-        try container.encode(isConnected, forKey: .connected)
         try container.encode(place, forKey: .place) // ADD: Encode place
         try container.encode(hand, forKey: .hand)
         try container.encode(trickCards, forKey: .trickCards)

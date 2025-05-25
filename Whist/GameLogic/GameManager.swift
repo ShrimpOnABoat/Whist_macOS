@@ -66,8 +66,6 @@ class GameManager: ObservableObject {
     @Published var dealerPosition: CGPoint = .zero
     @Published var playersScoresUpdated: Bool = false
     
-    var logCounter: Int = 0
-
     // MARK: - Slowpoke Timer Properties
     var slowpokeTimer: DispatchSourceTimer?
     #if DEBUG
@@ -93,7 +91,7 @@ class GameManager: ObservableObject {
     func setupGame(completion: @escaping () -> Void = {}) {
         logger.log("--> SetupGame()")
         let totalPlayers = gameState.players.count
-        let connectedPlayers = gameState.players.filter { $0.isConnected }.count
+        let connectedPlayers = gameState.players.filter { $0.firebasePresenceOnline }.count
         logger.log("Total players created: \(totalPlayers), Players connected: \(connectedPlayers)")
 
         guard !isGameSetup else {
@@ -632,9 +630,10 @@ class GameManager: ObservableObject {
             let username = player.username
             let playerId = player.id.rawValue
             let tablePosition = player.tablePosition?.rawValue ?? "unknown"
-            let isConnected = player.isConnected
+            let isPresent = player.firebasePresenceOnline
+            let isConnected = player.isP2PConnected
             
-            logger.log("\(isConnected ? "✅": "❌") Player: \(username), PlayerId: \(playerId), TablePosition: \(tablePosition), Connected: \(isConnected)")
+            logger.log("\(isPresent ? "✅": "❌") Player: \(username), PlayerId: \(playerId), TablePosition: \(tablePosition), Present: \(isPresent), isP2PConnected: \(isConnected ? "✅": "❌")")
         }
     }
     

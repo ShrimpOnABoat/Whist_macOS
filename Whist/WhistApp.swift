@@ -23,6 +23,12 @@ struct WhistApp: App {
         AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
         FirebaseApp.configure()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            do {
+                try Auth.auth().signOut()
+                logger.log("✅ Signed out previous anonymous user")
+            } catch {
+                logger.log("⚠️ Could not sign out anonymous user: \(error.localizedDescription)")
+            }
             Auth.auth().signInAnonymously { authResult, error in
                 if let error = error {
                     logger.log("❌ Firebase anonymous sign-in failed: \(error.localizedDescription)")
@@ -103,7 +109,6 @@ struct WhistApp: App {
                             }
                             logger.setLocalPlayer(with: preferences.playerId)
                             PresenceManager.shared.configure(with: preferences.playerId)
-                            PresenceManager.shared.startTracking()
                         }
                 }
             }

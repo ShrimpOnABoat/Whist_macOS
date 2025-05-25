@@ -122,7 +122,7 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
 
             // Add the player to the game state
             let newPlayer = Player(id: playerID, image: placeholderImage)
-            newPlayer.isConnected = false
+            newPlayer.firebasePresenceOnline = false
             newPlayer.imageBackgroundColor = background
             players.append(newPlayer)
         }
@@ -261,7 +261,7 @@ extension GameState {
     }
     
     var allPlayersConnected: Bool {
-        players.allSatisfy(\.isConnected)
+        players.allSatisfy(\.isP2PConnected)
     }
     
     func bonusCardsNeeded(for playerId: PlayerId) -> Int {
@@ -304,7 +304,7 @@ extension GameState: CustomDebugStringConvertible {
         desc += "- Trump Suit: \(String(describing: trumpSuit))\n"
         desc += "- Players:\n"
         for player in players {
-            desc += "  • \(player.username) (\(player.id)) - state: \(player.state) - place: \(player.place), scores: \(player.scores), tablePosition: \(String(describing: player.tablePosition)), isConnected: \(player.isConnected)\n"
+            desc += "  • \(player.username) (\(player.id)) - state: \(player.state) - place: \(player.place), scores: \(player.scores), tablePosition: \(String(describing: player.tablePosition)), isPresent: \(player.firebasePresenceOnline)\n"
         }
         return desc
     }
