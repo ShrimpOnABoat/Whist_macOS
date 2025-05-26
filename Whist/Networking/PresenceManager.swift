@@ -95,7 +95,9 @@ class PresenceManager: ObservableObject {
                     isOnline = onlineStatus
                 }
                 logger.log("[Presence] Peer \(peerId.rawValue) is now \(isOnline ? "ONLINE" : "OFFLINE").")
-                self.onPeerPresenceChanged?(peerId, isOnline)
+                DispatchQueue.main.async { [weak self] in
+                    self?.onPeerPresenceChanged?(peerId, isOnline)
+                }
             }
             peerStatusListeners[peerId.rawValue] = handle
             logger.log("[Presence] Added listener for \(peerId.rawValue).")

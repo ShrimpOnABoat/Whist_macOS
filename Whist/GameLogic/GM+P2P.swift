@@ -40,28 +40,28 @@ extension GameManager {
     
     // MARK: Connection/Deconnection
     
-//    func updatePlayerConnectionStatus(playerId: PlayerId, isConnected: Bool) {
-//        // Find the player by ID
-//        guard let index = gameState.players.firstIndex(where: { $0.id == playerId }) else {
-//            logger.log("Could not find player \(playerId) to update connection status")
-//            return
-//        }
-//        
-//        // Update connection status
-//        if gameState.players[index].isConnected != isConnected {
-//            self.objectWillChange.send()
-//            gameState.players[index].isConnected = isConnected
-//            logger.log("Updated \(playerId) connection status to \(isConnected)")
-//            
-//            // Display current players for debugging
-//            displayPlayers()
-//            
-//            checkAndAdvanceStateIfNeeded() // Might pause the game while the player reconnects
-//            
-//        } else {
-//            logger.log("Player \(playerId) connection status did not change: \(isConnected)")
-//        }
-//    }
+    //    func updatePlayerConnectionStatus(playerId: PlayerId, isConnected: Bool) {
+    //        // Find the player by ID
+    //        guard let index = gameState.players.firstIndex(where: { $0.id == playerId }) else {
+    //            logger.log("Could not find player \(playerId) to update connection status")
+    //            return
+    //        }
+    //
+    //        // Update connection status
+    //        if gameState.players[index].isConnected != isConnected {
+    //            self.objectWillChange.send()
+    //            gameState.players[index].isConnected = isConnected
+    //            logger.log("Updated \(playerId) connection status to \(isConnected)")
+    //
+    //            // Display current players for debugging
+    //            displayPlayers()
+    //
+    //            checkAndAdvanceStateIfNeeded() // Might pause the game while the player reconnects
+    //
+    //        } else {
+    //            logger.log("Player \(playerId) connection status did not change: \(isConnected)")
+    //        }
+    //    }
     
     // MARK: - Signaling Setup
     
@@ -179,7 +179,7 @@ extension GameManager {
                             return
                         }
                         logger.logRTC("GM: attemptP2PConnection: createOffer completion for \(peerId.rawValue). Result: \(result)")
-
+                        
                         switch result {
                         case .success(let sdp):
                             logger.logRTC("GM: attemptP2PConnection: Offer successfully created for \(peerId.rawValue). Attempting to send via signaling.")
@@ -255,6 +255,7 @@ extension GameManager {
         connectionManager.onConnectionEstablished = { [weak self] peerId in
             guard let self = self else { return }
             logger.logRTC("✅ P2P Connection established with \(peerId.rawValue)")
+            self.cancelConnectionTimer(for: peerId)
             self.updatePlayerConnectionPhase(playerId: peerId, phase: .connected)
         }
         
@@ -265,26 +266,31 @@ extension GameManager {
         }
         
         connectionManager.onError = { [weak self] (peerId, error) in
-            guard let self = self else { return }
-            logger.log("❌ P2P Error with \(peerId.rawValue): \(error.localizedDescription)")
-            self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
+            Task { @MainActor in
+                guard let self = self else { return }
+                logger.log("❌ P2P Error with \(peerId.rawValue): \(error.localizedDescription)")
+                self.cancelConnectionTimer(for: peerId)
+                self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
+            }
         }
         
         connectionManager.onIceConnectionStateChanged = { [weak self] (peerId, newState) in
-            guard let self = self else { return }
-            logger.logRTC("GM: ICE Connection State for \(peerId) changed to \(newState.rawValue)")
-            // You can update player.connectionPhase based on these states too
-            // For example, when .checking, you could set .exchangingNetworkInfo or .connecting
-            // When .failed, .disconnected, onError will handle it.
-            switch newState {
-            case .checking:
-                if self.gameState.getPlayer(by: peerId).connectionPhase != .connected &&
-                    self.gameState.getPlayer(by: peerId).connectionPhase != .failed {
-                    self.updatePlayerConnectionPhase(playerId: peerId, phase: .connecting) // Or more specific
+            Task { @MainActor in
+                guard let self = self else { return }
+                logger.logRTC("GM: ICE Connection State for \(peerId) changed to \(newState.rawValue)")
+                // You can update player.connectionPhase based on these states too
+                // For example, when .checking, you could set .exchangingNetworkInfo or .connecting
+                // When .failed, .disconnected, onError will handle it.
+                switch newState {
+                case .checking:
+                    if self.gameState.getPlayer(by: peerId).connectionPhase != .connected &&
+                        self.gameState.getPlayer(by: peerId).connectionPhase != .failed {
+                        self.updatePlayerConnectionPhase(playerId: peerId, phase: .connecting) // Or more specific
+                    }
+                    // Other states are either handled by `onError` or `onConnectionEstablished`
+                default:
+                    break
                 }
-                // Other states are either handled by `onError` or `onConnectionEstablished`
-            default:
-                break
             }
         }
         
@@ -297,14 +303,34 @@ extension GameManager {
     }
     
     // Helper to update phase and trigger UI refresh
+    @MainActor
     private func updatePlayerConnectionPhase(playerId: PlayerId, phase: P2PConnectionPhase) {
         guard let playerIndex = gameState.players.firstIndex(where: { $0.id == playerId }) else {
             logger.log("Error: Player \(playerId) not found to update connection phase.")
             return
         }
         if gameState.players[playerIndex].connectionPhase != phase {
+            cancelConnectionTimer(for: playerId)
             gameState.players[playerIndex].connectionPhase = phase
             logger.logRTC("Player \(playerId) phase -> \(phase.rawValue)")
+            
+            // Start new timer based on phase
+            switch phase {
+            case .waitingForOffer:
+                startConnectionTimer(for: playerId, timeout: offerWaitTimeout, timedOutPhase: phase)
+            case .waitingForAnswer:
+                startConnectionTimer(for: playerId, timeout: answerWaitTimeout, timedOutPhase: phase)
+            case .exchangingNetworkInfo, .connecting: // Group these as post-SDP exchange
+                startConnectionTimer(for: playerId, timeout: iceExchangeTimeout, timedOutPhase: phase)
+            case .offering, .answering: // These phases should also have a timeout if they get stuck before transitioning
+                startConnectionTimer(for: playerId, timeout: answerWaitTimeout, timedOutPhase: phase) // Reuse answerWait or a specific one
+            case .connected, .failed, .disconnected, .idle, .initiating:
+                // No timer needed or implicitly covered, existing timer already cancelled.
+                break
+            }
+            
+            displayPlayers()
+            
             if phase == .connected {
                 checkAndAdvanceStateIfNeeded()
             }
@@ -314,9 +340,114 @@ extension GameManager {
         }
     }
     
+    private func startConnectionTimer(for peerId: PlayerId, timeout: TimeInterval, timedOutPhase: P2PConnectionPhase) {
+        // Ensure no duplicate timer
+        connectionAttemptTimers[peerId]?.invalidate()
+        
+        logger.logRTC("GM: Starting \(timeout)s connection timer for \(peerId.rawValue) (phase: \(timedOutPhase.rawValue)).")
+        let timer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let strongSelf = self,
+                      let player = strongSelf.gameState.players.first(where: { $0.id == peerId }),
+                      player.connectionPhase == timedOutPhase else {
+                    logger.logRTC("GM: Connection timer fired for \(peerId.rawValue) (was in \(timedOutPhase.rawValue)), but state already changed or self deallocated. Ignoring.")
+                    self?.connectionAttemptTimers.removeValue(forKey: peerId) // Clean up entry
+                    return
+                }
+                logger.logRTC("GM: Connection timer FIRED for \(peerId.rawValue) (phase: \(timedOutPhase.rawValue)).")
+                strongSelf.handleConnectionTimeout(for: peerId, timedOutPhase: timedOutPhase)
+            }
+        }
+        connectionAttemptTimers[peerId] = timer
+    }
+    
+    private func cancelConnectionTimer(for peerId: PlayerId) {
+        if let timer = connectionAttemptTimers[peerId] {
+            timer.invalidate()
+            connectionAttemptTimers.removeValue(forKey: peerId)
+            logger.logRTC("GM: Cancelled connection timer for \(peerId.rawValue).")
+        }
+    }
+    
+    
+    @MainActor
+    private func handleConnectionTimeout(for peerId: PlayerId, timedOutPhase: P2PConnectionPhase) {
+        logger.log("GM: Handling connection TIMEOUT for \(peerId.rawValue). Player was in phase: \(timedOutPhase.rawValue).")
+        
+        // Mark as failed first
+        updatePlayerConnectionPhase(playerId: peerId, phase: .failed) // This will also cancel the timer
+        
+        // Clean up local WebRTC resources for this peer
+        connectionManager.closeConnection(for: peerId)
+        
+        let localPlayerId = PlayerId(rawValue: preferences.playerId)!
+        
+        Task {
+            logger.logRTC("GM: Timeout - Attempting to clear signaling documents between \(localPlayerId.rawValue) and \(peerId.rawValue).")
+            do {
+                // Clear signaling documents for this specific pair
+                try await FirebaseSignalingManager.shared.clearSignalingDocuments(between: localPlayerId, and: peerId)
+                logger.logRTC("GM: Timeout - Successfully cleared signaling documents for pair involving \(peerId.rawValue).")
+                
+                // After clearing, if the peer is still marked as online by PresenceManager,
+                // try to re-initiate the connection.
+                if let player = gameState.players.first(where: { $0.id == peerId }), player.firebasePresenceOnline {
+                    logger.logRTC("GM: Timeout - Peer \(peerId.rawValue) is still online. Re-attempting P2P connection.")
+                    // Add a small delay before re-attempting to avoid rapid fire retries
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    if player.firebasePresenceOnline { // Re-check after delay
+                        attemptP2PConnection(with: peerId)
+                    } else {
+                        logger.logRTC("GM: Timeout - Peer \(peerId.rawValue) went offline during timeout handling delay.")
+                        updatePlayerConnectionPhase(playerId: peerId, phase: .disconnected) // Or .idle
+                    }
+                } else {
+                    logger.logRTC("GM: Timeout - Peer \(peerId.rawValue) is not online or not found. Will not auto-retry now.")
+                    // The phase is already .failed. If they come back online, presence will trigger new attempt.
+                }
+            } catch {
+                logger.log("GM: Timeout - FAILED to clear signaling documents for pair involving \(peerId.rawValue): \(error.localizedDescription)")
+                // Connection is already marked as .failed.
+            }
+        }
+    }
+    
+    // Ensure timers are cancelled when connections succeed or fail for other reasons.
+    // In setupConnectionManagerCallbacks:
+    // connectionManager.onConnectionEstablished = { [weak self] peerId in
+    //     guard let self = self else { return }
+    //     logger.logRTC("✅ P2P Connection established with \(peerId.rawValue)")
+    //     self.cancelConnectionTimer(for: peerId) // <<< ADD THIS
+    //     self.updatePlayerConnectionPhase(playerId: peerId, phase: .connected)
+    // }
+    //
+    // connectionManager.onError = { [weak self] (peerId, error) in
+    //     guard let self = self else { return }
+    //     logger.log("❌ P2P Error with \(peerId.rawValue): \(error.localizedDescription)")
+    //     self.cancelConnectionTimer(for: peerId) // <<< ADD THIS
+    //     self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
+    // }
+    
+    // In handlePeerPresenceChange:
+    // if isOnline { ...
+    // } else { // Peer went offline
+    //     logger.logRTC("GM: Peer \(peerId.rawValue) went offline.")
+    //     self.cancelConnectionTimer(for: peerId) // <<< ADD THIS
+    //     // ... rest of offline logic
+    // }
+    
     // MARK: Handler methods
     @MainActor
     func handleReceivedOffer(from peerId: PlayerId, sdp: RTCSessionDescription) {
+        guard gameState.getPlayer(by: peerId).firebasePresenceOnline else {
+            logger.logRTC("GM: handleReceivedOffer: Received offer from \(peerId.rawValue), but they are marked as OFFLINE. Ignoring stale offer.")
+            // Optionally, try to delete the stale offer document here:
+            // Task {
+            //     let localPlayerId = PlayerId(rawValue: preferences.playerId)!
+            //     try? await FirebaseSignalingManager.shared.clearSignalingDocuments(between: peerId, and: localPlayerId) // Clears both ways, or just peerId_to_localPlayerId
+            // }
+            return
+        }
         logger.logRTC("GM: handleReceivedOffer: CALLED for \(peerId.rawValue). SDP Type: \(sdp.type.rawValue). Current phase for \(peerId.rawValue): \(self.gameState.getPlayer(by: peerId).connectionPhase.rawValue)")
         
         // Pull or create the RTCPeerConnection for this peer
@@ -325,11 +456,11 @@ extension GameManager {
         var iShouldOffer = false // Recalculate my role with respect to peerId
         let localPlayerId = PlayerId(rawValue: preferences.playerId)!
         switch localPlayerId {
-            case .dd: if peerId == .gg { iShouldOffer = true }
-            case .gg: if peerId == .toto { iShouldOffer = true }
-            case .toto: if peerId == .dd { iShouldOffer = true }
+        case .dd: if peerId == .gg { iShouldOffer = true }
+        case .gg: if peerId == .toto { iShouldOffer = true }
+        case .toto: if peerId == .dd { iShouldOffer = true }
         }
-
+        
         if iShouldOffer && (connection.signalingState == .haveLocalOffer || connection.signalingState == .stable) {
             // I am the offerer, and I've either sent an offer or connection is stable.
             // This incoming offer is either a glare case or a duplicate.
@@ -348,72 +479,65 @@ extension GameManager {
                 playerForPeer.connectionPhase == .connecting ||
                 playerForPeer.connectionPhase == .connected {
                 if connection.signalingState == .stable {
-                     logger.logRTC("GM: handleReceivedOffer: I am designated answerer (\(localPlayerId.rawValue) for \(peerId.rawValue)), but my PlayerPhase for them is \(playerForPeer.connectionPhase.rawValue) and PC state is stable. Ignoring likely duplicate/late offer from \(peerId.rawValue).")
-                     return
+                    logger.logRTC("GM: handleReceivedOffer: I am designated answerer (\(localPlayerId.rawValue) for \(peerId.rawValue)), but my PlayerPhase for them is \(playerForPeer.connectionPhase.rawValue) and PC state is stable. Ignoring likely duplicate/late offer from \(peerId.rawValue).")
+                    return
                 }
             }
             
         }
-
+        
         // If signaling state is stable, and we receive an offer, it's a re-negotiation or a late/duplicate.
         // If we are not expecting an offer (e.g., we sent one), we might need to handle glare.
         // For now, let's assume if we get here, we should process it if we haven't established a connection yet.
         // The key is the `connection.signalingState` before setting remote description.
         // It should be `stable` (initial state) or `haveRemoteOffer` (if a previous offer was received but not answered yet).
         // It should NOT be `haveLocalOffer` (I sent offer, waiting for answer) or `haveLocalPrAnswer` or `haveRemotePrAnswer`.
-
+        
         if connection.signalingState != .stable && connection.signalingState != .haveRemoteOffer {
-             // This check is a bit too simple, need to consider re-negotiation.
-             // For initial connection, if I'm the answerer, my state for them should be .stable or .waitingForOffer which maps to .stable PC state.
-             logger.logRTC("GM: handleReceivedOffer: Received offer from \(peerId.rawValue), but my SignalingState for them is \(connection.signalingState.rawValue). This might be unexpected. Proceeding cautiously.")
+            // This check is a bit too simple, need to consider re-negotiation.
+            // For initial connection, if I'm the answerer, my state for them should be .stable or .waitingForOffer which maps to .stable PC state.
+            logger.logRTC("GM: handleReceivedOffer: Received offer from \(peerId.rawValue), but my SignalingState for them is \(connection.signalingState.rawValue). This might be unexpected. Proceeding cautiously.")
         }
         
         // Update phase: we are now going to answer
         self.updatePlayerConnectionPhase(playerId: peerId, phase: .answering)
         
         Task { // Perform async WebRTC operations
-            do {
-                // Set remote description (the offer)
-//                try await connection.setRemoteDescription(sdp)
-//                logger.logRTC("GM: Remote offer from \(peerId) set. Creating answer...")
-                
-                // Create answer
-                self.connectionManager.createAnswer(to: peerId, from: sdp) { [weak self] answeredPeerId, result in
-                    guard let self = self else { return }
-                    switch result {
-                    case .success(let answerSdp):
-                        logger.logRTC("GM: Created answer for \(answeredPeerId). Sending...")
-                        Task {
-                            do {
-                                try await self.signalingManager.sendAnswer(from: PlayerId(rawValue: self.preferences.playerId)!, to: answeredPeerId, sdp: answerSdp)
-                                logger.logRTC("GM: Successfully sent answer to \(answeredPeerId)")
-                                // Now we are waiting for the connection to establish, ICE exchange is likely ongoing
-                                // The phase might already be .exchangingNetworkInfo due to local ICE generation
-                                // or can be explicitly set.
-                                if self.gameState.getPlayer(by: answeredPeerId).connectionPhase != .exchangingNetworkInfo {
-                                    self.updatePlayerConnectionPhase(playerId: answeredPeerId, phase: .exchangingNetworkInfo) // Or a more specific "WaitingForConnection"
-                                }
-                                self.connectionManager.flushPendingIce(for: answeredPeerId)
-                                
-                                // Clear the offer field in Firestore (optional, but good practice)
-                                let offerPath = "offer"
-                                let docId = self.signalingManager.documentName(from: answeredPeerId, to: PlayerId(rawValue: self.preferences.playerId)!) // FSM needs public documentName
-                                try? await Firestore.firestore().collection("signaling").document(docId).updateData([offerPath: FieldValue.delete()])
-                                logger.logRTC("GM: Cleared offer field for \(answeredPeerId) in \(docId)")
-                            } catch {
-                                logger.log("GM: Error sending answer to \(answeredPeerId): \(error)")
-                                self.updatePlayerConnectionPhase(playerId: answeredPeerId, phase: .failed)
+            
+            // Create answer
+            self.connectionManager.createAnswer(to: peerId, from: sdp) { [weak self] answeredPeerId, result in
+                guard let self = self else { return }
+                switch result {
+                case .success(let answerSdp):
+                    logger.logRTC("GM: Created answer for \(answeredPeerId). Sending...")
+                    Task {
+                        do {
+                            try await self.signalingManager.sendAnswer(from: PlayerId(rawValue: self.preferences.playerId)!, to: answeredPeerId, sdp: answerSdp)
+                            logger.logRTC("GM: Successfully sent answer to \(answeredPeerId)")
+                            // Now we are waiting for the connection to establish, ICE exchange is likely ongoing
+                            // The phase might already be .exchangingNetworkInfo due to local ICE generation
+                            // or can be explicitly set.
+                            if self.gameState.getPlayer(by: answeredPeerId).connectionPhase != .exchangingNetworkInfo {
+                                self.updatePlayerConnectionPhase(playerId: answeredPeerId, phase: .exchangingNetworkInfo) // Or a more specific "WaitingForConnection"
                             }
+                            self.connectionManager.flushPendingIce(for: answeredPeerId)
+                            
+                            // Clear the offer field in Firestore (optional, but good practice)
+                            let offerPath = "offer"
+                            let docId = self.signalingManager.documentName(from: answeredPeerId, to: PlayerId(rawValue: self.preferences.playerId)!) // FSM needs public documentName
+                            try? await Firestore.firestore().collection("signaling").document(docId).updateData([offerPath: FieldValue.delete()])
+                            logger.logRTC("GM: Cleared offer field for \(answeredPeerId) in \(docId)")
+                        } catch {
+                            logger.log("GM: Error sending answer to \(answeredPeerId): \(error)")
+                            self.updatePlayerConnectionPhase(playerId: answeredPeerId, phase: .failed)
                         }
-                    case .failure(let err):
-                        logger.log("GM: Failed to create answer for \(answeredPeerId): \(err)")
-                        self.updatePlayerConnectionPhase(playerId: answeredPeerId, phase: .failed)
                     }
+                case .failure(let err):
+                    logger.log("GM: Failed to create answer for \(answeredPeerId): \(err)")
+                    self.updatePlayerConnectionPhase(playerId: answeredPeerId, phase: .failed)
                 }
-            } catch {
-                logger.log("GM: Error setting remote offer from \(peerId): \(error)")
-                self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
             }
+            
         }
     }
     
@@ -428,25 +552,25 @@ extension GameManager {
             self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
             return
         }
-
+        
         // CRITICAL: Only process answer if we are expecting one
         if connection.signalingState == .haveLocalOffer {
             logger.logRTC("GM: SignalingState is haveLocalOffer for \(peerId), proceeding to set remote answer.")
             self.updatePlayerConnectionPhase(playerId: peerId, phase: .exchangingNetworkInfo) // Or .connecting
-
+            
             Task {
                 do {
                     try await connection.setRemoteDescription(sdp) // This is an async RTC method
                     logger.logRTC("GM: Remote answer from \(peerId) set successfully.")
                     self.connectionManager.flushPendingIce(for: peerId)
-
+                    
                     // Clear the answer field in Firestore
                     let answerPath = "answer"
                     // The document is named by the ANSWERER_to_OFFERER
                     let docId = self.signalingManager.documentName(from: peerId, to: PlayerId(rawValue: self.preferences.playerId)!)
                     try? await Firestore.firestore().collection("signaling").document(docId).updateData([answerPath: FieldValue.delete()])
                     logger.logRTC("GM: Cleared answer field for \(peerId) in \(docId)")
-
+                    
                 } catch {
                     logger.log("GM: Failed to set remote answer from \(peerId): \(error.localizedDescription)")
                     self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
@@ -458,30 +582,57 @@ extension GameManager {
             // If some other state, it might indicate an issue, but processing answer now is wrong.
         }
     }
-
+    
     
     @MainActor
     func handleReceivedRemoteIceCandidate(from peerId: PlayerId, candidate: RTCIceCandidate) {
-        logger.logRTC("GM: Handling received ICE candidate from \(peerId.rawValue).")
-        // Phase should ideally already be .exchangingNetworkInfo or similar
         let player = self.gameState.getPlayer(by: peerId)
-        if ![.exchangingNetworkInfo, .connecting, .connected].contains(player.connectionPhase) {
-            logger.logRTC("GM: Updating phase to .exchangingNetworkInfo for \(peerId) upon receiving ICE candidate.")
-            self.updatePlayerConnectionPhase(playerId: peerId, phase: .exchangingNetworkInfo)
+        logger.logRTC("Handling received ICE candidate from \(peerId.rawValue). Current phase for peer \(peerId.rawValue) is \(player.connectionPhase.rawValue).")
+
+        var iAmOffererToThisPeer = false
+        let localPlayerId = PlayerId(rawValue: preferences.playerId)!
+        switch localPlayerId {
+            case .dd: if peerId == .gg { iAmOffererToThisPeer = true }
+            case .gg: if peerId == .toto { iAmOffererToThisPeer = true }
+            case .toto: if peerId == .dd { iAmOffererToThisPeer = true }
         }
-        
+
+        if !iAmOffererToThisPeer { // I am the ANSWERER for this peer
+            // If I am an answerer and still waiting for an offer, or in idle/initiating,
+            // receiving remote ICE should NOT change my overall connection phase for this peer yet.
+            // The phase should only advance to .answering or .exchangingNetworkInfo *after* I've processed their offer.
+            if player.connectionPhase == .waitingForOffer || player.connectionPhase == .idle || player.connectionPhase == .initiating {
+                 logger.logRTC("Answerer (for \(peerId.rawValue)) received remote ICE while in phase \(player.connectionPhase.rawValue). Storing ICE, but NOT changing phase to .exchangingNetworkInfo yet.")
+            } else if player.connectionPhase == .answering && player.connectionPhase != .exchangingNetworkInfo && player.connectionPhase != .connecting && player.connectionPhase != .connected {
+                // If I'm in .answering (meaning offer processed, answer being created/sent)
+                // then it's appropriate to move to .exchangingNetworkInfo.
+                // This transition might also be triggered by my *own* ICE generation callback.
+                 logger.logRTC("Answerer (for \(peerId.rawValue)) in .answering phase received remote ICE. Transitioning to .exchangingNetworkInfo.")
+                self.updatePlayerConnectionPhase(playerId: peerId, phase: .exchangingNetworkInfo)
+            }
+        } else { // I am the OFFERER for this peer
+            // If I'm offerer, sent offer, waiting for answer. Receiving their ICE means they are working on it.
+            // Transitioning to .exchangingNetworkInfo is reasonable.
+            // This might also be triggered by my *own* ICE generation callback.
+            if (player.connectionPhase == .offering || player.connectionPhase == .waitingForAnswer) &&
+               player.connectionPhase != .exchangingNetworkInfo && player.connectionPhase != .connecting && player.connectionPhase != .connected {
+                 logger.logRTC("Offerer (for \(peerId.rawValue)) in \(player.connectionPhase.rawValue) phase received remote ICE. Transitioning to .exchangingNetworkInfo.")
+                self.updatePlayerConnectionPhase(playerId: peerId, phase: .exchangingNetworkInfo)
+            }
+        }
+        // If already in .exchangingNetworkInfo, .connecting, .connected, no further phase change related to this is needed here.
+
         P2PConnectionManager.shared.addIceCandidate(candidate, for: peerId) { error in
             if let error = error {
-                logger.log("GM: Error adding received ICE candidate from \(peerId): \(error)")
-                // Potentially update phase to .failed if adding critical candidates fails,
-                // but WebRTC might recover or already be in a failed ICE state.
+                // Log the localized description of the error
+                logger.log("Error adding received ICE candidate from \(peerId): \(error.localizedDescription)")
             }
         }
     }
     
     @MainActor
     private func handlePeerPresenceChange(peerId: PlayerId, isOnline: Bool) {
-        logger.logRTC("GM: Handling presence change for \(peerId.rawValue). Online: \(isOnline)")
+        logger.logRTC("Handling presence change for \(peerId.rawValue). Online: \(isOnline)")
         
         let player = gameState.getPlayer(by: peerId)
         player.firebasePresenceOnline = isOnline
@@ -491,21 +642,22 @@ extension GameManager {
             // Only attempt connection if currently idle, failed, or disconnected from P2P.
             let currentPhase = player.connectionPhase
             if currentPhase == .idle || currentPhase == .failed || currentPhase == .disconnected {
-                logger.logRTC("GM: Peer \(peerId.rawValue) is online and in phase '\(currentPhase.rawValue)'. Attempting P2P connection.")
+                logger.logRTC("Peer \(peerId.rawValue) is online and in phase '\(currentPhase.rawValue)'. Attempting P2P connection.")
                 attemptP2PConnection(with: peerId)
             } else {
-                logger.logRTC("GM: Peer \(peerId.rawValue) is online, P2P phase '\(currentPhase.rawValue)' indicates attempt in progress/established. No new action.")
+                logger.logRTC("Peer \(peerId.rawValue) is online, P2P phase '\(currentPhase.rawValue)' indicates attempt in progress/established. No new action.")
             }
         } else {
             // Peer went offline.
-            logger.logRTC("GM: Peer \(peerId.rawValue) went offline.")
+            logger.logRTC("Peer \(peerId.rawValue) went offline.")
+            self.cancelConnectionTimer(for: peerId)
             // Update connection status
             if player.isP2PConnected ||
-               [.initiating, .offering, .waitingForAnswer, .answering, .waitingForOffer, .exchangingNetworkInfo, .connecting].contains(player.connectionPhase) {
+                [.initiating, .offering, .waitingForAnswer, .answering, .waitingForOffer, .exchangingNetworkInfo, .connecting].contains(player.connectionPhase) {
                 updatePlayerConnectionPhase(playerId: peerId, phase: .disconnected) // Sets phase
             } else {
-                 // If it wasn't even WebRTC connected, ensure its phase reflects it's gone
-                 updatePlayerConnectionPhase(playerId: peerId, phase: .idle) // Or a new "PeerOffline" phase
+                // If it wasn't even WebRTC connected, ensure its phase reflects it's gone
+                updatePlayerConnectionPhase(playerId: peerId, phase: .idle) // Or a new "PeerOffline" phase
             }
             
             // Clear any related signaling data for this peer if appropriate.
@@ -514,40 +666,37 @@ extension GameManager {
         
         displayPlayers()
     }
-
-    // New function to encapsulate the logic for a single peer connection attempt
+    
     @MainActor
     private func attemptP2PConnection(with peerId: PlayerId) {
         let localPlayerId = PlayerId(rawValue: preferences.playerId)!
+        let player = gameState.getPlayer(by: peerId) // Get the player object
+        let previousConnectionPhase = player.connectionPhase
 
-        // (This is the core logic from your setupSignaling loop, refactored for a single peer)
-        logger.logRTC("GM: Attempting P2P with \(peerId.rawValue)")
+        logger.logRTC("GM: Attempting P2P with \(peerId.rawValue). Peer's previous P2P phase: \(player.connectionPhase.rawValue), Firebase Online: \(player.firebasePresenceOnline)")
 
         var iShouldOffer = false
         switch localPlayerId {
-        case .dd: if peerId == .gg { iShouldOffer = true }
-        case .gg: if peerId == .toto { iShouldOffer = true }
-        case .toto: if peerId == .dd { iShouldOffer = true }
+            case .dd: if peerId == .gg { iShouldOffer = true }
+            case .gg: if peerId == .toto { iShouldOffer = true }
+            case .toto: if peerId == .dd { iShouldOffer = true }
         }
 
+        // Reset phase to initiating to ensure fresh start, timers get cancelled.
         self.updatePlayerConnectionPhase(playerId: peerId, phase: .initiating)
-        // Note: We assume peer is online because handlePeerPresenceChange(isOnline: true) called this.
 
         if iShouldOffer {
             logger.debug("\(localPlayerId.rawValue) is designated offerer to \(peerId.rawValue). Creating an offer...")
             self.updatePlayerConnectionPhase(playerId: peerId, phase: .offering)
 
-            // Check if an offer ALREADY exists (from setupSignaling optimization)
-            // This check becomes more important if this function can be called multiple times rapidly.
             Task {
-                let myOfferToThemDocRef = Firestore.firestore().collection("signaling").document("\(localPlayerId.rawValue)_to_\(peerId.rawValue)")
-                let myOfferSnapshot = try? await myOfferToThemDocRef.getDocument()
-                if let existingOfferData = myOfferSnapshot?.data(), existingOfferData["offer"] != nil {
-                     logger.logRTC("Signaling: Offer from \(localPlayerId.rawValue) to \(peerId.rawValue) already exists during attemptP2P. Assuming it's being processed.")
-                     if self.gameState.getPlayer(by: peerId).connectionPhase == .offering { // If still in offering, update
-                         self.updatePlayerConnectionPhase(playerId: peerId, phase: .waitingForAnswer)
-                     }
-                     return // Don't re-offer if one is pending
+                let offerDocId = "\(localPlayerId.rawValue)_to_\(peerId.rawValue)"
+                let myOfferToThemDocRef = Firestore.firestore().collection("signaling").document(offerDocId)
+
+                let wasPreviouslyDisconnectedOrFailed = previousConnectionPhase == .disconnected || previousConnectionPhase == .failed
+                if wasPreviouslyDisconnectedOrFailed {
+                     logger.logRTC("Offerer \(localPlayerId.rawValue): Peer \(peerId.rawValue) is rejoining. Clearing any old offer \(offerDocId) before sending a new one.")
+                     try? await myOfferToThemDocRef.delete()
                 }
 
                 connectionManager.createOffer(to: peerId) { [weak self] _, result in
@@ -556,19 +705,22 @@ extension GameManager {
                     case .success(let sdp):
                         Task {
                             do {
+                                logger.logRTC("GM: Offerer \(localPlayerId.rawValue) SENDING NEW offer to rejoining/new peer \(peerId.rawValue).")
                                 try await self.signalingManager.sendOffer(from: localPlayerId, to: peerId, sdp: sdp)
                                 self.updatePlayerConnectionPhase(playerId: peerId, phase: .waitingForAnswer)
                                 self.connectionManager.flushPendingIce(for: peerId)
                             } catch {
+                                logger.log("GM: Error SENDING offer to \(peerId.rawValue) (rejoin attempt): \(error.localizedDescription)")
                                 self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
                             }
                         }
-                    case .failure:
+                    case .failure(let error):
+                        logger.log("GM: Failed to CREATE offer for \(peerId.rawValue) (rejoin attempt): \(error.localizedDescription)")
                         self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
                     }
                 }
             }
-        } else {
+        } else { // I am ANSWERER to this peer
             logger.debug("\(localPlayerId.rawValue) is designated answerer for \(peerId.rawValue). Will wait for offer via listener.")
             self.updatePlayerConnectionPhase(playerId: peerId, phase: .waitingForOffer)
             // Listener (onOfferReceived) will handle it.

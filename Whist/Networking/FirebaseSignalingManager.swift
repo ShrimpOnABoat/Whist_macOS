@@ -243,6 +243,7 @@ class FirebaseSignalingManager {
             }
     }
 
+
     func clearSignalingData(for playerId: String) async throws {
         let signalingRef = db.collection("signaling")
         let batch = db.batch()
@@ -269,6 +270,20 @@ class FirebaseSignalingManager {
             logger.log("Firebase: Error clearing signaling data for \(playerId): \(error.localizedDescription)")
             throw error
         }
+    }
+
+    /// Deletes the signaling documents exchanged between two players in both directions.
+    func clearSignalingDocuments(between localPlayerId: PlayerId, and peerId: PlayerId) async throws {
+        let signalingRef = db.collection("signaling")
+        let docIds = [
+            documentName(from: localPlayerId, to: peerId),
+            documentName(from: peerId, to: localPlayerId)
+        ]
+        for docId in docIds {
+            logger.logRTC("Firebase: Deleting signaling document \(docId)")
+            try await signalingRef.document(docId).delete()
+        }
+        logger.logRTC("Firebase: Cleared signaling documents between \(localPlayerId.rawValue) and \(peerId.rawValue)")
     }
 
     deinit {

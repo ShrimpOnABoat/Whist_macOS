@@ -43,6 +43,17 @@ class GameManager: ObservableObject {
     let connectionManager: P2PConnectionManager
     let signalingManager: FirebaseSignalingManager
     var networkingStarted: Bool = false
+    var connectionAttemptTimers: [PlayerId: Timer] = [:]
+    #if DEBUG
+    let offerWaitTimeout: TimeInterval = 5.0 // Time to wait for an offer if I'm an answerer
+    let answerWaitTimeout: TimeInterval = 5.0 // Time to wait for an answer if I'm an offerer
+    let iceExchangeTimeout: TimeInterval = 5.0 // Time to complete ICE and connect after SDPs
+    #else
+    let offerWaitTimeout: TimeInterval = 20.0 // Time to wait for an offer if I'm an answerer
+    let answerWaitTimeout: TimeInterval = 20.0 // Time to wait for an answer if I'm an offerer
+    let iceExchangeTimeout: TimeInterval = 25.0 // Time to complete ICE and connect after SDPs
+    #endif
+
     let preferences: Preferences
     let soundManager = SoundManager()
     static let SM = ScoresManager.shared
@@ -624,9 +635,12 @@ class GameManager: ObservableObject {
     }
     
     func displayPlayers() {
-        logger.log("🔍 Displaying all players:")
+        logger.log("🔍 Displaying peer players:")
         
         for player in gameState.players {
+            if player.id == gameState.localPlayer?.id {
+                continue
+            }
             let username = player.username
             let playerId = player.id.rawValue
             let tablePosition = player.tablePosition?.rawValue ?? "unknown"
