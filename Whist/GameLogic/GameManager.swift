@@ -297,70 +297,103 @@ class GameManager: ObservableObject {
         let currentScores = gameState.players.map { $0.scores.last ?? 0 }
         let highestScore = currentScores.max() ?? 0
         let lowestScore = currentScores.min() ?? 0
+        if currentRound < 12 {
         
-        // Step 1: Player has the highest score
-        if player.scores.last == highestScore {
-            return 1
-        }
-        
-        // Step 2: Player has the lowest score
-        if player.scores.last == lowestScore {
-            let sortedByScore = gameState.players.sorted {
-                ($0.scores.last ?? 0) < ($1.scores.last ?? 0)
+            // Step 1: Player has the highest score
+            if player.scores.last == highestScore {
+                return 1
             }
             
-            let playersWithLowestScore = sortedByScore.filter {
-                $0.scores.last == lowestScore
-            }
-            
-            if playersWithLowestScore.count > 1 {
-                // Break tie based on historical scores
-                let otherPlayer = playersWithLowestScore.first { $0.username != player.username }
+            // Step 2: Player has the lowest score
+            if player.scores.last == lowestScore {
+                let sortedByScore = gameState.players.sorted {
+                    ($0.scores.last ?? 0) < ($1.scores.last ?? 0)
+                }
                 
-                for round in stride(from: currentRound - 1, through: 0, by: -1) {
-                    let playerScore = player.scores[safe: round] ?? Int.min
-                    let otherPlayerScore = otherPlayer?.scores[safe: round] ?? Int.min
+                let playersWithLowestScore = sortedByScore.filter {
+                    $0.scores.last == lowestScore
+                }
+                
+                if playersWithLowestScore.count > 1 {
+                    // Break tie based on historical scores
+                    let otherPlayer = playersWithLowestScore.first { $0.username != player.username }
                     
-                    if playerScore != otherPlayerScore {
-                        if playerScore < otherPlayerScore {
-                            return 3
+                    for round in stride(from: currentRound - 1, through: 0, by: -1) {
+                        let playerScore = player.scores[safe: round] ?? Int.min
+                        let otherPlayerScore = otherPlayer?.scores[safe: round] ?? Int.min
+                        
+                        if playerScore != otherPlayerScore {
+                            if playerScore < otherPlayerScore {
+                                return 3
+                            } else {
+                                return 2
+                            }
+                        }
+                    }
+                    
+                    // Fallback to dealer-based play order
+                    if let dealer = gameState.dealer,
+                       let dealerIndex = gameState.playOrder.firstIndex(of: dealer),
+                       let usernameIndex = gameState.playOrder.firstIndex(of: playerId) {
+                        // Calculate the index of the player to the left of the dealer
+                        let leftOfDealerIndex = (dealerIndex + 1) % gameState.playOrder.count
+                        
+                        // If the current player is the dealer
+                        if usernameIndex == dealerIndex {
+                            return 3 // Dealer gets rank 3
+                        }
+                        
+                        // If the other player is the dealer
+                        if otherPlayer?.id == gameState.dealer {
+                            return 2
+                        }
+                        
+                        // If the current player is the first player to the left of the dealer
+                        if usernameIndex == leftOfDealerIndex {
+                            return 3 // Real last place
                         } else {
                             return 2
                         }
                     }
+                } else {
+                    return 3
                 }
-                
-                // Fallback to dealer-based play order
-                if let dealer = gameState.dealer,
-                   let dealerIndex = gameState.playOrder.firstIndex(of: dealer),
-                   let usernameIndex = gameState.playOrder.firstIndex(of: playerId) {
-                    // Calculate the index of the player to the left of the dealer
-                    let leftOfDealerIndex = (dealerIndex + 1) % gameState.playOrder.count
-                    
-                    // If the current player is the dealer
-                    if usernameIndex == dealerIndex {
-                        return 3 // Dealer gets rank 3
-                    }
-                    
-                    // If the other player is the dealer
-                    if otherPlayer?.id == gameState.dealer {
-                        return 2
-                    }
-                    
-                    // If the current player is the first player to the left of the dealer
-                    if usernameIndex == leftOfDealerIndex {
-                        return 3 // Real last place
-                    } else {
-                        return 2
+            }
+            
+            // Step 3: Player is neither the highest nor the lowest
+            return 2
+        } else {
+            // Final round: enforce unique ranks using score and tie-breakers
+            let sortedPlayers = gameState.players.sorted { lhs, rhs in
+                let lhsScore = lhs.scores.last ?? 0
+                let rhsScore = rhs.scores.last ?? 0
+                if lhsScore != rhsScore {
+                    return lhsScore > rhsScore
+                }
+
+                // Tie-break with historical rounds
+                for round in stride(from: currentRound - 2, through: 0, by: -1) {
+                    let lhsPast = lhs.scores[safe: round] ?? Int.min
+                    let rhsPast = rhs.scores[safe: round] ?? Int.min
+                    if lhsPast != rhsPast {
+                        return lhsPast > rhsPast
                     }
                 }
+
+                // Tie-break with play order
+                guard let lhsIndex = gameState.playOrder.firstIndex(of: lhs.id),
+                      let rhsIndex = gameState.playOrder.firstIndex(of: rhs.id) else {
+                    return false
+                }
+                return lhsIndex < rhsIndex
+            }
+
+            if let index = sortedPlayers.firstIndex(where: { $0.id == playerId }) {
+                return index + 1
             } else {
-                return 3
+                return 3 // fallback
             }
         }
-        
-        // Step 3: Player is neither the highest nor the lowest
-        return 2
     }
     
     func allScoresEqual() -> Bool {
