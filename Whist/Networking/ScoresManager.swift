@@ -75,6 +75,10 @@ class ScoresManager {
     init() {}
 
     func saveScore(_ gameScore: GameScore) async throws {
+        #if DEBUG
+        logger.log("DEBUG mode: not saving scores to Firebase.")
+        return
+        #else
         do {
             try await firebaseService.saveGameScore(gameScore)
             logger.log("✅ Successfully saved GameScore with id: \(gameScore.id)")
@@ -82,6 +86,7 @@ class ScoresManager {
             logger.log("❌ Error saving GameScore: \(error.localizedDescription)")
             throw ScoresManagerError.firebaseError(error)
         }
+#endif
     }
 
     func saveScores(_ scores: [GameScore]) async throws {

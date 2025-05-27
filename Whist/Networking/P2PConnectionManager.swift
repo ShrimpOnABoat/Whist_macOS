@@ -352,7 +352,9 @@ extension P2PConnectionManager: RTCPeerConnectionDelegate {
 
         if onIceCandidateGenerated != nil {
              logger.logRTC(" P2P Delegate: onIceCandidateGenerated callback IS set. Calling it now for \(peerId.rawValue).")
-            onIceCandidateGenerated?(peerId, candidate)
+            Task { @MainActor in
+                onIceCandidateGenerated?(peerId, candidate)
+            }
         } else {
              logger.log(" P2P Delegate: ERROR - onIceCandidateGenerated callback is NIL.")
         }
@@ -368,7 +370,9 @@ extension P2PConnectionManager: RTCPeerConnectionDelegate {
         // Update the dedicated data channel for the corresponding peerId
         if let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key {
             incomingDataChannelsMap[dataChannel] = peerId
-            onConnectionEstablished?(peerId)
+            Task { @MainActor in
+                onConnectionEstablished?(peerId)
+            }
         }
         
         for peerConnection in peerConnections {
@@ -388,9 +392,13 @@ extension P2PConnectionManager: RTCDataChannelDelegate {
         case .open:
             logger.logRTC("Data channel is open and ready to use")
             if let peerId = incomingDataChannelsMap[dataChannel] {
-                onConnectionEstablished?(peerId)
+                Task { @MainActor in
+                    onConnectionEstablished?(peerId)
+                }
             } else if let peerId = outgoingDataChannels.first(where: { $0.value === dataChannel })?.key {
-                onConnectionEstablished?(peerId)
+                Task { @MainActor in
+                    onConnectionEstablished?(peerId)
+                }
             }
         case .closed:
             logger.logRTC("Data channel closed")
