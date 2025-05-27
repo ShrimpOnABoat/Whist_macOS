@@ -554,7 +554,7 @@ struct PlayerImageView: View {
     var body: some View {
         VStack {
             // Player Picture
-            if player.firebasePresenceOnline || player.tablePosition == .local {
+            if player.isP2PConnected || player.tablePosition == .local {
                 ZStack {
                     (player.imageBackgroundColor ?? Color.gray)
                     
@@ -566,11 +566,16 @@ struct PlayerImageView: View {
                 .clipShape(Circle())
                 .overlay(Circle().stroke(Color.white, lineWidth: 2))
             } else {
-                Image(systemName: "person.crop.circle.badge.xmark")
-                    .resizable()
-                    .frame(width: dynamicSize.playerImageWidth, height: dynamicSize.playerImageHeight)
-                    .foregroundColor(.red)
-                    .clipShape(Circle())
+                ZStack {
+                    (player.imageBackgroundColor ?? Color.gray)
+                    (player.image ?? Image(systemName: "person.crop.circle"))
+                        .resizable()
+                        .scaledToFit()
+                }
+                .frame(width: dynamicSize.playerImageWidth, height: dynamicSize.playerImageHeight)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                .grayscale(1.0)
             }
             
             // Player Username
