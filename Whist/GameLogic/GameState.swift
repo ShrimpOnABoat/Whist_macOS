@@ -19,7 +19,11 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
     @Published var players: [Player] = []
     @Published var trumpSuit: Suit? = nil
     @Published var playOrder: [PlayerId] = [] // should be reset after each trick grab
-    @Published var dealer: PlayerId? = nil
+    @Published var dealer: PlayerId? = nil {
+        didSet {
+            logger.log("💟💟 The dealer is now \(dealer?.rawValue ?? "nobody!") 💟💟")
+        }
+    }
     @Published var currentPhase: GamePhase = .waitingForPlayers
     // ADD: Add properties to be saved
     @Published var tricksGrabbed: [Bool] = []

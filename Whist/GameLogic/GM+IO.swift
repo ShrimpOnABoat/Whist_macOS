@@ -123,6 +123,14 @@ extension GameManager {
         case .honk:
             logger.log("I've been honked!!")
             self.honk()
+            
+        case .dealer:
+            logger.log("Received dealer")
+            if let dealer = try? JSONDecoder().decode(PlayerId.self, from: action.payload) {
+                self.updateGameStateWithDealer(from: action.playerId, with: dealer)
+            } else {
+                logger.log("Failed to decode dealer.")
+            }
         }
     }
     
@@ -139,7 +147,7 @@ extension GameManager {
             )
             persistAndSend(action)
         } else {
-            logger.log("Error: Failed to encode the random seed")
+            logger.log("Error: Failed to encode the play order")
         }
     }
 
@@ -335,6 +343,49 @@ extension GameManager {
         playSound(named: "pouet")
     }
     
+    func persistOrderAndDealer() {
+        guard gameState.playOrder != [] else {
+            logger.log("No playOrder defined")
+            return
+        }
+        guard gameState.dealer != nil else {
+            logger.log( "No dealer defined")
+            return
+        }
+        guard let localPlayer = gameState.localPlayer else {
+            logger.log("Error: Local player is not defined")
+            return
+        }
+        
+        logger.log("Sending playOrder and Dealer to other players")
+        
+        if let playOrderData = try? JSONEncoder().encode(gameState.playOrder) {
+            let action = GameAction(
+                playerId: localPlayer.id,
+                type: .playOrder,
+                payload: playOrderData,
+                timestamp: Date().timeIntervalSince1970
+            )
+            persist(action)
+        } else {
+            logger.log("Error: Failed to encode the play order")
+        }
+
+        if let dealerData = try? JSONEncoder().encode(gameState.dealer) {
+            let action = GameAction(
+                playerId: localPlayer.id,
+                type: .dealer,
+                payload: dealerData,
+                timestamp: Date().timeIntervalSince1970
+            )
+            persist(action)
+        } else {
+            logger.log("Error: Failed to encode the dealer")
+        }
+    }
+    
+    
+    
     func persistAndSend(_ action: GameAction) {
         guard !isRestoring else { return }
         if let actionData = try? JSONEncoder().encode(action),
@@ -352,5 +403,11 @@ extension GameManager {
             logger.log("Failed to encode action or convert to string")
         }
     }
-
+    
+    func persist(_ action: GameAction) {
+        guard !isRestoring else { return }
+        if ![.amSlowPoke, .honk].contains(action.type) {
+            saveGameAction(action)
+        }
+    }
 }

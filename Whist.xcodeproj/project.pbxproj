@@ -201,7 +201,8 @@
 /* Begin PBXShellScriptBuildPhase section */
 		9532E1872DBB031F0001A523 /* Remove Extended Attributes */ = {
 			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
+			alwaysOutOfDate = 1;
+			buildActionMask = 12;
 			files = (
 			);
 			inputFileListPaths = (

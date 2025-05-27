@@ -26,7 +26,7 @@ class SimpleLogger {
     private var debug: Bool = false
 #endif
     private var localPlayerInitial: String = ""
-    private var logRTC: Bool = true
+    private var logRTC: Bool = false
     private var audio: Bool = false
     
     // MARK: - Initialization

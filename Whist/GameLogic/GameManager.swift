@@ -76,6 +76,7 @@ class GameManager: ObservableObject {
     
     @Published var dealerPosition: CGPoint = .zero
     @Published var playersScoresUpdated: Bool = false
+    var isFirstGame: Bool = true
     
     // MARK: - Slowpoke Timer Properties
     var slowpokeTimer: DispatchSourceTimer?
@@ -157,6 +158,9 @@ class GameManager: ObservableObject {
     
     // MARK: startNewGame
     func startNewGameAction() {
+        if !isFirstGame {
+            persistOrderAndDealer()
+        }
         sendStartNewGameAction()
         startNewGame()
     }
@@ -212,9 +216,9 @@ class GameManager: ObservableObject {
         autoPilot = false // Resets the autoPilot
         
 #if DEBUG
-        if gameState.localPlayer?.id != .toto {
+//        if gameState.localPlayer?.id != .toto {
             autoPilot = true
-        }
+//        }
 #endif
         
         // Move to the next dealer in playOrder
@@ -511,6 +515,11 @@ class GameManager: ObservableObject {
         player.state = state
         isSlowPoke[playerId] = false
         logger.log("\(playerId) updated their state to \(state).")
+    }
+    
+    func updateGameStateWithDealer(from playerId: PlayerId, with dealer: PlayerId) {
+        logger.log("Updating dealer with \(dealer.rawValue)")
+        gameState.dealer = dealer
     }
     
     func showSlowPokeButton(for playerId: PlayerId) {

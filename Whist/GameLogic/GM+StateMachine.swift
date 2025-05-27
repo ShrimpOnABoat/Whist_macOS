@@ -361,7 +361,7 @@ extension GameManager {
                     }
                 }
             }
-            
+
         case .gameOver:
             setPlayerState(to: .idle)
             showConfetti.toggle()
@@ -372,6 +372,7 @@ extension GameManager {
             // save the game
             saveScore() //Sets the winner too
             isGameSetup = false // To allow recovery in case of crash
+            isFirstGame = false
             transition(to: .setPlayOrder)
         }
     }
