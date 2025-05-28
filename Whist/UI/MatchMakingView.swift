@@ -16,27 +16,27 @@ struct MatchMakingView: View {
     private func displayInfo(for phase: P2PConnectionPhase) -> (text: String, color: Color) {
         switch phase {
         case .idle:
-            return ("Idle", .gray)
+            return ("Inactif", .gray)
         case .initiating:
-            return ("Initiating...", .yellow)
+            return ("Initialisation...", .yellow)
         case .offering:
-            return ("Sending Offer...", .orange)
+            return ("Envoi de l'offre...", .orange)
         case .waitingForOffer:
-            return ("Waiting for Offer...", .yellow)
+            return ("En attente d'une offre...", .yellow)
         case .answering:
-            return ("Sending Answer...", .orange)
+            return ("Envoi de la réponse...", .orange)
         case .waitingForAnswer:
-            return ("Waiting for Answer...", .yellow)
+            return ("En attente d'une réponse...", .yellow)
         case .exchangingNetworkInfo:
-            return ("Exchanging Network Info...", .blue)
+            return ("Échange d'infos réseau...", .blue)
         case .connecting:
-            return ("Connecting...", .purple)
+            return ("Connexion...", .purple)
         case .connected:
-            return ("Connected", .green)
+            return ("Connecté", .green)
         case .failed:
-            return ("Failed", .red)
+            return ("Échec", .red)
         case .disconnected:
-            return ("Disconnected", .pink)
+            return ("Déconnecté", .pink)
         }
     }
     
@@ -84,13 +84,6 @@ struct MatchMakingView: View {
                     .frame(height: min(geometry.size.height * 0.6, 400))
                     
                     Spacer()
-                    
-                    // Connection status
-                    ConnectionStatusView(
-                        players: gameManager.gameState.players,
-                        allConnected: gameManager.gameState.allPlayersConnected
-                    )
-                    .padding(.bottom, 30)
                 }
             }
         }
@@ -236,17 +229,17 @@ struct ConnectionVisualizationView: View {
     
     private func displayInfo(for phase: P2PConnectionPhase) -> (text: String, color: Color) {
         switch phase {
-        case .idle: return ("Idle", .gray)
-        case .initiating: return ("Initiating...", .yellow)
-        case .offering: return ("Sending Offer...", .orange)
-        case .waitingForOffer: return ("Waiting for Offer...", .yellow)
-        case .answering: return ("Sending Answer...", .orange)
-        case .waitingForAnswer: return ("Waiting for Answer...", .yellow)
-        case .exchangingNetworkInfo: return ("Exchanging Network Info...", .blue)
-        case .connecting: return ("Connecting...", .purple)
-        case .connected: return ("Connected", .green)
-        case .failed: return ("Failed", .red)
-        case .disconnected: return ("Disconnected", .pink)
+        case .idle: return ("Inactif", .gray)
+        case .initiating: return ("Initialisation ...", .yellow)
+        case .offering: return ("Envoi de l'offre ...", .orange)
+        case .waitingForOffer: return ("En attente d'une offre ...", .yellow)
+        case .answering: return ("Envoi de la réponse ...", .orange)
+        case .waitingForAnswer: return ("En attente d'une réponse ...", .yellow)
+        case .exchangingNetworkInfo: return ("Échange d'infos réseau ...", .blue)
+        case .connecting: return ("Connexion ...", .purple)
+        case .connected: return ("Connecté", .green)
+        case .failed: return ("Échec", .red)
+        case .disconnected: return ("Déconnecté", .pink)
         }
     }
 }
@@ -370,47 +363,6 @@ struct PlayerNodeView: View {
                         .cornerRadius(8)
                 }
             }
-        }
-    }
-}
-
-// MARK: - Connection Status
-struct ConnectionStatusView: View {
-    let players: [Player]
-    let allConnected: Bool
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            let total = players.count - 1
-            let connected = players.filter { $0.connectionPhase == .connected }.count
-            
-            HStack {
-                Image(systemName: allConnected ? "checkmark.circle.fill" : "clock.fill")
-                    .foregroundColor(allConnected ? .green : .orange)
-                    .font(.title2)
-                
-                Group {
-                    if !allConnected {
-                        Text("En attente d'autres joueurs (\(connected)/\(total))...")
-                            .foregroundColor(.orange)
-                    } else {
-                        Text("Tous les joueurs sont connectés !")
-                            .foregroundColor(.green)
-                    }
-                }
-                .font(.headline)
-                .fontWeight(.medium)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.secondary.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(allConnected ? Color.green : Color.orange, lineWidth: 1)
-                    )
-            )
         }
     }
 }
