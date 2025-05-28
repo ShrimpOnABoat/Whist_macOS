@@ -210,18 +210,26 @@ struct PlayerView: View {
         }
     }
     
-    // MARK: - Trick Display
     @ViewBuilder
     private func TrickDisplay(dynamicSize: DynamicSize) -> some View {
         let roundIndex = gameManager.gameState.round - 1
         let overlap = -dynamicSize.cardWidth * GameConstants.trickScale * GameConstants.trickOverlap
         
         if player.announcedTricks.indices.contains(roundIndex) {
+            let trickCount = max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex])
+            
             Group {
                 if player.tablePosition != .local {
+                    // Vertical layout for other players
+                    let actualHeight = dynamicSize.cardHeight * GameConstants.trickScale +
+                                     CGFloat(max(0, trickCount - 1)) * abs(overlap)
+                    
+                    // Centering offset: half the total negative offset applied
+                    let centeringOffset = CGFloat(trickCount - 1) * overlap / 2
+                    
                     ZStack {
                         VStack(spacing: dynamicSize.otherTrickSpacing) {
-                            ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
+                            ForEach(0..<trickCount, id: \.self) { index in
                                 let isVertical = index % 2 == 0
                                 TrickStack(
                                     index: index,
@@ -229,17 +237,25 @@ struct PlayerView: View {
                                     isVertical: isVertical,
                                     dynamicSize: dynamicSize
                                 )
-                                .offset(
-                                    x: 0,
-                                    y: overlap*CGFloat(index))
+                                .offset(x: 0, y: overlap * CGFloat(index))
                                 .zIndex(Double(index < player.madeTricks[roundIndex] ? index + 10 : index))
                             }
                         }
+                        .offset(y: -centeringOffset) // Center the group
                     }
+                    .frame(height: actualHeight)
+                    .clipped()
                 } else {
+                    // Horizontal layout for local player
+                    let actualWidth = dynamicSize.cardWidth * GameConstants.trickScale +
+                                    CGFloat(max(0, trickCount)) * abs(overlap)
+                    
+                    // Centering offset: half the total negative offset applied
+                    let centeringOffset = CGFloat(trickCount - 1) * overlap / 2
+                    
                     ZStack {
                         HStack(spacing: dynamicSize.localTrickSpacing) {
-                            ForEach(0..<max(player.announcedTricks[roundIndex], player.madeTricks[roundIndex]), id: \.self) { index in
+                            ForEach(0..<trickCount, id: \.self) { index in
                                 let isVertical = index % 2 == 1
                                 TrickStack(
                                     index: index,
@@ -247,13 +263,14 @@ struct PlayerView: View {
                                     isVertical: isVertical,
                                     dynamicSize: dynamicSize
                                 )
-                                .offset(
-                                    x: overlap*CGFloat(index),
-                                    y: 0)
+                                .offset(x: overlap * CGFloat(index), y: 0)
                                 .zIndex(Double(index < player.madeTricks[roundIndex] ? index + 10 : index))
                             }
                         }
+                        .offset(x: -centeringOffset) // Center the group
                     }
+                    .frame(width: actualWidth)
+                    .clipped()
                 }
             }
         }
@@ -500,7 +517,7 @@ struct PlayerView: View {
     @ViewBuilder
     private func PlaceholderTrick(dynamicSize: DynamicSize) -> some View {
         RoundedRectangle(cornerRadius: 4)
-            .stroke(Color.gray, style: StrokeStyle(lineWidth: 2))
+            .strokeBorder(Color.gray, style: StrokeStyle(lineWidth: 2))
             .opacity(0.8)
 //            .blendMode(.multiply)
             .frame(width: dynamicSize.cardHeight * GameConstants.trickScale,
