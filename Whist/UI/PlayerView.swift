@@ -381,10 +381,20 @@ struct PlayerView: View {
                     switch player.state {
                     case .idle: return ""
                     case .choosingTrump: return "Choisit l'atout"
-                    case .bidding: return "Choisit sa mise"
-                    case .discarding: return "Défausse sa carte"
+                    case .bidding: 
+                        if player.announcedTricks.indices.contains(gameManager.gameState.round - 1) {
+                            return ""
+                        } else {
+                            return "Choisit sa mise"
+                        }
+                    case .discarding:
+                        if player.hand.count - gameManager.gameState.round == 0 {
+                            return "Défausse ses cartes"
+                        } else {
+                            return "Défausse sa carte"
+                        }
                     case .playing: return "Joue une carte"
-                    case .waiting: return "Attend les autres"
+                    case .waiting: return ""
                     default: return ""
                     }
                 } else {
