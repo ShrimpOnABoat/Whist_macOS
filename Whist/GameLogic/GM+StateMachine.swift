@@ -36,6 +36,15 @@ enum GamePhase: Encodable, Decodable {
             return false
         }
     }
+
+    var isBeforePlayingPhase: Bool {
+        switch self {
+        case .dealingCards, .choosingTrump, .waitingForTrump, .bidding, .discard:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 extension GameManager {

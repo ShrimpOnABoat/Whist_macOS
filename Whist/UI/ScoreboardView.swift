@@ -79,6 +79,20 @@ struct ScoreBoardView: View {
                                 .font(.system(size: dynamicSize.announceSize))
                                 .bold(true)
                                 .foregroundColor(.primary)
+                        } else if gameManager.gameState.currentPhase.isBeforePlayingPhase {
+                            let roundModifiers = determineRoundModifiers()
+                            let mod = roundModifiers[id] ?? 0
+                            if mod == -1 {
+                                Text("🎲")
+                                    .font(.system(size: dynamicSize.announceSize))
+                            } else if mod == 1 {
+                                OneCardIcon(size: dynamicSize.announceSize)
+                            } else if mod == 2 {
+                                TwoCardsIcon(size: dynamicSize.announceSize)
+                            } else {
+                                Text("")
+                                    .font(.system(size: dynamicSize.announceSize))
+                            }
                         } else {
                             Text(" ")
                                 .font(.system(size: dynamicSize.announceSize))
@@ -123,5 +137,120 @@ struct ScoreBoardView: View {
             // Blue for sum less than target
             return Color.blue.opacity(difference * 0.2)
         }
+    }
+    
+    func determineRoundModifiers() -> [PlayerId: Int] {
+        // Calculate the number of cards to deal to each player
+        // or if first player has to bet randomly
+        var cardsPerPlayer = [PlayerId: Int]() // PlayerId -> Cards to deal
+        for player in gameManager.gameState.players {
+            var extraCards = 0
+            
+            if gameManager.gameState.round > 3 {
+                if player.place == 1 {
+                    // Compute scores for all players
+                    let currentScores = gameManager.gameState.players.map { $0.scores.last ?? 0 }
+                    // Sort scores in descending order
+                    let sortedScores = currentScores.sorted(by: >)
+                    if let highest = sortedScores.first, let second = sortedScores.dropFirst().first,
+                       highest > 0 && highest >= second * 2 {
+                        extraCards = -1 // random bet
+                    } else {
+                        extraCards = 0
+                    }
+
+                } else if player.place == 2 {
+                    if player.monthlyLosses > 1 && gameManager.gameState.round < 12 {
+                        extraCards = 2
+                    } else {
+                        extraCards = 1
+                    }
+                    
+                } else if player.place == 3 {
+                    extraCards = 1
+                    let playerScore = player.scores[safe: gameManager.gameState.round - 2] ?? 0
+                    let secondPlayerScore = gameManager.gameState.players.first(where: { $0.place == 2 })?.scores[safe: gameManager.gameState.round - 2] ?? 0
+                    
+                    if player.monthlyLosses > 0 || Double(playerScore) <= 0.5 * Double(secondPlayerScore) {
+                        extraCards = 2
+                    }
+                }
+            }
+            
+            // Cap extra cards to the number of cards left in the deck for the last round
+            if gameManager.gameState.round == 12 && extraCards == 2,
+               let secondPlayer = gameManager.gameState.players[safe: 1],
+               let thirdPlayer = gameManager.gameState.players[safe: 2],
+               secondPlayer.scores[safe: gameManager.gameState.round - 2] != thirdPlayer.scores[safe: gameManager.gameState.round - 2] {
+                extraCards = 1
+            }
+            
+            cardsPerPlayer[player.id] = extraCards
+            
+        }
+
+        return cardsPerPlayer
+    }
+}
+
+struct TwoCardsIcon: View {
+    var size: CGFloat = 30
+
+    var body: some View {
+        ZStack {
+            // Second card (back)
+            RoundedRectangle(cornerRadius: size * 0.1)
+                .fill(Color.white)
+                .frame(width: size * 0.7, height: size)
+                .shadow(color: .gray.opacity(0.3), radius: size * 0.1, x: size * 0.05, y: size * 0.05)
+                .overlay(
+                    RoundedRectangle(cornerRadius: size * 0.1)
+                        .stroke(Color.black.opacity(0.6), lineWidth: 1)
+                )
+                .overlay(
+                    Text("♠️")
+                        .font(.system(size: size * 0.6))
+                )
+                .rotationEffect(.degrees(-10))
+                .offset(x: -size * 0.1)
+
+            // Front card
+            RoundedRectangle(cornerRadius: size * 0.1)
+                .fill(Color.white)
+                .frame(width: size * 0.7, height: size)
+                .shadow(color: .gray.opacity(0.3), radius: size * 0.1, x: size * 0.05, y: size * 0.05)
+                .overlay(
+                    RoundedRectangle(cornerRadius: size * 0.1)
+                        .stroke(Color.black.opacity(0.6), lineWidth: 1)
+                )
+                .overlay(
+                    Text("♥️")
+                        .font(.system(size: size * 0.6))
+                )
+                .rotationEffect(.degrees(10))
+                .offset(x: size * 0.1)
+        }
+        .background(Color.clear)
+    }
+}
+
+struct OneCardIcon: View {
+    var size: CGFloat = 30
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.1)
+                .fill(Color.white)
+                .frame(width: size * 0.7, height: size)
+                .shadow(color: .gray.opacity(0.3), radius: size * 0.1, x: size * 0.05, y: size * 0.05)
+                .overlay(
+                    RoundedRectangle(cornerRadius: size * 0.1)
+                        .stroke(Color.black.opacity(0.6), lineWidth: 1)
+                )
+
+            Text("♠️")
+                .font(.system(size: size * 0.6))
+        }
+        .background(Color.clear)
     }
 }
