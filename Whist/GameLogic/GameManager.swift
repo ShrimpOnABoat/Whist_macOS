@@ -83,7 +83,7 @@ class GameManager: ObservableObject {
     #if DEBUG
     let slowpokeDelay: TimeInterval = 5 // Delay in seconds before sending slowpoke
     #else
-    let slowpokeDelay: TimeInterval = 60 // Delay in seconds before sending slowpoke
+    let slowpokeDelay: TimeInterval = 20 // Delay in seconds before sending slowpoke
     #endif
     var amSlowPoke: Bool = false
     @Published var isSlowPoke: [PlayerId: Bool] = [:]

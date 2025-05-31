@@ -57,19 +57,6 @@ struct FeltBackgroundView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // 1. Base Perlin Noise – simulates a subtle cloth texture variation
-                //                TilingPerlinView(
-                //                    colorIndex: baseColorIndex,
-                //                    noiseWidth: 4096,
-                //                    noiseHeight: 4096,
-                //                    period: 128,
-                //                    randSeed: 553,
-                //                    tileSize: 16,
-                //                    method: 3,
-                //                    level: 0.5,
-                //                    scale: 64
-                //                )
-                //                .drawingGroup()
                 // 1. Base texture image – color filled then masked by alpha-only noise texture
                 GameConstants.feltColors[baseColorIndex]
                     .overlay(
@@ -77,10 +64,6 @@ struct FeltBackgroundView: View {
                             .resizable(resizingMode: .tile)
                             .blendMode(.multiply)
                     )
-                
-                // 2. Add normal “speck” noise to give fiber speckles
-                //                NoiseSpecklesOverlay()
-                //                    .blendMode(.overlay)
                 
                 // 3. Wear & Tear Overlays
                 if wearIntensity > 0 {
@@ -812,27 +795,6 @@ struct TilingPerlinView: View {
     @State private var renderedImage: Image? // Holds the rendered image
     
     var body: some View {
-        //        let perlinView = PerlinNoiseOverlay(
-        //            noiseWidth: noiseWidth,
-        //            noiseHeight: noiseHeight,
-        //            period: period,
-        //            randSeed: randSeed,
-        //            tileSize: tileSize,
-        //            baseColorIndex: colorIndex,
-        //            method: method,
-        //            level: level
-        //        )
-        //
-        //        // Render the PerlinNoiseOverlay into a CGImage
-        //        if let renderedImage = TilingPerlinView.renderContentToCGImage(perlinView: perlinView, color: color) {
-        //            return AnyView(
-        //                Image(decorative: renderedImage, scale: scale, orientation: .up)
-        //                    .resizable(resizingMode: .tile)
-        //            )
-        //        } else {
-        //            return AnyView(Text("Failed to render image"))
-        //        }
-        
         guard let nsImage = NSImage(named: NSImage.Name("feltBackground_\(colorIndex)_\(feltBackgroundName(for: colorIndex))")) else {
             fatalError("Couldn’t load NSImage from assets")
         }
@@ -852,19 +814,6 @@ struct TilingPerlinView: View {
                 .resizable(resizingMode: .tile)
         )
     }
-    
-    //    static func renderContentToCGImage(perlinView: PerlinNoiseOverlay, color: Color) -> CGImage? {
-    //        let renderer = ImageRenderer(content: perlinView.frame(width: 1024, height: 1024))
-    //        let image = renderer.cgImage
-    //        let outputURL = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/Export/feltBackground_\(color).png")
-    //        if let cgImage = image {
-    //            let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
-    //            if let data = bitmapRep.representation(using: .png, properties: [:]) {
-    //                try? data.write(to: outputURL)
-    //            }
-    //        }
-    //        return image
-    //    }
 }
 
 // MARK: - PerlinNoiseOverlay
