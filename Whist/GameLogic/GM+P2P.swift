@@ -38,31 +38,6 @@ extension GameManager {
         }
     }
     
-    // MARK: Connection/Deconnection
-    
-    //    func updatePlayerConnectionStatus(playerId: PlayerId, isConnected: Bool) {
-    //        // Find the player by ID
-    //        guard let index = gameState.players.firstIndex(where: { $0.id == playerId }) else {
-    //            logger.log("Could not find player \(playerId) to update connection status")
-    //            return
-    //        }
-    //
-    //        // Update connection status
-    //        if gameState.players[index].isConnected != isConnected {
-    //            self.objectWillChange.send()
-    //            gameState.players[index].isConnected = isConnected
-    //            logger.log("Updated \(playerId) connection status to \(isConnected)")
-    //
-    //            // Display current players for debugging
-    //            displayPlayers()
-    //
-    //            checkAndAdvanceStateIfNeeded() // Might pause the game while the player reconnects
-    //
-    //        } else {
-    //            logger.log("Player \(playerId) connection status did not change: \(isConnected)")
-    //        }
-    //    }
-    
     // MARK: - Signaling Setup
     
     func startNetworkingIfNeeded() {
@@ -270,6 +245,7 @@ extension GameManager {
                 guard let self = self else { return }
                 logger.log("❌ P2P Error with \(peerId.rawValue): \(error.localizedDescription)")
                 self.cancelConnectionTimer(for: peerId)
+                self.cancelIceDisconnectionTimer(for: peerId)
                 self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
             }
         }
@@ -277,19 +253,67 @@ extension GameManager {
         connectionManager.onIceConnectionStateChanged = { [weak self] (peerId, newState) in
             Task { @MainActor in
                 guard let self = self else { return }
-                logger.logRTC("GM: ICE Connection State for \(peerId) changed to \(newState.rawValue)")
-                // You can update player.connectionPhase based on these states too
-                // For example, when .checking, you could set .exchangingNetworkInfo or .connecting
-                // When .failed, .disconnected, onError will handle it.
+                let player = self.gameState.getPlayer(by: peerId)
+                logger.logRTC("GM: ICE Connection State for \(peerId.rawValue) changed to \(newState.rawValue). Current P2P phase: \(player.connectionPhase.rawValue)")
+
                 switch newState {
-                case .checking:
-                    if self.gameState.getPlayer(by: peerId).connectionPhase != .connected &&
-                        self.gameState.getPlayer(by: peerId).connectionPhase != .failed {
-                        self.updatePlayerConnectionPhase(playerId: peerId, phase: .connecting) // Or more specific
+                case .connected, .completed:
+                    self.cancelIceDisconnectionTimer(for: peerId) // Successfully connected or reconnected
+                    // Only update to .connected if not already there.
+                    // If it was .iceReconnecting, this means recovery was successful.
+                    if player.connectionPhase != .connected {
+                        logger.logRTC("GM: ICE for \(peerId.rawValue) is now \(newState.rawValue). Updating phase to .connected.")
+                        self.updatePlayerConnectionPhase(playerId: peerId, phase: .connected)
+                    } else {
+                        logger.logRTC("GM: ICE for \(peerId.rawValue) is \(newState.rawValue), phase already .connected.")
                     }
-                    // Other states are either handled by `onError` or `onConnectionEstablished`
+
+                case .disconnected:
+                    // ICE connection is temporarily lost. Try to recover.
+                    // Only start recovery if we are in a state that expects an active connection
+                    // or already trying to connect/reconnect.
+                    if player.connectionPhase == .connected ||
+                       player.connectionPhase == .connecting ||
+                       player.connectionPhase == .exchangingNetworkInfo ||
+                       player.connectionPhase == .iceReconnecting { // If already reconnecting, restart timer
+                        logger.logRTC("GM: ICE for \(peerId.rawValue) is .disconnected. Updating phase to .iceReconnecting and starting recovery timer.")
+                        self.updatePlayerConnectionPhase(playerId: peerId, phase: .iceReconnecting)
+                        self.startIceDisconnectionTimer(for: peerId)
+                    } else {
+                        logger.logRTC("GM: ICE for \(peerId.rawValue) is .disconnected, but current phase \(player.connectionPhase.rawValue) does not warrant ICE recovery attempt now (e.g., still in SDP negotiation or already failed/idle).")
+                    }
+
+                case .failed, .closed:
+                    // These are handled by connectionManager.onError, which will set phase to .failed.
+                    // We also cancel any lingering ICE recovery timer here just in case.
+                    logger.logRTC("GM: ICE for \(peerId.rawValue) is \(newState.rawValue). This should be handled by P2PCM's onError. Cancelling ICE recovery timer if any.")
+                    self.cancelIceDisconnectionTimer(for: peerId)
+                    // If not already failed, mark it as such.
+                    // The onError callback in P2PCM should lead to updatePlayerConnectionPhase(.failed)
+                    if player.connectionPhase != .failed && player.connectionPhase != .disconnected {
+                         // This is a fallback; onError should primarily handle this.
+                         self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
+                         self.connectionManager.closeConnection(for: peerId) // Ensure cleanup
+                    }
+
+
+                case .checking:
+                    // Player's phase might be .connecting or .exchangingNetworkInfo
+                    // If it was .iceReconnecting, this is a good sign.
+                    if player.connectionPhase == .iceReconnecting {
+                        logger.logRTC("GM: ICE for \(peerId.rawValue) is .checking (was .iceReconnecting). Recovery seems in progress.")
+                    } else if player.connectionPhase != .connected &&
+                              player.connectionPhase != .failed &&
+                              player.connectionPhase != .disconnected {
+                        // Update to .connecting if in an earlier phase like .exchangingNetworkInfo
+                        if [.initiating, .offering, .waitingForAnswer, .answering, .waitingForOffer, .exchangingNetworkInfo].contains(player.connectionPhase) {
+                            self.updatePlayerConnectionPhase(playerId: peerId, phase: .connecting)
+                        }
+                    }
+                case .new:
+                    logger.logRTC("GM: ICE for \(peerId.rawValue) is .new.")
                 default:
-                    break
+                    logger.logRTC("GM: ICE for \(peerId.rawValue) entered an unknown state: \(newState.rawValue).")
                 }
             }
         }
@@ -311,6 +335,7 @@ extension GameManager {
         }
         if gameState.players[playerIndex].connectionPhase != phase {
             cancelConnectionTimer(for: playerId)
+            cancelIceDisconnectionTimer(for: playerId)
             gameState.players[playerIndex].connectionPhase = phase
             logger.logRTC("Player \(playerId) phase -> \(phase.rawValue)")
             
@@ -324,7 +349,7 @@ extension GameManager {
                 startConnectionTimer(for: playerId, timeout: iceExchangeTimeout, timedOutPhase: phase)
             case .offering, .answering: // These phases should also have a timeout if they get stuck before transitioning
                 startConnectionTimer(for: playerId, timeout: answerWaitTimeout, timedOutPhase: phase) // Reuse answerWait or a specific one
-            case .connected, .failed, .disconnected, .idle, .initiating:
+            case .connected, .failed, .disconnected, .idle, .initiating, .iceReconnecting:
                 // No timer needed or implicitly covered, existing timer already cancelled.
                 break
             }
@@ -411,30 +436,6 @@ extension GameManager {
             }
         }
     }
-    
-    // Ensure timers are cancelled when connections succeed or fail for other reasons.
-    // In setupConnectionManagerCallbacks:
-    // connectionManager.onConnectionEstablished = { [weak self] peerId in
-    //     guard let self = self else { return }
-    //     logger.logRTC("✅ P2P Connection established with \(peerId.rawValue)")
-    //     self.cancelConnectionTimer(for: peerId) // <<< ADD THIS
-    //     self.updatePlayerConnectionPhase(playerId: peerId, phase: .connected)
-    // }
-    //
-    // connectionManager.onError = { [weak self] (peerId, error) in
-    //     guard let self = self else { return }
-    //     logger.log("❌ P2P Error with \(peerId.rawValue): \(error.localizedDescription)")
-    //     self.cancelConnectionTimer(for: peerId) // <<< ADD THIS
-    //     self.updatePlayerConnectionPhase(playerId: peerId, phase: .failed)
-    // }
-    
-    // In handlePeerPresenceChange:
-    // if isOnline { ...
-    // } else { // Peer went offline
-    //     logger.logRTC("GM: Peer \(peerId.rawValue) went offline.")
-    //     self.cancelConnectionTimer(for: peerId) // <<< ADD THIS
-    //     // ... rest of offline logic
-    // }
     
     // MARK: Handler methods
     @MainActor
@@ -651,6 +652,7 @@ extension GameManager {
             // Peer went offline.
             logger.logRTC("Peer \(peerId.rawValue) went offline.")
             self.cancelConnectionTimer(for: peerId)
+            self.cancelIceDisconnectionTimer(for: peerId)
             // Update connection status
             if player.isP2PConnected ||
                 [.initiating, .offering, .waitingForAnswer, .answering, .waitingForOffer, .exchangingNetworkInfo, .connecting].contains(player.connectionPhase) {
@@ -724,6 +726,72 @@ extension GameManager {
             logger.debug("\(localPlayerId.rawValue) is designated answerer for \(peerId.rawValue). Will wait for offer via listener.")
             self.updatePlayerConnectionPhase(playerId: peerId, phase: .waitingForOffer)
             // Listener (onOfferReceived) will handle it.
+        }
+    }
+
+    @MainActor
+    private func startIceDisconnectionTimer(for peerId: PlayerId) {
+        // Cancel any existing timer for this peer first
+        cancelIceDisconnectionTimer(for: peerId)
+
+        logger.logRTC("GM: Starting \(iceDisconnectionRecoveryTimeout)s ICE disconnection recovery timer for \(peerId.rawValue).")
+        let timer = Timer.scheduledTimer(withTimeInterval: iceDisconnectionRecoveryTimeout, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleIceDisconnectionTimeout(for: peerId)
+            }
+        }
+        iceDisconnectionTimers[peerId] = timer
+    }
+
+    @MainActor
+    private func cancelIceDisconnectionTimer(for peerId: PlayerId) {
+        if let timer = iceDisconnectionTimers[peerId] {
+            timer.invalidate()
+            iceDisconnectionTimers.removeValue(forKey: peerId)
+            logger.logRTC("GM: Cancelled ICE disconnection recovery timer for \(peerId.rawValue).")
+        }
+    }
+
+    @MainActor
+    private func handleIceDisconnectionTimeout(for peerId: PlayerId) {
+        guard let player = gameState.players.first(where: { $0.id == peerId }) else {
+            logger.logRTC("GM: ICE Disconnection Timer: Peer \(peerId.rawValue) not found.")
+            iceDisconnectionTimers.removeValue(forKey: peerId) // Clean up just in case
+            return
+        }
+
+        // Check if the connection recovered or failed further *before* the timer fired and changed phase
+        if player.connectionPhase != .iceReconnecting {
+            logger.logRTC("GM: ICE Disconnection Timer fired for \(peerId.rawValue), but phase is now \(player.connectionPhase.rawValue). Assuming resolved or handled elsewhere.")
+            iceDisconnectionTimers.removeValue(forKey: peerId) // Ensure cleanup if timer fired for an old state
+            return
+        }
+
+        logger.logRTC("GM: ICE Disconnection TIMEOUT for \(peerId.rawValue). ICE did not recover from .disconnected state. Marking as failed.")
+        iceDisconnectionTimers.removeValue(forKey: peerId) // Remove the fired timer
+
+        // Treat as a full P2P failure for this peer
+        updatePlayerConnectionPhase(playerId: peerId, phase: .failed) // This will also cancel other timers
+        connectionManager.closeConnection(for: peerId) // Clean up WebRTC resources
+
+        // Optionally, attempt to reconnect if peer is still "online" according to Firebase Presence
+        if player.firebasePresenceOnline {
+            logger.logRTC("GM: ICE Disconnection Timeout - Peer \(peerId.rawValue) is still Firebase-online. Attempting full P2P reconnection.")
+            Task {
+                do {
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+                    if gameState.getPlayer(by: peerId).firebasePresenceOnline { // Re-check after delay
+                         attemptP2PConnection(with: peerId)
+                    } else {
+                        logger.logRTC("GM: ICE Disconnection Timeout - Peer \(peerId.rawValue) went offline during retry delay.")
+                        updatePlayerConnectionPhase(playerId: peerId, phase: .disconnected) // Mark as fully disconnected
+                    }
+                } catch {
+                     logger.log("GM: ICE Disconnection Timeout - Sleep interrupted during retry prep for \(peerId.rawValue).")
+                }
+            }
+        } else {
+            logger.logRTC("GM: ICE Disconnection Timeout - Peer \(peerId.rawValue) is not Firebase-online. Will not auto-retry P2P now.")
         }
     }
 }

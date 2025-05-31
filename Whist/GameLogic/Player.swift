@@ -45,6 +45,7 @@ enum P2PConnectionPhase: String, CaseIterable {
     case waitingForAnswer = "Waiting for Answer..."
     case exchangingNetworkInfo = "Exchanging Network Info..." // ICE exchange
     case connecting = "Connecting..." // ICE connected, DTLS handshake
+    case iceReconnecting = "ICE Reconnecting..." 
     case connected = "Connected"
     case failed = "Failed"
     case disconnected = "Disconnected"

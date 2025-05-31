@@ -321,15 +321,19 @@ extension P2PConnectionManager: RTCPeerConnectionDelegate {
 
             switch newState {
             case .connected, .completed:
-                logger.logRTC("ICE connected")
-            case .failed, .disconnected, .closed:
-                logger.logRTC("ICE connection failed or closed")
-                let error = NSError(domain: "P2PConnectionManager", code: 1004, userInfo: [NSLocalizedDescriptionKey: "ICE connection failed with state: \(newState.rawValue)"])
-                if let peerId = peerConnections.first(where: { $0.value == peerConnection })?.key {
-                    onError?(peerId, error)
-                }
+                logger.logRTC("ICE connection for peer \(peerId.rawValue) is now \(newState.rawValue).")
+            case .failed, .closed:
+                logger.logRTC("ICE connection for peer \(peerId.rawValue) FAILED or CLOSED (state: \(newState.rawValue)). Calling onError.")
+                let error = NSError(domain: "P2PConnectionManager", code: 1004, userInfo: [NSLocalizedDescriptionKey: "ICE connection state for \(peerId.rawValue): \(newState.rawValue)"])
+                onError?(peerId, error)
+            case .disconnected:
+                logger.logRTC("ICE connection for peer \(peerId.rawValue) is DISCONNECTED. GameManager will attempt recovery.")
+            case .checking:
+                logger.logRTC("ICE connection for peer \(peerId.rawValue) is CHECKING.")
+            case .new:
+                 logger.logRTC("ICE connection for peer \(peerId.rawValue) is NEW.")
             default:
-                break
+                logger.logRTC("ICE connection for peer \(peerId.rawValue) changed to UNKNOWN state: \(newState.rawValue).")
             }
         } else {
             logger.logRTC("ICE state changed, but couldn't find peerId for this peerConnection.")

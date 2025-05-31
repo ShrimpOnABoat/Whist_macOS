@@ -31,6 +31,8 @@ struct MatchMakingView: View {
             return ("Échange d'infos réseau...", .blue)
         case .connecting:
             return ("Connexion...", .purple)
+        case .iceReconnecting:
+            return ("Reconnexion en cours...", .yellow)
         case .connected:
             return ("Connecté", .green)
         case .failed:
@@ -237,6 +239,7 @@ struct ConnectionVisualizationView: View {
         case .waitingForAnswer: return ("En attente d'une réponse ...", .yellow)
         case .exchangingNetworkInfo: return ("Échange d'infos réseau ...", .blue)
         case .connecting: return ("Connexion ...", .purple)
+        case .iceReconnecting: return ("Reconnexion en cours ...", .yellow)
         case .connected: return ("Connecté", .green)
         case .failed: return ("Échec", .red)
         case .disconnected: return ("Déconnecté", .pink)

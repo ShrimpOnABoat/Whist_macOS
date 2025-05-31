@@ -44,6 +44,8 @@ class GameManager: ObservableObject {
     let signalingManager: FirebaseSignalingManager
     var networkingStarted: Bool = false
     var connectionAttemptTimers: [PlayerId: Timer] = [:]
+    var iceDisconnectionTimers: [PlayerId: Timer] = [:]
+    let iceDisconnectionRecoveryTimeout: TimeInterval = 10.0
     #if DEBUG
     let offerWaitTimeout: TimeInterval = 5.0 // Time to wait for an offer if I'm an answerer
     let answerWaitTimeout: TimeInterval = 5.0 // Time to wait for an answer if I'm an offerer
