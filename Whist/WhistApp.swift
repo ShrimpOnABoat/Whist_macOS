@@ -9,6 +9,7 @@ import SwiftUI
 import Firebase
 import FirebaseAppCheck
 import FirebaseAuth
+import AppKit
 
 @main
 struct WhistApp: App {
@@ -169,20 +170,28 @@ struct DatabaseMenuCommands: Commands {
     var body: some Commands {
         CommandMenu("Database") {
             Button("Restore Database from Backup") {
-                let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
-
-                Task {
-                    let scoresManager = ScoresManager.shared // Use shared instance
-                    do {
-                        try await scoresManager.restoreBackup(from: backupDirectory)
-                        // Log success on the main actor
-                        await MainActor.run {
-                             logger.log("✅ Database restored successfully.")
-                        }
-                    } catch {
-                         // Log error on the main actor
-                        await MainActor.run {
-                             logger.log("🚨 Error restoring backup: \(error.localizedDescription)")
+                // Show a warning alert before restoring
+                let alert = NSAlert()
+                alert.messageText = "Are you sure you want to restore the database from backup? This will overwrite existing data."
+                alert.informativeText = "This action cannot be undone."
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "Restore")
+                alert.addButton(withTitle: "Cancel")
+                let response = alert.runModal()
+                if response == .alertFirstButtonReturn {
+                    // User confirmed: perform restore
+                    let backupDirectory = URL(fileURLWithPath: "/Users/tonybuffard/Library/Containers/com.Tony.Whist/Data/Documents/scores/")
+                    Task {
+                        let scoresManager = ScoresManager.shared
+                        do {
+                            try await scoresManager.restoreBackup(from: backupDirectory)
+                            await MainActor.run {
+                                logger.log("✅ Database restored successfully.")
+                            }
+                        } catch {
+                            await MainActor.run {
+                                logger.log("🚨 Error restoring backup: \(error.localizedDescription)")
+                            }
                         }
                     }
                 }
