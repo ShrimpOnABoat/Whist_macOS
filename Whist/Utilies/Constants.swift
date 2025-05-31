@@ -86,8 +86,10 @@ struct DynamicSize {
     var sidePlayerHandHeight: CGFloat { sidePlayerHeight * 0.8 }
     var sidePlayerStateYOffset: CGFloat { proportion * -20 }
     var sidePlayerInfoWidth: CGFloat { sidePlayerWidth }
-    let fanRadius: CGFloat = 300
-    let minCardAngle: CGFloat = 5
+    let localFanRadius: CGFloat = 500
+    let minLocalCardAngle: CGFloat = 5
+    let sideFanRadius: CGFloat = 300
+    let minSideCardAngle: CGFloat = 5
     var playerViewHorizontalSpacing: CGFloat { widthProportion * 30 }
     var localPlayerHandWidth: CGFloat { localPlayerWidth * 1 }
     var localPlayerHandHeight: CGFloat { localPlayerHeight * 0.5 }

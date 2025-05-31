@@ -434,7 +434,9 @@ struct PlayerView: View {
         if handCount == 0 {
             Spacer()
         } else {
-            let angleBetweenCards = min(dynamicSize.minCardAngle, 180 / CGFloat(handCount))
+            let minCardAngle = player.tablePosition == .local ? dynamicSize.minLocalCardAngle : dynamicSize.minSideCardAngle
+            let fanRadius = player.tablePosition == .local ? dynamicSize.localFanRadius : dynamicSize.sideFanRadius
+            let angleBetweenCards = min(minCardAngle, 180 / CGFloat(handCount))
             let totalAngle = angleBetweenCards * CGFloat(handCount - 1)
             let startAngle = -totalAngle / 2
             
@@ -448,8 +450,8 @@ struct PlayerView: View {
             let cardPositions = player.hand.enumerated().map { (cardIndex, card) -> (Card, CGFloat, CGFloat, CGFloat) in
                 let cardAngle = startAngle + CGFloat(cardIndex) * angleBetweenCards
                 let angleInRadians = cardAngle * .pi / 180
-                var xOffset = dynamicSize.fanRadius * sin(angleInRadians)
-                var yOffset = dynamicSize.fanRadius * (1 - cos(angleInRadians))
+                var xOffset = fanRadius * sin(angleInRadians)
+                var yOffset = fanRadius * (1 - cos(angleInRadians))
                 var rotation = cardAngle
                 
                 let isLeft = (player.tablePosition == .left)
