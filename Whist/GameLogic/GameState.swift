@@ -179,7 +179,7 @@ class GameState: ObservableObject, Codable, @unchecked Sendable {
             errors.append("Round \(round) is out of valid range (0...12).")
         }
         
-        // 2. All 32 cards accounted for and no duplicates
+        // 2. All 36 cards accounted for and no duplicates
         var allCards = deck
         players.forEach { allCards.append(contentsOf: $0.hand) }
         players.forEach { allCards.append(contentsOf: $0.trickCards) }
