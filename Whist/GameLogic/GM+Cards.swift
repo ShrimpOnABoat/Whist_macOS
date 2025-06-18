@@ -270,19 +270,29 @@ extension GameManager {
         let player = gameState.getPlayer(by: localPlayerId)
         
         // Define the suit order
-        let suitOrder: [Suit] = [.hearts, .clubs, .diamonds, .spades]
-        
-        // Sort the hand based on suit order and rank
-        player.hand.sort { card1, card2 in
-            if card1.suit == card2.suit {
-                // If suits are the same, compare ranks
-                return card1.rank.precedence < card2.rank.precedence
-            } else {
-                // Otherwise, sort by suit order
-                return suitOrder.firstIndex(of: card1.suit)! < suitOrder.firstIndex(of: card2.suit)!
-            }
+        let suitsInHand = Set(player.hand.map { $0.suit })
+        let suitOrder: [Suit]
+        if !suitsInHand.contains(.clubs) {
+            suitOrder = [.hearts, .spades, .diamonds]
+        } else if !suitsInHand.contains(.diamonds) {
+            suitOrder = [.clubs, .hearts, .spades]
+        } else {
+            suitOrder = [.hearts, .clubs, .diamonds, .spades]
         }
         
+        // Sort the hand based on suit order and rank
+        withAnimation(.easeInOut(duration: 0.4)) {
+            player.hand.sort { card1, card2 in
+                if card1.suit == card2.suit {
+                    // If suits are the same, compare ranks
+                    return card1.rank.precedence < card2.rank.precedence
+                } else {
+                    // Otherwise, sort by suit order
+                    return suitOrder.firstIndex(of: card1.suit)! < suitOrder.firstIndex(of: card2.suit)!
+                }
+            }
+        }
+
         //        logger.log("Local player's hand has been sorted.")
     }
     
@@ -314,7 +324,7 @@ extension GameManager {
             card.isPlayable = false
         }
         
-//        saveGameState(gameState)
+        sortLocalPlayerHand()
         
         logger.log("Card \(card) played by \(localPlayer.username). Updated gameState.table: \(gameState.table)")
         
@@ -562,7 +572,7 @@ extension GameManager {
         
         // Send the information to other players
         sendDiscardedCards(cardsToDiscard)
-//        saveGameState(gameState)
+        sortLocalPlayerHand()
         
         logger.log("Discarded cards: \(cardsToDiscard)")
         

@@ -126,6 +126,7 @@ struct PlayerView: View {
                     HStack {
                         PlayerInfo(dynamicSize: dynamicSize)
                         StateDisplay()
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .offset(y: dynamicSize.sidePlayerStateYOffset)
                     }
                     .frame(width: dynamicSize.sidePlayerInfoWidth)
@@ -165,6 +166,7 @@ struct PlayerView: View {
                 } else {
                     HStack {
                         StateDisplay()
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                             .offset(y: dynamicSize.sidePlayerStateYOffset)
                         PlayerInfo(dynamicSize: dynamicSize)
                     }
@@ -521,6 +523,7 @@ struct PlayerView: View {
                         dynamicSize: dynamicSize
                     )
                 }
+                .animation(.easeInOut(duration: 0.4), value: player.hand)
             }
         }
     }

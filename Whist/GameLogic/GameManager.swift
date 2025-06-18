@@ -218,9 +218,9 @@ class GameManager: ObservableObject {
         autoPilot = false // Resets the autoPilot
         
 #if DEBUG
-//        if gameState.localPlayer?.id != .toto {
+        if gameState.localPlayer?.id != .toto {
             autoPilot = true
-//        }
+        }
 #endif
         
         // Move to the next dealer in playOrder
