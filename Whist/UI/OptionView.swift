@@ -180,11 +180,9 @@ struct OptionsView: View {
     }
     
     private func handleBetSelection(_ bet: Int) {
-        if selectedBet != bet {
-            selectedBet = bet
-            gameManager.choseBet(bet: bet)
-            gameManager.checkAndAdvanceStateIfNeeded()
-        }
+        selectedBet = (selectedBet == bet) ? nil : bet
+        gameManager.choseBet(bet: selectedBet)
+        gameManager.checkAndAdvanceStateIfNeeded()
     }
     
     private func handleRandomBetSelection() {

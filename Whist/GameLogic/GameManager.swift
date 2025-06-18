@@ -406,13 +406,27 @@ class GameManager: ObservableObject {
     }
     
     func updateGameStateWithBet(from playerId: PlayerId, with bet: Int) {
+        let player = gameState.getPlayer(by: playerId)
+
+        if bet == -1 {
+            // Player cancelled his bet
+            if player.announcedTricks.count == gameState.round {
+                player.announcedTricks.removeLast()
+                player.madeTricks.removeLast()
+                logger.log("Player \(playerId) cancelled their bet.")
+            } else {
+                logger.log("Player \(playerId) tried to cancel a bet, but none was found for this round.")
+            }
+            self.objectWillChange.send()
+            return
+        }
+        
         // Check if bet legal
         if !(bet > -1 && bet <= max(gameState.round - 2, 1)) {
             logger.fatalErrorAndLog("Received a illegal bet from \(playerId) with \(bet).")
         }
 
         // Set the player's bet
-        let player = gameState.getPlayer(by: playerId)
         if player.announcedTricks.count < gameState.round {
             player.announcedTricks.append(bet)
             player.madeTricks.append(0)
@@ -569,7 +583,7 @@ class GameManager: ObservableObject {
     }
     
     // MARK: Choose bet
-    func choseBet(bet: Int) {
+    func choseBet(bet: Int?) {
         // Ensure the local player is defined
         guard let localPlayer = gameState.localPlayer else {
             logger.fatalErrorAndLog("Error: Local player is not defined.")
@@ -581,20 +595,24 @@ class GameManager: ObservableObject {
         }
         
         if localPlayer.announcedTricks.count == gameState.round {
-            // player updates his current bet
-            localPlayer.announcedTricks[localPlayer.announcedTricks.count-1] = bet
+            if bet != nil {
+                // player updates his current bet
+                localPlayer.announcedTricks[localPlayer.announcedTricks.count-1] = bet!
+            } else {
+                // Player deselected his bet
+                if localPlayer.announcedTricks.count == gameState.round {
+                    localPlayer.announcedTricks.removeLast()
+                    localPlayer.madeTricks.removeLast()
+                }
+            }
         } else {
             // first bet for this round
-            localPlayer.announcedTricks.append(bet)
+            localPlayer.announcedTricks.append(bet!)
             localPlayer.madeTricks.append(0)
         }
         
         // Notify other players about the action
-        sendBetToPlayers(bet)
-//        Task {
-//            saveGameState(gameState)
-//        }
-        //        checkAndAdvanceStateIfNeeded()
+        sendBetToPlayers(bet ?? -1)
     }
     
     // MARK: Cancel Trump Choice
