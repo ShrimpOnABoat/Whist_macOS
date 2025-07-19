@@ -26,6 +26,25 @@ class P2PConnectionManager: NSObject {
     var onSignalingStateChanged: ((_ peerId: PlayerId, _ newState: RTCSignalingState) -> Void)?
     var onError: ((PlayerId, Error) -> Void)?
 
+    enum Secrets {
+        static var username: String {
+            getValue(for: "TURNUsername")
+        }
+
+        static var credential: String {
+            getValue(for: "TURNCredential")
+        }
+
+        private static func getValue(for key: String) -> String {
+            guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
+                  let dict = NSDictionary(contentsOfFile: path),
+                  let value = dict[key] as? String else {
+                fatalError("Missing or invalid key \(key) in Secrets.plist")
+            }
+            return value
+        }
+    }
+
     private let factory: RTCPeerConnectionFactory = {
         RTCInitializeSSL()
         let encoderFactory = RTCDefaultVideoEncoderFactory()
@@ -36,7 +55,27 @@ class P2PConnectionManager: NSObject {
     private lazy var config: RTCConfiguration = {
         let config = RTCConfiguration()
         config.iceServers = [
-            RTCIceServer(urlStrings: ["stun:stun.l.google.com:19302"])
+            RTCIceServer(urlStrings: ["stun:stun.relay.metered.ca:80"]),
+            RTCIceServer(
+                urlStrings: ["turn:na.relay.metered.ca:80"],
+                username: Secrets.username,
+                credential: Secrets.credential
+            ),
+            RTCIceServer(
+                urlStrings: ["turn:na.relay.metered.ca:80?transport=tcp"],
+                username: Secrets.username,
+                credential: Secrets.credential
+            ),
+            RTCIceServer(
+                urlStrings: ["turn:na.relay.metered.ca:443"],
+                username: Secrets.username,
+                credential: Secrets.credential
+            ),
+            RTCIceServer(
+                urlStrings: ["turns:na.relay.metered.ca:443?transport=tcp"],
+                username: Secrets.username,
+                credential: Secrets.credential
+            )
         ]
         config.sdpSemantics = .unifiedPlan
         config.iceTransportPolicy = .all
