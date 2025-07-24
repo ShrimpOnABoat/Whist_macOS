@@ -17,7 +17,10 @@ class P2PConnectionManager: NSObject {
     private var incomingDataChannelsMap: [RTCDataChannel: PlayerId] = [:]
     private var remoteCandidates: [PlayerId: [RTCIceCandidate]] = [:]
     private var pendingIceCandidates: [PlayerId: [RTCIceCandidate]] = [:]
-
+    // Queue of unsent messages for each peer. Messages are flushed when the
+    // corresponding data channel becomes available.
+    private var messageQueues: [PlayerId: [String]] = [:]
+    
     var peerConnections: [PlayerId: RTCPeerConnection] = [:]
     var onMessageReceived: ((PlayerId, String) -> Void)?
     var onConnectionEstablished: ((PlayerId) -> Void)?
@@ -309,6 +312,7 @@ class P2PConnectionManager: NSObject {
                     let sent = channel.sendData(buffer)
                     if !sent {
                         logger.log("Simulated lag: Failed to send message to \(peerId)")
+                        self.messageQueues[peerId, default: []].append(message)
                     } else {
                         logger.logRTC("Simulated lag: Message sent to \(peerId) after \(Int(delay * 1000))ms")
                     }
@@ -317,17 +321,37 @@ class P2PConnectionManager: NSObject {
                 let sent = channel.sendData(buffer)
                 if !sent {
                     logger.log("Failed to send message to \(peerId)")
+                    self.messageQueues[peerId, default: []].append(message)
                     allSent = false
                 } else {
                     logger.logRTC("Message sent to \(peerId) on channel \(channel)")
                 }
                 #endif
             } else {
-                logger.log("Data channel to \(peerId) not open")
+                logger.log("Data channel to \(peerId) not open, queueing message")
+                self.messageQueues[peerId, default: []].append(message)
                 allSent = false
             }
         }
         return allSent
+    }
+    
+    /// Attempts to send any queued messages for the specified peer.
+    private func flushMessageQueue(for peerId: PlayerId) {
+        guard let channel = outgoingDataChannels[peerId], channel.readyState == .open else { return }
+        var queue = messageQueues[peerId] ?? []
+        while !queue.isEmpty {
+            let msg = queue.removeFirst()
+            let buffer = RTCDataBuffer(data: msg.data(using: .utf8)!, isBinary: false)
+            if !channel.sendData(buffer) {
+                logger.log("Failed to flush queued message to \(peerId)")
+                messageQueues[peerId] = [msg] + queue
+                return
+            } else {
+                logger.logRTC("Flushed queued message to \(peerId)")
+            }
+        }
+        messageQueues[peerId] = queue
     }
 }
 
@@ -437,10 +461,12 @@ extension P2PConnectionManager: RTCDataChannelDelegate {
             if let peerId = incomingDataChannelsMap[dataChannel] {
                 Task { @MainActor in
                     onConnectionEstablished?(peerId)
+                    flushMessageQueue(for: peerId)
                 }
             } else if let peerId = outgoingDataChannels.first(where: { $0.value === dataChannel })?.key {
                 Task { @MainActor in
                     onConnectionEstablished?(peerId)
+                    flushMessageQueue(for: peerId)
                 }
             }
         case .closed:
@@ -485,5 +511,6 @@ extension P2PConnectionManager: RTCDataChannelDelegate {
         
         remoteCandidates.removeValue(forKey: peerId)
         pendingIceCandidates.removeValue(forKey: peerId)
+        messageQueues.removeValue(forKey: peerId)
     }
 }

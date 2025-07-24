@@ -218,7 +218,16 @@ struct DatabaseMenuCommands: Commands {
             }
             
             Button("Clear Saved Game") {
-                gameManager.clearSavedGameAtions()
+                let alert = NSAlert()
+                alert.messageText = "Are you sure you want to clear the saved game?"
+                alert.informativeText = "This action cannot be undone."
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "Clear")
+                alert.addButton(withTitle: "Cancel")
+                let response = alert.runModal()
+                if response == .alertFirstButtonReturn {
+                    gameManager.clearSavedGameAtions()
+                }
             }
         }
     }
