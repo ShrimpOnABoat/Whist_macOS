@@ -18,6 +18,14 @@ enum PlayerId: String, Codable, CaseIterable {
     case dd = "dd"
     case gg = "gg"
     case toto = "toto"
+    
+    var displayName: String {
+        switch self {
+        case .dd: return "DD"
+        case .gg: return "GG"
+        case .toto: return "Toto"
+        }
+    }
 }
 
 @MainActor

@@ -11,11 +11,22 @@ struct ScoreBoardView: View {
     @EnvironmentObject var gameManager: GameManager
     var dynamicSize: DynamicSize
 
-    let playOrder: [PlayerId] = [.gg, .dd, .toto]
-    
+        
     var body: some View {
         let round = gameManager.gameState.round
         let roundString = round < 4 ? "\(round)/3" : "\(round - 2)"
+        
+        // Display order: left player, then local player, then right player
+        let playOrder: [PlayerId] = {
+            if let leftId = gameManager.gameState.leftPlayer?.id,
+               let localId = gameManager.gameState.localPlayer?.id,
+               let rightId = gameManager.gameState.rightPlayer?.id {
+                return [leftId, localId, rightId]
+            } else {
+                // Fallback to whatever order the players are currently stored in
+                return gameManager.gameState.players.map { $0.id }
+            }
+        }()
         
         VStack(spacing: dynamicSize.vstackScoreSpacing) {
             // Round number
@@ -25,11 +36,11 @@ struct ScoreBoardView: View {
 
             // Header row: Player IDs
             HStack {
-                ForEach(["GG", "DD", "Toto"], id: \.self) { name in
-                        Text(name)
-                            .font(.system(size: dynamicSize.nameSize))
-                            .bold(true)
-                            .frame(maxWidth: .infinity)
+                ForEach(playOrder, id: \.self) { id in
+                    Text(id.displayName) // or use player.name if available
+                        .font(.system(size: dynamicSize.nameSize))
+                        .bold(true)
+                        .frame(maxWidth: .infinity)
                 }
             }
 
