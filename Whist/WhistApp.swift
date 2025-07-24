@@ -40,7 +40,7 @@ struct WhistApp: App {
         }
         logger.log("Firebase UID: \(Auth.auth().currentUser?.uid ?? "nil")")
         let settings = FirestoreSettings()
-        settings.cacheSettings = MemoryCacheSettings() // Use in-memory cache
+        settings.cacheSettings = PersistentCacheSettings() // Use disk-backed cache
         Firestore.firestore().settings = settings
         #if DEBUG // So that I can assign a player for each app
         UserDefaults.standard.removeObject(forKey: "playerId")
