@@ -39,13 +39,21 @@ struct MovingCardView: View {
     @ObservedObject var movingCard: MovingCard
     var dynamicSize: DynamicSize
     
-    @State private var position: CGPoint = .zero
-    @State private var rotation: Double = 0
-    @State private var scale: CGFloat = 1.0
+    @State private var position: CGPoint
+    @State private var rotation: Double
+    @State private var scale: CGFloat
     @State private var hasAnimated: Bool = false // To ensure animation occurs only once
     @State private var animationDuration: TimeInterval = 0.4
     // Special animation state variables
     @State private var offsetY: CGFloat = 0
+    
+    init(movingCard: MovingCard, dynamicSize: DynamicSize) {
+        self.movingCard = movingCard
+        self.dynamicSize = dynamicSize
+        _position = State(initialValue: movingCard.fromState.position)
+        _rotation = State(initialValue: movingCard.fromState.rotation)
+        _scale = State(initialValue: movingCard.fromState.scale)
+    }
 
     var body: some View {
         // elevate the card a little
@@ -61,10 +69,6 @@ struct MovingCardView: View {
                 y: movingCard.card.elevation
             )
             .onAppear {
-                // Initialize with source transformations
-                self.position = movingCard.fromState.position
-                self.rotation = movingCard.fromState.rotation
-                self.scale = movingCard.fromState.scale
                 movingCard.card.elevation = 5
             }
             .onChange(of: movingCard.toState) { newToState in
