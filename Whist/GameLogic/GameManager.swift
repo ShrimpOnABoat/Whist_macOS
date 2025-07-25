@@ -463,6 +463,7 @@ class GameManager: ObservableObject {
         }
 
         self.objectWillChange.send() // To force a refresh for the last player
+        checkAndAdvanceStateIfNeeded() // To fix the trump card visibility for the 2nd player in the first 3 rounds
     }
     
     func updateGameStateWithTrump(from playerId: PlayerId, with card: Card) {
